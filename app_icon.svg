@@ -1,0 +1,15 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Red background with rounded corners -->
+  <rect width="1024" height="1024" rx="150" ry="150" fill="#E53E3E"/>
+  
+  <!-- White clapperboard body -->
+  <rect x="205" y="205" width="614" height="430" fill="white"/>
+  
+  <!-- Black stripes -->
+  <rect x="245" y="245" width="49" height="307" fill="black"/>
+  <rect x="365" y="245" width="49" height="307" fill="black"/>
+  <rect x="485" y="245" width="49" height="307" fill="black"/>
+  
+  <!-- White handle -->
+  <rect x="266" y="717" width="492" height="92" fill="white"/>
+</svg>
