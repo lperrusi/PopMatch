@@ -25,14 +25,13 @@ class RetroCinemaShowCard extends StatefulWidget {
 }
 
 class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
-  Color? _dominantColor;
   bool _isLightBackground = false;
   bool _isLoadingColor = true;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Defer color extraction to avoid blocking UI
     if (widget.show.posterUrl != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -50,21 +49,21 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
 
   Future<void> _extractColorFromImage() async {
     if (!mounted) return;
-    
+
     try {
       final imageProvider = CachedNetworkImageProvider(widget.show.posterUrl!);
       final paletteGenerator = await PaletteGenerator.fromImageProvider(
         imageProvider,
         maximumColorCount: 5,
       );
-      
+
       if (mounted) {
-        final dominantColor = paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
+        final dominantColor =
+            paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
         final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
         final isLight = brightness == Brightness.light;
-        
+
         setState(() {
-          _dominantColor = dominantColor;
           _isLightBackground = isLight;
           _isLoadingColor = false;
         });
@@ -216,7 +215,8 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (widget.show.genres != null && widget.show.genres!.isNotEmpty)
+                    if (widget.show.genres != null &&
+                        widget.show.genres!.isNotEmpty)
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
@@ -257,7 +257,7 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
                               child: Container(
                                 width: 56,
                                 height: 56,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: AppTheme.sepiaBrown,
                                 ),
@@ -276,7 +276,7 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
                               child: Container(
                                 width: 56,
                                 height: 56,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: AppTheme.sepiaBrown,
                                 ),

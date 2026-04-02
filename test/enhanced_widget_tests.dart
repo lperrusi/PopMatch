@@ -48,7 +48,7 @@ void main() {
         publishedAt: '2023-01-01',
       );
 
-      testPlatform = StreamingPlatform(
+      testPlatform = const StreamingPlatform(
         id: 'netflix',
         name: 'Netflix',
         logoPath: '/netflix-logo.png',
@@ -56,9 +56,11 @@ void main() {
     });
 
     group('MovieCard Widget', () {
-      testWidgets('should display movie information correctly with proper constraints', (WidgetTester tester) async {
+      testWidgets(
+          'should display movie information correctly with proper constraints',
+          (WidgetTester tester) async {
         bool tapped = false;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -87,9 +89,10 @@ void main() {
         expect(tapped, isTrue);
       });
 
-      testWidgets('should handle movie with no rating', (WidgetTester tester) async {
+      testWidgets('should handle movie with no rating',
+          (WidgetTester tester) async {
         final movieWithoutRating = testMovie.copyWith(voteAverage: null);
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -112,11 +115,13 @@ void main() {
         expect(find.text('2023'), findsOneWidget);
       });
 
-      testWidgets('should handle movie with long title', (WidgetTester tester) async {
+      testWidgets('should handle movie with long title',
+          (WidgetTester tester) async {
         final movieWithLongTitle = testMovie.copyWith(
-          title: 'This is a very long movie title that should be truncated properly in the UI',
+          title:
+              'This is a very long movie title that should be truncated properly in the UI',
         );
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -134,15 +139,19 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        expect(find.text('This is a very long movie title that should be truncated properly in the UI'), findsOneWidget);
+        expect(
+            find.text(
+                'This is a very long movie title that should be truncated properly in the UI'),
+            findsOneWidget);
       });
     });
 
     group('SearchBarWidget', () {
-      testWidgets('should display search bar correctly', (WidgetTester tester) async {
+      testWidgets('should display search bar correctly',
+          (WidgetTester tester) async {
         String? searchQuery;
         bool cleared = false;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -161,12 +170,16 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(TextField), findsOneWidget);
-        expect(find.text('Search movies, actors, or genres...'), findsOneWidget);
+        expect(
+            find.text('Search movies, actors, or genres...'), findsOneWidget);
+        expect(searchQuery, isNull);
+        expect(cleared, isFalse);
       });
 
-      testWidgets('should call onSearch when text is submitted', (WidgetTester tester) async {
+      testWidgets('should call onSearch when text is submitted',
+          (WidgetTester tester) async {
         String? searchQuery;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -189,9 +202,10 @@ void main() {
         expect(searchQuery, equals('action movies'));
       });
 
-      testWidgets('should call onClear when clear button is tapped', (WidgetTester tester) async {
+      testWidgets('should call onClear when clear button is tapped',
+          (WidgetTester tester) async {
         bool cleared = false;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -210,22 +224,23 @@ void main() {
         // Enter text to show clear button
         await tester.enterText(find.byType(TextField), 'test');
         await tester.pump();
-        
+
         // Find and tap clear button
         final clearButton = find.byIcon(Icons.clear);
         expect(clearButton, findsOneWidget);
-        
+
         await tester.tap(clearButton);
         await tester.pump();
-        
+
         expect(cleared, isTrue);
       });
     });
 
     group('SearchResultsWidget', () {
-      testWidgets('should display search results correctly', (WidgetTester tester) async {
+      testWidgets('should display search results correctly',
+          (WidgetTester tester) async {
         Movie? tappedMovie;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -244,6 +259,7 @@ void main() {
 
         await tester.pumpAndSettle();
 
+        expect(tappedMovie, isNull);
         expect(find.text('Test Movie'), findsOneWidget);
         expect(find.text('8.5'), findsOneWidget);
       });
@@ -256,7 +272,7 @@ void main() {
                 width: 400,
                 height: 600,
                 child: SearchResultsWidget(
-                  movies: [],
+                  movies: const [],
                   onMovieTap: (movie) {},
                   isLoading: true,
                 ),
@@ -278,7 +294,7 @@ void main() {
                 width: 400,
                 height: 600,
                 child: SearchResultsWidget(
-                  movies: [],
+                  movies: const [],
                   onMovieTap: (movie) {},
                   isLoading: false,
                 ),
@@ -294,9 +310,10 @@ void main() {
     });
 
     group('SearchSuggestionsWidget', () {
-      testWidgets('should display suggestions correctly', (WidgetTester tester) async {
+      testWidgets('should display suggestions correctly',
+          (WidgetTester tester) async {
         String? selectedSuggestion;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -304,8 +321,9 @@ void main() {
                 width: 400,
                 height: 300,
                 child: SearchSuggestionsWidget(
-                  suggestions: ['action', 'adventure', 'comedy'],
-                  onSuggestionTap: (suggestion) => selectedSuggestion = suggestion,
+                  suggestions: const ['action', 'adventure', 'comedy'],
+                  onSuggestionTap: (suggestion) =>
+                      selectedSuggestion = suggestion,
                 ),
               ),
             ),
@@ -314,14 +332,16 @@ void main() {
 
         await tester.pumpAndSettle();
 
+        expect(selectedSuggestion, isNull);
         expect(find.text('action'), findsOneWidget);
         expect(find.text('adventure'), findsOneWidget);
         expect(find.text('comedy'), findsOneWidget);
       });
 
-      testWidgets('should call onSuggestionTap when suggestion is tapped', (WidgetTester tester) async {
+      testWidgets('should call onSuggestionTap when suggestion is tapped',
+          (WidgetTester tester) async {
         String? selectedSuggestion;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -329,8 +349,9 @@ void main() {
                 width: 400,
                 height: 300,
                 child: SearchSuggestionsWidget(
-                  suggestions: ['action'],
-                  onSuggestionTap: (suggestion) => selectedSuggestion = suggestion,
+                  suggestions: const ['action'],
+                  onSuggestionTap: (suggestion) =>
+                      selectedSuggestion = suggestion,
                 ),
               ),
             ),
@@ -345,7 +366,8 @@ void main() {
     });
 
     group('CastCrewWidget', () {
-      testWidgets('should display cast members correctly', (WidgetTester tester) async {
+      testWidgets('should display cast members correctly',
+          (WidgetTester tester) async {
         final castMember = CastMember(
           id: 1,
           name: 'John Doe',
@@ -375,7 +397,8 @@ void main() {
         expect(find.text('Hero'), findsOneWidget);
       });
 
-      testWidgets('should display crew members correctly', (WidgetTester tester) async {
+      testWidgets('should display crew members correctly',
+          (WidgetTester tester) async {
         final crewMember = CrewMember(
           id: 1,
           name: 'Jane Smith',
@@ -407,7 +430,8 @@ void main() {
     });
 
     group('RecommendationsWidget', () {
-      testWidgets('should display recommendations title', (WidgetTester tester) async {
+      testWidgets('should display recommendations title',
+          (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -429,7 +453,8 @@ void main() {
         expect(find.text('Recommendations'), findsOneWidget);
       });
 
-      testWidgets('should display movie in recommendations', (WidgetTester tester) async {
+      testWidgets('should display movie in recommendations',
+          (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -451,9 +476,10 @@ void main() {
         expect(find.text('Test Movie'), findsOneWidget);
       });
 
-      testWidgets('should call onMovieTap when movie is tapped', (WidgetTester tester) async {
+      testWidgets('should call onMovieTap when movie is tapped',
+          (WidgetTester tester) async {
         Movie? tappedMovie;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -482,7 +508,8 @@ void main() {
     });
 
     group('StreamingPlatformLogo', () {
-      testWidgets('should display platform logo with name', (WidgetTester tester) async {
+      testWidgets('should display platform logo with name',
+          (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -503,7 +530,8 @@ void main() {
         expect(find.text('Netflix'), findsOneWidget);
       });
 
-      testWidgets('should display platform logo without name', (WidgetTester tester) async {
+      testWidgets('should display platform logo without name',
+          (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -526,7 +554,8 @@ void main() {
     });
 
     group('VideoPlayerWidget', () {
-      testWidgets('should display video player for YouTube video', (WidgetTester tester) async {
+      testWidgets('should display video player for YouTube video',
+          (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -542,12 +571,14 @@ void main() {
         );
 
         await tester.pumpAndSettle();
-        await tester.pump(const Duration(seconds: 2)); // Wait for initialization
+        await tester
+            .pump(const Duration(seconds: 2)); // Wait for initialization
 
         expect(find.text('Official Trailer'), findsOneWidget);
       });
 
-      testWidgets('should handle non-YouTube videos', (WidgetTester tester) async {
+      testWidgets('should handle non-YouTube videos',
+          (WidgetTester tester) async {
         final nonYouTubeVideo = Video(
           id: 'test-video-2',
           name: 'Vimeo Trailer',
@@ -581,9 +612,10 @@ void main() {
     });
 
     group('Integration Tests', () {
-      testWidgets('should handle movie card with basic features', (WidgetTester tester) async {
+      testWidgets('should handle movie card with basic features',
+          (WidgetTester tester) async {
         bool tapped = false;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -609,9 +641,10 @@ void main() {
         expect(tapped, isTrue);
       });
 
-      testWidgets('should handle search bar with basic features', (WidgetTester tester) async {
+      testWidgets('should handle search bar with basic features',
+          (WidgetTester tester) async {
         String? searchQuery;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -635,4 +668,4 @@ void main() {
       });
     });
   });
-} 
+}

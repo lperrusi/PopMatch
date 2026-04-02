@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PopMatch iPhone (Social)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=TMDB_API_KEY=REPLACE_WITH_YOUR_TMDB_V3_API_KEY",
+        "--dart-define=TMDB_USE_SAMPLE_FALLBACK=false",
+        "--dart-define=SOCIAL_UI_ENABLED=true",
+        "--dart-define=FRIENDS_FEED_ENABLED=true",
+        "--dart-define=FIREBASE_PROJECT_ID=popmatch-48560"
+      ]
+    }
+  ]
+}

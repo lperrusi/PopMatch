@@ -18,14 +18,15 @@ class EnhancedWatchlistScreen extends StatefulWidget {
   const EnhancedWatchlistScreen({super.key});
 
   @override
-  State<EnhancedWatchlistScreen> createState() => _EnhancedWatchlistScreenState();
+  State<EnhancedWatchlistScreen> createState() =>
+      _EnhancedWatchlistScreenState();
 }
 
 class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
-  
+
   // State variables
   List<WatchlistList> _lists = [];
   WatchlistList? _selectedList;
@@ -34,11 +35,11 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
   List<String> _allTags = [];
   bool _isLoading = true;
   String? _error;
-  
+
   // Filter and search
   String _searchQuery = '';
   String _selectedTag = '';
-  String _sortBy = 'date_added';
+  final String _sortBy = 'date_added';
 
   @override
   void initState() {
@@ -64,20 +65,19 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
     try {
       // Load lists
       final lists = await WatchlistService.instance.getLists();
-      
+
       // Load tags
       final movieTags = await WatchlistService.instance.getMovieTags();
       final allTags = await WatchlistService.instance.getAllTags();
-      
+
       setState(() {
         _lists = lists;
         _selectedList = lists.isNotEmpty ? lists.first : null;
         _movieTags = movieTags;
         _allTags = allTags;
       });
-      
+
       await _loadMoviesForSelectedList();
-      
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -96,16 +96,16 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
     try {
       final movieIds = _selectedList!.movieIds;
       final movies = <Movie>[];
-      
+
       for (final movieId in movieIds) {
         try {
           final movie = await TMDBService().getMovieDetails(int.parse(movieId));
-            movies.add(movie);
+          movies.add(movie);
         } catch (e) {
           // Skip movies that can't be loaded
         }
       }
-      
+
       // Apply sorting
       movies.sort((a, b) {
         switch (_sortBy) {
@@ -125,11 +125,10 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             return 0;
         }
       });
-      
+
       setState(() {
         _movies = movies;
       });
-      
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -148,7 +147,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
           return false;
         }
       }
-      
+
       // Tag filter
       if (_selectedTag.isNotEmpty) {
         final movieTags = _movieTags[movie.id.toString()] ?? [];
@@ -156,7 +155,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
           return false;
         }
       }
-      
+
       return true;
     }).toList();
   }
@@ -165,14 +164,14 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
   void _onMovieTap(Movie movie) async {
     // Preload movie details in background before navigation
     MovieCacheService.instance.preloadMovieDetails(movie.id);
-    
+
     // Small delay to allow preload to start
     await Future.delayed(const Duration(milliseconds: 50));
-    
+
     if (mounted) {
-    Navigator.of(context).push(
+      Navigator.of(context).push(
         NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
-    );
+      );
     }
   }
 
@@ -190,14 +189,14 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
       context: context,
       builder: (context) => _CreateListDialog(),
     );
-    
+
     if (result != null) {
       final newList = await WatchlistService.instance.createList(
         name: result['name']!,
         description: result['description'],
         color: result['color'],
       );
-      
+
       if (newList != null) {
         await _loadData();
         if (!mounted) return;
@@ -235,8 +234,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Watchlist data exported successfully'),
-          backgroundColor: Colors.green,
+          content: Text('Watchlist data export generated locally. Sharing/download will be added in a future update.'),
+          backgroundColor: AppTheme.fadedCurtain,
         ),
       );
     } catch (e) {
@@ -259,13 +258,13 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
           children: [
             // Header
             _buildHeader(),
-            
+
             // Search and filters
             _buildSearchAndFilters(),
-            
+
             // Tab bar
             _buildTabBar(),
-            
+
             // Tab content
             Expanded(
               child: TabBarView(
@@ -297,7 +296,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -318,14 +317,17 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                 Text(
                   'My Watchlist',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 Text(
                   '${_movies.length} movies in ${_lists.length} lists',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  ),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
                 ),
               ],
             ),
@@ -396,9 +398,9 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
               });
             },
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Tag filter
           if (_allTags.isNotEmpty)
             SingleChildScrollView(
@@ -415,24 +417,24 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                         });
                       }
                     },
-                    selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+                    selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
                     checkmarkColor: AppTheme.primaryRed,
                   ),
                   const SizedBox(width: 8),
                   ..._allTags.map((tag) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(tag),
-                      selected: _selectedTag == tag,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedTag = selected ? tag : '';
-                        });
-                      },
-                      selectedColor: AppTheme.primaryRed.withOpacity(0.2),
-                      checkmarkColor: AppTheme.primaryRed,
-                    ),
-                  )),
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(tag),
+                          selected: _selectedTag == tag,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedTag = selected ? tag : '';
+                            });
+                          },
+                          selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
+                          checkmarkColor: AppTheme.primaryRed,
+                        ),
+                      )),
                 ],
               ),
             ),
@@ -448,7 +450,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
       child: TabBar(
         controller: _tabController,
         labelColor: AppTheme.primaryRed,
-        unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        unselectedLabelColor:
+            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         indicatorColor: AppTheme.primaryRed,
         tabs: const [
           Tab(text: 'Lists'),
@@ -483,15 +486,18 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             Text(
               'Error loading lists',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               _error!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -514,18 +520,18 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
       itemBuilder: (context, index) {
         final list = _lists[index];
         final isSelected = _selectedList?.id == list.id;
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: isSelected 
-                ? AppTheme.primaryRed.withOpacity(0.1)
+            color: isSelected
+                ? AppTheme.primaryRed.withValues(alpha: 0.1)
                 : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected 
+              color: isSelected
                   ? AppTheme.primaryRed
-                  : Colors.grey.withOpacity(0.2),
+                  : Colors.grey.withValues(alpha: 0.2),
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -544,8 +550,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             title: Text(
               list.displayName,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             subtitle: Text(list.displayDescription),
             trailing: Row(
@@ -554,15 +560,16 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                 Text(
                   '${list.movieCount}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryRed,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryRed,
+                      ),
                 ),
                 const SizedBox(width: 8),
                 Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ],
             ),
@@ -584,7 +591,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
     }
 
     final filteredMovies = _filteredMovies;
-    
+
     if (filteredMovies.isEmpty) {
       return Center(
         child: Column(
@@ -593,7 +600,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             Icon(
               Icons.movie,
               size: 64,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
@@ -601,8 +608,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                   ? 'No movies match your filters'
                   : 'No movies in this list',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -610,8 +617,11 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                   ? 'Try adjusting your search or filters'
                   : 'Add some movies to get started!',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -653,21 +663,24 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             Icon(
               Icons.label_off,
               size: 64,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No tags yet',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Add tags to your movies to organize them better',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -680,14 +693,13 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
       itemCount: _allTags.length,
       itemBuilder: (context, index) {
         final tag = _allTags[index];
-        final moviesWithTag = _movieTags.values
-            .where((tags) => tags.contains(tag))
-            .length;
-        
+        final moviesWithTag =
+            _movieTags.values.where((tags) => tags.contains(tag)).length;
+
         return ListTile(
           contentPadding: const EdgeInsets.all(12),
           leading: CircleAvatar(
-            backgroundColor: AppTheme.primaryRed.withOpacity(0.2),
+            backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.2),
             child: Icon(
               Icons.label,
               color: AppTheme.primaryRed,
@@ -696,14 +708,15 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
           title: Text(
             tag,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
-          subtitle: Text('$moviesWithTag movie${moviesWithTag == 1 ? '' : 's'}'),
+          subtitle:
+              Text('$moviesWithTag movie${moviesWithTag == 1 ? '' : 's'}'),
           trailing: Icon(
             Icons.arrow_forward_ios,
             size: 16,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
           ),
           onTap: () {
             setState(() {
@@ -719,7 +732,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
   /// Builds a movie card
   Widget _buildMovieCard(Movie movie) {
     final movieTags = _movieTags[movie.id.toString()] ?? [];
-    
+
     return GestureDetector(
       onTap: () => _onMovieTap(movie),
       child: Container(
@@ -728,7 +741,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -749,7 +762,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                     child: SizedBox(
                       width: double.infinity,
                       child: CachedNetworkImage(
-                        imageUrl: TMDBService.getImageUrl(movie.posterPath, size: 'w300'),
+                        imageUrl: TMDBService.getImageUrl(movie.posterPath,
+                            size: 'w300'),
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: Colors.grey[300],
@@ -762,14 +776,15 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                       ),
                     ),
                   ),
-                  
+
                   // Tags indicator
                   if (movieTags.isNotEmpty)
                     Positioned(
                       top: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryRed,
                           borderRadius: BorderRadius.circular(8),
@@ -784,14 +799,15 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                         ),
                       ),
                     ),
-                  
+
                   // Rating badge
                   if (movie.voteAverage != null)
                     Positioned(
                       bottom: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.amber,
                           borderRadius: BorderRadius.circular(8),
@@ -799,7 +815,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.star,
                               size: 12,
                               color: Colors.white,
@@ -820,7 +836,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                 ],
               ),
             ),
-            
+
             // Movie info
             Padding(
               padding: const EdgeInsets.all(8),
@@ -830,43 +846,50 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                   Text(
                     movie.title,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  
+
                   if (movie.year != null) ...[
                     Text(
                       movie.year!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                      ),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
                     ),
                     const SizedBox(height: 4),
                   ],
-                  
+
                   // Tags preview
                   if (movieTags.isNotEmpty)
                     Wrap(
                       spacing: 4,
                       runSpacing: 2,
-                      children: movieTags.take(2).map((tag) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(
-                            fontSize: 8,
-                            color: AppTheme.primaryRed,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      )).toList(),
+                      children: movieTags
+                          .take(2)
+                          .map((tag) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    color: AppTheme.primaryRed,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ))
+                          .toList(),
                     ),
                 ],
               ),
@@ -891,8 +914,18 @@ class _CreateListDialogState extends State<_CreateListDialog> {
   String _selectedColor = '#FF0000';
 
   final List<String> _colors = [
-    '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
-    '#FFA500', '#800080', '#008000', '#FFC0CB', '#A52A2A', '#808080',
+    '#FF0000',
+    '#00FF00',
+    '#0000FF',
+    '#FFFF00',
+    '#FF00FF',
+    '#00FFFF',
+    '#FFA500',
+    '#800080',
+    '#008000',
+    '#FFC0CB',
+    '#A52A2A',
+    '#808080',
   ];
 
   @override
@@ -938,25 +971,30 @@ class _CreateListDialogState extends State<_CreateListDialog> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: _colors.map((color) => GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedColor = color;
-                  });
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse(color.replaceAll('#', '0xFF'))),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _selectedColor == color ? Colors.black : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              )).toList(),
+              children: _colors
+                  .map((color) => GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedColor = color;
+                          });
+                        },
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color:
+                                Color(int.parse(color.replaceAll('#', '0xFF'))),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _selectedColor == color
+                                  ? Colors.black
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
           ],
         ),
@@ -985,4 +1023,4 @@ class _CreateListDialogState extends State<_CreateListDialog> {
       ],
     );
   }
-} 
+}

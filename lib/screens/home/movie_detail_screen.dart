@@ -7,11 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../../models/movie.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/recommendations_service.dart';
+import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
 import '../../widgets/video_player_widget.dart';
-import '../../widgets/cast_crew_widget.dart';
-import '../../widgets/streaming_platform_widget.dart';
 import '../../providers/streaming_provider.dart';
 import '../../models/streaming_platform.dart';
 import '../../models/video.dart';
@@ -38,33 +36,29 @@ class MovieDetailScreen extends StatefulWidget {
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
-  Color? _dominantColor;
   bool _isLightBackground = false;
   bool _isLoadingColor = true;
   Movie? _loadedMovie;
-  bool _isLoadingMovie = false; // Start as false since we already have basic movie data
   bool _isSynopsisExpanded = false;
-  bool _isDisposed = false; // Track if widget is disposed to prevent setState calls
+  bool _isDisposed =
+      false; // Track if widget is disposed to prevent setState calls
   Timer? _movieDetailsTimer;
   Timer? _colorExtractionTimer;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Check if movie is already cached for instant loading
     final cacheService = MovieCacheService.instance;
     final cachedMovie = cacheService.getCachedMovie(widget.movie.id);
     if (cachedMovie != null) {
       // Use cached data immediately - screen is ready to display
       _loadedMovie = cachedMovie;
-      _isLoadingMovie = false;
-    } else {
-      // We have basic movie data from widget.movie, so screen can render immediately
-      // Additional details (cast/crew) will load in background
-      _isLoadingMovie = false;
     }
-    
+    // We have basic movie data from widget.movie, so screen can render immediately
+    // Additional details (cast/crew) will load in background
+
     // Defer ALL heavy operations until after the screen fully renders
     // This ensures smooth transition animation completes before any blocking operations
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -76,12 +70,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           _loadMovieDetails();
         }
       });
-      
+
       // Color extraction - delay significantly to not block UI
       // This is non-critical and can happen much later
       _colorExtractionTimer = Timer(const Duration(milliseconds: 1500), () {
         if (mounted && !_isDisposed) {
-          if (widget.movie.backdropUrl != null || widget.movie.posterUrl != null) {
+          if (widget.movie.backdropUrl != null ||
+              widget.movie.posterUrl != null) {
             _extractColorFromImage();
           } else {
             setState(() {
@@ -98,23 +93,22 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   /// This is called asynchronously after the screen renders - non-blocking
   Future<void> _loadMovieDetails() async {
     // Only load if we don't already have full details with cast/crew
-    if (_loadedMovie != null && 
-        _loadedMovie!.cast != null && 
+    if (_loadedMovie != null &&
+        _loadedMovie!.cast != null &&
         _loadedMovie!.cast!.isNotEmpty) {
       return; // Already have full details
     }
-    
+
     try {
       final cacheService = MovieCacheService.instance;
       final loadedMovie = await cacheService.getMovieDetails(widget.movie.id);
-      
+
       // Schedule setState on next frame to avoid blocking
       if (mounted && !_isDisposed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && !_isDisposed) {
             setState(() {
               _loadedMovie = loadedMovie;
-              // Keep _isLoadingMovie false - we're just enhancing existing data
             });
           }
         });
@@ -148,27 +142,27 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       // Add timeout to prevent blocking for too long
       PaletteGenerator paletteGenerator;
       try {
-        paletteGenerator = await PaletteGenerator.fromImageProvider(imageProvider)
-            .timeout(const Duration(seconds: 2));
+        paletteGenerator =
+            await PaletteGenerator.fromImageProvider(imageProvider)
+                .timeout(const Duration(seconds: 2));
       } on TimeoutException {
         // Use default color if timeout
         if (mounted && !_isDisposed) {
           setState(() {
-            _dominantColor = AppTheme.filmStripBlack;
             _isLightBackground = false;
             _isLoadingColor = false;
           });
         }
         return;
       }
-      
+
       if (mounted && !_isDisposed) {
-        final dominantColor = paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
+        final dominantColor =
+            paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
         final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
         final isLight = brightness == Brightness.light;
-        
+
         setState(() {
-          _dominantColor = dominantColor;
           _isLightBackground = isLight;
           _isLoadingColor = false;
         });
@@ -201,7 +195,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           // Mark as disposed immediately to stop all async operations
           _isDisposed = true;
@@ -213,359 +207,485 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       child: Scaffold(
         backgroundColor: AppTheme.vintagePaper,
         body: CustomScrollView(
-        slivers: [
-          // Retro Cinema App Bar with movie poster
-          SliverAppBar(
-            expandedHeight: 450,
-            pinned: true,
-            stretch: true,
-            backgroundColor: AppTheme.vintagePaper,
-            flexibleSpace: FlexibleSpaceBar(
-              stretchModes: const [
-                StretchMode.zoomBackground,
-              ],
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Movie backdrop (use posterUrl as fallback if backdropUrl is null)
-                  Positioned.fill(
-                    child: (_displayMovie.backdropUrl != null || _displayMovie.posterUrl != null)
-                        ? CachedNetworkImage(
-                            imageUrl: _displayMovie.backdropUrl ?? _displayMovie.posterUrl ?? '',
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: AppTheme.vintagePaper,
-                            ),
-                            errorWidget: (context, url, error) {
-                              debugPrint('Image load error: $error for URL: ${_displayMovie.backdropUrl ?? _displayMovie.posterUrl}');
-                              return Container(
+          slivers: [
+            // Retro Cinema App Bar with movie poster
+            SliverAppBar(
+              expandedHeight: 450,
+              pinned: true,
+              stretch: true,
+              backgroundColor: AppTheme.vintagePaper,
+              flexibleSpace: FlexibleSpaceBar(
+                stretchModes: const [
+                  StretchMode.zoomBackground,
+                ],
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Movie backdrop (use posterUrl as fallback if backdropUrl is null)
+                    Positioned.fill(
+                      child: (_displayMovie.backdropUrl != null ||
+                              _displayMovie.posterUrl != null)
+                          ? CachedNetworkImage(
+                              imageUrl: _displayMovie.backdropUrl ??
+                                  _displayMovie.posterUrl ??
+                                  '',
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
                                 color: AppTheme.vintagePaper,
-                                child: Icon(
-                                  Icons.movie_outlined,
-                                size: 64,
-                                  color: AppTheme.filmStripBlack.withValues(alpha: 50),
                               ),
-                              );
-                            },
-                          )
-                        : Container(
-                            color: AppTheme.vintagePaper,
-                            child: Icon(
-                              Icons.movie_outlined,
-                              size: 64,
-                              color: AppTheme.filmStripBlack.withValues(alpha: 50),
+                              errorWidget: (context, url, error) {
+                                debugPrint(
+                                    'Image load error: $error for URL: ${_displayMovie.backdropUrl ?? _displayMovie.posterUrl}');
+                                return Container(
+                                  color: AppTheme.vintagePaper,
+                                  child: Icon(
+                                    Icons.movie_outlined,
+                                    size: 64,
+                                    color: AppTheme.filmStripBlack
+                                        .withValues(alpha: 50),
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: AppTheme.vintagePaper,
+                              child: Icon(
+                                Icons.movie_outlined,
+                                size: 64,
+                                color: AppTheme.filmStripBlack
+                                    .withValues(alpha: 50),
+                              ),
                             ),
+                    ),
+
+                    // Gradient overlay at bottom for text readability
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 320,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              _overlayColor,
+                            ],
                           ),
-                  ),
-                  
-                  // Gradient overlay at bottom for text readability
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 320,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            _overlayColor,
+                        ),
+                      ),
+                    ),
+
+                    // Movie info overlay positioned on poster (like swipe screen)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Title with adaptive color
+                            Text(
+                              _displayMovie.title,
+                              style: GoogleFonts.bebasNeue(
+                                fontSize: 36,
+                                color: _textColor,
+                                letterSpacing: 1.5,
+                                height: 1.1,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Year and Rating row with adaptive colors
+                            Row(
+                              children: [
+                                if (_displayMovie.year != null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.brickRed,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: _textColor.withValues(alpha: 30),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _displayMovie.year!,
+                                      style: GoogleFonts.lato(
+                                        color: AppTheme.warmCream,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                Icon(
+                                  Icons.star_rounded,
+                                  color: AppTheme.brickRed,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _displayMovie.formattedRating,
+                                  style: GoogleFonts.lato(
+                                    color: _textColor,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (_displayMovie.voteCount != null) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '(${_displayMovie.voteCount} votes)',
+                                    style: GoogleFonts.lato(
+                                      color: _textColor.withValues(alpha: 70),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Watchlist, Like, Dislike and Share buttons row
+                            Row(
+                              children: [
+                                // Watchlist button
+                                Consumer<AuthProvider>(
+                                  builder: (context, authProvider, child) {
+                                    final isInWatchlist =
+                                        authProvider.isInWatchlist(
+                                            _displayMovie.id.toString());
+                                    return IconButton(
+                                      icon: TransparentButtonImage(
+                                        assetPath:
+                                            'assets/buttons/watchlist_button.png',
+                                        width: 24,
+                                        height: 24,
+                                        fit: BoxFit.contain,
+                                        errorWidget: Icon(
+                                          isInWatchlist
+                                              ? Icons.bookmark
+                                              : Icons.bookmark_border,
+                                          color: _textColor,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      onPressed: () async {
+                                        final movieProvider =
+                                            Provider.of<MovieProvider>(context, listen: false);
+
+                                        if (isInWatchlist) {
+                                          await authProvider.removeFromWatchlist(
+                                              _displayMovie.id.toString());
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  'Removed ${_displayMovie.title} from watchlist'),
+                                              backgroundColor:
+                                                  AppTheme.fadedCurtain,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        } else {
+                                          await authProvider.addToWatchlist(
+                                              _displayMovie.id.toString());
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  'Added ${_displayMovie.title} to watchlist'),
+                                              backgroundColor:
+                                                  AppTheme.fadedCurtain,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
+
+                                        // Keep the swipe feed in sync with detail actions.
+                                        movieProvider.refreshFilters(authProvider.userData);
+                                      },
+                                    );
+                                  },
+                                ),
+                                // Like button
+                                Consumer<AuthProvider>(
+                                  builder: (context, authProvider, child) {
+                                    final movieId = _displayMovie.id.toString();
+                                    final isLiked = authProvider.isLikedMovie(movieId);
+                                    return IconButton(
+                                      icon: Icon(
+                                        isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
+                                        color: isLiked ? AppTheme.vintagePaper : _textColor,
+                                        size: 24,
+                                      ),
+                                      onPressed: () async {
+                                        if (authProvider.userData == null) return;
+                                        final movieProvider = Provider.of<MovieProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+                                        if (isLiked) {
+                                          await authProvider.removeLikedMovie(movieId);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Removed ${_displayMovie.title} from favorites'),
+                                                backgroundColor: AppTheme.fadedCurtain,
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          await authProvider.removeDislikedMovie(movieId);
+                                          await authProvider.addLikedMovie(movieId);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Added ${_displayMovie.title} to favorites'),
+                                                backgroundColor: AppTheme.fadedCurtain,
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        }
+
+                                        movieProvider.refreshFilters(authProvider.userData);
+                                      },
+                                    );
+                                  },
+                                ),
+                                // Dislike button
+                                Consumer<AuthProvider>(
+                                  builder: (context, authProvider, child) {
+                                    final movieId = _displayMovie.id.toString();
+                                    final isDisliked = authProvider.isDislikedMovie(movieId);
+                                    return IconButton(
+                                      icon: Icon(
+                                        isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
+                                        color: isDisliked ? AppTheme.vintagePaper : _textColor.withValues(alpha: 0.8),
+                                        size: 24,
+                                      ),
+                                      onPressed: () async {
+                                        if (authProvider.userData == null) return;
+                                        final movieProvider = Provider.of<MovieProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+                                        if (isDisliked) {
+                                          await authProvider.removeDislikedMovie(movieId);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Removed ${_displayMovie.title} from disliked'),
+                                                backgroundColor: AppTheme.fadedCurtain,
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          await authProvider.removeLikedMovie(movieId);
+                                          await authProvider.addDislikedMovie(movieId);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Added ${_displayMovie.title} to disliked'),
+                                                backgroundColor: AppTheme.fadedCurtain,
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        }
+
+                                        movieProvider.refreshFilters(authProvider.userData);
+                                      },
+                                    );
+                                  },
+                                ),
+                                // Share button
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.share_rounded,
+                                    color: _textColor,
+                                    size: 24,
+                                  ),
+                                  onPressed: () => _shareMovie(context),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            // Where to Watch section inline with horizontal scroll
+                            _InlineStreamingAvailability(
+                                movie: _displayMovie, textColor: _textColor),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                  
-                  // Movie info overlay positioned on poster (like swipe screen)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Title with adaptive color
-                          Text(
-                            _displayMovie.title,
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 36,
-                              color: _textColor,
-                              letterSpacing: 1.5,
-                              height: 1.1,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 12),
-                          
-                          // Year and Rating row with adaptive colors
-                          Row(
-                            children: [
-                              if (_displayMovie.year != null) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.brickRed,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: _textColor.withValues(alpha: 30),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _displayMovie.year!,
-                                    style: GoogleFonts.lato(
-                                      color: AppTheme.warmCream,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                              ],
-                              Icon(
-                                Icons.star_rounded,
-                                color: AppTheme.brickRed,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _displayMovie.formattedRating,
-                                style: GoogleFonts.lato(
-                                  color: _textColor,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              if (_displayMovie.voteCount != null) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  '(${_displayMovie.voteCount} votes)',
-                                  style: GoogleFonts.lato(
-                                    color: _textColor.withValues(alpha: 70),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+              leading: Container(
+                margin: const EdgeInsets.all(8),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      // Cancel all ongoing operations immediately
+                      _isDisposed = true;
+                      _movieDetailsTimer?.cancel();
+                      _colorExtractionTimer?.cancel();
 
-                          // Watchlist and Share buttons row
-                          Row(
-                            children: [
-                              // Watchlist button
-              Consumer<AuthProvider>(
-                builder: (context, authProvider, child) {
-                                  final isInWatchlist = authProvider.isInWatchlist(_displayMovie.id.toString());
-                  return IconButton(
-                                    icon: TransparentButtonImage(
-                                      assetPath: 'assets/buttons/watchlist_button.png',
-                                      width: 24,
-                                      height: 24,
-                                      fit: BoxFit.contain,
-                                      errorWidget: Icon(
-                      isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
-                                        color: _textColor,
-                                        size: 24,
-                                      ),
-                    ),
-                    onPressed: () {
-                      if (isInWatchlist) {
-                                        authProvider.removeFromWatchlist(_displayMovie.id.toString());
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                                            content: Text('Removed ${_displayMovie.title} from watchlist'),
-                                            backgroundColor: AppTheme.fadedCurtain,
-                                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      } else {
-                                        authProvider.addToWatchlist(_displayMovie.id.toString());
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                                            content: Text('Added ${_displayMovie.title} to watchlist'),
-                                            backgroundColor: AppTheme.fadedCurtain,
-                                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
+                      // Navigate immediately - non-blocking
+                      Navigator.of(context).pop();
                     },
-                  );
-                },
-              ),
-                              // Share button
-              IconButton(
-                                icon: Icon(
-                                  Icons.share_rounded,
-                                  color: _textColor,
-                                  size: 24,
-                                ),
-                onPressed: () => _shareMovie(context),
-              ),
-            ],
-          ),
-                          const SizedBox(height: 16),
-                          // Where to Watch section inline with horizontal scroll
-                          _InlineStreamingAvailability(movie: _displayMovie, textColor: _textColor),
+                    borderRadius: BorderRadius.circular(26),
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppTheme.vintagePaper,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    // Cancel all ongoing operations immediately
-                    _isDisposed = true;
-                    _movieDetailsTimer?.cancel();
-                    _colorExtractionTimer?.cancel();
-                    
-                    // Navigate immediately - non-blocking
-                    Navigator.of(context).pop();
-                  },
-                  borderRadius: BorderRadius.circular(26),
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppTheme.vintagePaper,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                        border: Border.all(
+                          color: AppTheme.cinemaRed.withValues(alpha: 0.3),
+                          width: 1,
                         ),
-                      ],
-                      border: Border.all(
-                        color: AppTheme.cinemaRed.withValues(alpha: 0.3),
-                        width: 1,
                       ),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.arrow_back_rounded,
-                        color: AppTheme.cinemaRed,
-                        size: 28,
+                      child: const Center(
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: AppTheme.cinemaRed,
+                          size: 28,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
+              actions: const [],
             ),
-            actions: [],
-          ),
-                  
-          // Movie details with Retro Cinema styling
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Overview with Retro Cinema styling (expandable)
-                  if (_displayMovie.overview != null && _displayMovie.overview!.isNotEmpty) ...[
-                    Text(
-                      'Synopsis',
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 24,
-                        color: AppTheme.filmStripBlack,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.vintagePaper,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                          Text(
-                            _displayMovie.overview!,
-                            style: GoogleFonts.lato(
-                              color: AppTheme.filmStripBlack,
-                              fontSize: 15,
-                              height: 1.6,
-                              letterSpacing: 0.2,
-                                    ),
-                            maxLines: _isSynopsisExpanded ? null : 4,
-                            overflow: _isSynopsisExpanded ? null : TextOverflow.ellipsis,
-                          ),
-                          // Check if text needs expansion
-                          if (_displayMovie.overview!.length > 200) ...[
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isSynopsisExpanded = !_isSynopsisExpanded;
-                                });
-                              },
-                              child: Text(
-                                _isSynopsisExpanded ? 'Show less' : 'More',
-                                style: GoogleFonts.lato(
-                                  color: AppTheme.cinemaRed,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
-                          ),
+
+            // Movie details with Retro Cinema styling
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Overview with Retro Cinema styling (expandable)
+                    if (_displayMovie.overview != null &&
+                        _displayMovie.overview!.isNotEmpty) ...[
+                      Text(
+                        'Synopsis',
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 24,
+                          color: AppTheme.filmStripBlack,
+                          letterSpacing: 1,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.vintagePaper,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _displayMovie.overview!,
+                              style: GoogleFonts.lato(
+                                color: AppTheme.filmStripBlack,
+                                fontSize: 15,
+                                height: 1.6,
+                                letterSpacing: 0.2,
+                              ),
+                              maxLines: _isSynopsisExpanded ? null : 4,
+                              overflow: _isSynopsisExpanded
+                                  ? null
+                                  : TextOverflow.ellipsis,
+                            ),
+                            // Check if text needs expansion
+                            if (_displayMovie.overview!.length > 200) ...[
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _isSynopsisExpanded = !_isSynopsisExpanded;
+                                  });
+                                },
+                                child: Text(
+                                  _isSynopsisExpanded ? 'Show less' : 'More',
+                                  style: GoogleFonts.lato(
+                                    color: AppTheme.cinemaRed,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
-                  ),
-                    ),
-                    const SizedBox(height: 16),
                   ],
+                ),
+              ),
+            ),
 
-                ],
-              ),
+            // Videos Section (between Synopsis and Cast & Crew)
+            SliverToBoxAdapter(
+              child: _VideosSection(movie: _displayMovie),
             ),
-          ),
-          
-          // Videos Section (between Synopsis and Cast & Crew)
-          SliverToBoxAdapter(
-            child: _VideosSection(movie: _displayMovie),
-          ),
-          
-          // Director and Actors section
-          if (_displayMovie.crew != null || _displayMovie.cast != null)
-          SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: _DirectorActorsSection(movie: _displayMovie),
+
+            // Director and Actors section
+            if (_displayMovie.crew != null || _displayMovie.cast != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: _DirectorActorsSection(movie: _displayMovie),
+                ),
               ),
+
+            // Similar Movies Section
+            SliverToBoxAdapter(
+              child: _SimilarMoviesSection(movie: _displayMovie),
             ),
-          
-          // Similar Movies Section
-          SliverToBoxAdapter(
-            child: _SimilarMoviesSection(movie: _displayMovie),
-          ),
-        ],
-      ),
-      bottomNavigationBar: RetroCinemaBottomNav(
-        currentIndex: _getCurrentTabIndex(),
-        onTap: (index) {
-          _handleNavigationTap(index);
-        },
-      ),
+          ],
+        ),
+        bottomNavigationBar: RetroCinemaBottomNav(
+          currentIndex: _getCurrentTabIndex(),
+          onTap: (index) {
+            _handleNavigationTap(index);
+          },
+        ),
       ),
     );
   }
@@ -582,10 +702,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     _isDisposed = true;
     _movieDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
-    
+
     // Navigate immediately - non-blocking
     Navigator.of(context).pop();
-    
+
     // Update the HomeScreen tab index after navigation starts
     // Use a microtask to ensure navigation happens first
     Future.microtask(() => updateHomeScreenTab(index));
@@ -614,51 +734,8 @@ ${_displayMovie.overview ?? 'No description available'}
 Check out this movie on PopMatch!
 ''';
 
-    Share.share(shareText, subject: 'Check out this movie: ${_displayMovie.title}');
-  }
-}
-
-/// Retro Cinema styled detail row
-class _RetroDetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _RetroDetailRow({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: GoogleFonts.lato(
-                color: AppTheme.filmStripBlack.withValues(alpha: 70),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.lato(
-                color: AppTheme.filmStripBlack,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    Share.share(shareText,
+        subject: 'Check out this movie: ${_displayMovie.title}');
   }
 }
 
@@ -684,7 +761,7 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
     // Defer similar movies loading until after screen renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-    _loadSimilarMovies();
+        _loadSimilarMovies();
       }
     });
   }
@@ -692,7 +769,7 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
   Future<void> _loadSimilarMovies() async {
     try {
       if (!mounted) return;
-      
+
       setState(() {
         _isLoading = true;
         _error = null;
@@ -700,31 +777,34 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
 
       final tmdbService = TMDBService();
       final embeddingService = MovieEmbeddingService();
-      
+
       // Get similar movies from TMDB API
       List<Movie> similarMovies = [];
       List<Movie> recommendedMovies = [];
-      
+
       try {
         similarMovies = await tmdbService.getSimilarMovies(widget.movie.id);
-        debugPrint('Loaded ${similarMovies.length} similar movies for movie ${widget.movie.id}');
+        debugPrint(
+            'Loaded ${similarMovies.length} similar movies for movie ${widget.movie.id}');
       } catch (e) {
         debugPrint('Error loading similar movies: $e');
         similarMovies = [];
       }
-      
+
       try {
-        recommendedMovies = await tmdbService.getMovieRecommendations(widget.movie.id);
-        debugPrint('Loaded ${recommendedMovies.length} recommended movies for movie ${widget.movie.id}');
+        recommendedMovies =
+            await tmdbService.getMovieRecommendations(widget.movie.id);
+        debugPrint(
+            'Loaded ${recommendedMovies.length} recommended movies for movie ${widget.movie.id}');
       } catch (e) {
         debugPrint('Error loading recommended movies: $e');
         recommendedMovies = [];
       }
-      
+
       // Combine both lists
       final allMovies = <Movie>[];
       final seenIds = <int>{};
-      
+
       // Add similar movies first (they're more directly related)
       for (final movie in similarMovies) {
         if (!seenIds.contains(movie.id) && movie.id != widget.movie.id) {
@@ -732,7 +812,7 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
           seenIds.add(movie.id);
         }
       }
-      
+
       // Add recommended movies (TMDB's algorithm-based recommendations)
       for (final movie in recommendedMovies) {
         if (!seenIds.contains(movie.id) && movie.id != widget.movie.id) {
@@ -740,9 +820,9 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
           seenIds.add(movie.id);
         }
       }
-      
+
       debugPrint('Total combined movies before ranking: ${allMovies.length}');
-      
+
       // If we have movies, use embedding-based similarity to rank them
       if (allMovies.isNotEmpty) {
         // Use embedding service to find most similar movies
@@ -751,38 +831,39 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
           allMovies,
           limit: 6, // Show top 6 most similar for better accuracy
         );
-        
+
         debugPrint('Ranked movies count: ${rankedMovies.length}');
-        
+
         if (!mounted) return;
-        
+
         setState(() {
           _similarMovies = rankedMovies;
           _isLoading = false;
         });
       } else {
         // Fallback: try to get movies from same genres
-        if (widget.movie.genreIds != null && widget.movie.genreIds!.isNotEmpty) {
+        if (widget.movie.genreIds != null &&
+            widget.movie.genreIds!.isNotEmpty) {
           final genreMovies = await tmdbService.getMoviesByGenre(
             widget.movie.genreIds!.first,
             page: 1,
           );
-          
+
           // Filter out the current movie and limit to 6
           final filtered = genreMovies
               .where((m) => m.id != widget.movie.id)
               .take(6)
               .toList();
-          
+
           if (!mounted) return;
-          
+
           setState(() {
             _similarMovies = filtered;
             _isLoading = false;
           });
         } else {
           if (!mounted) return;
-          
+
           setState(() {
             _similarMovies = [];
             _isLoading = false;
@@ -791,10 +872,12 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
       }
     } catch (e) {
       if (!mounted) return;
-      
+
       debugPrint('Error loading similar movies: $e');
       setState(() {
-        _error = e.toString();
+        // Prefer empty-state UI over hard error card for transient data issues.
+        _error = null;
+        _similarMovies = [];
         _isLoading = false;
       });
     }
@@ -895,26 +978,26 @@ class _RetroSimilarMovieCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-              onTap: () async {
-                // Preload movie details in background before navigation
-                MovieCacheService.instance.preloadMovieDetails(movie.id);
-                
-                // Small delay to allow preload to start
-                await Future.delayed(const Duration(milliseconds: 50));
-                
-                if (context.mounted) {
-                  Navigator.of(context).push(
-                    NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
-                  );
-                }
-              },
+      onTap: () async {
+        // Preload movie details in background before navigation
+        MovieCacheService.instance.preloadMovieDetails(movie.id);
+
+        // Small delay to allow preload to start
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        if (context.mounted) {
+          Navigator.of(context).push(
+            NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
+          );
+        }
+      },
       child: Container(
         width: 130,
         margin: const EdgeInsets.only(right: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -932,56 +1015,56 @@ class _RetroSimilarMovieCard extends StatelessWidget {
                       child: Icon(
                         Icons.movie_outlined,
                         color: AppTheme.filmStripBlack.withValues(alpha: 50),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
             const SizedBox(height: 10),
-          Text(
-            movie.title,
+            Text(
+              movie.title,
               style: GoogleFonts.lato(
                 color: AppTheme.filmStripBlack,
                 fontSize: 13,
-              fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
             const SizedBox(height: 4),
-          Row(
-            children: [
-              if (movie.year != null) ...[
-                Text(
-                  movie.year!,
+            Row(
+              children: [
+                if (movie.year != null) ...[
+                  Text(
+                    movie.year!,
                     style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack.withValues(alpha: 60),
                       fontSize: 11,
+                    ),
                   ),
-                ),
                   const SizedBox(width: 6),
-              ],
-              if (movie.voteAverage != null) ...[
-                Icon(
+                ],
+                if (movie.voteAverage != null) ...[
+                  Icon(
                     Icons.star_rounded,
                     color: AppTheme.brickRed,
                     size: 12,
-                ),
-                const SizedBox(width: 2),
-                Text(
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
                     movie.formattedRating,
                     style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack.withValues(alpha: 80),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1002,7 +1085,6 @@ class _VideosSection extends StatefulWidget {
 class _VideosSectionState extends State<_VideosSection> {
   List<Video> _videos = [];
   bool _isLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -1016,7 +1098,7 @@ class _VideosSectionState extends State<_VideosSection> {
       // Defer video loading until after screen renders
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-    _loadVideos();
+          _loadVideos();
         }
       });
     }
@@ -1025,10 +1107,9 @@ class _VideosSectionState extends State<_VideosSection> {
   Future<void> _loadVideos() async {
     try {
       if (!mounted) return;
-      
+
       setState(() {
         _isLoading = true;
-        _error = null;
       });
 
       final tmdbService = TMDBService();
@@ -1042,9 +1123,8 @@ class _VideosSectionState extends State<_VideosSection> {
       });
     } catch (e) {
       if (!mounted) return;
-      
+
       setState(() {
-        _error = e.toString();
         _isLoading = false;
       });
     }
@@ -1061,25 +1141,25 @@ class _VideosSectionState extends State<_VideosSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-              Text(
+          Text(
             'Trailers & Videos',
             style: GoogleFonts.bebasNeue(
               fontSize: 28,
               color: AppTheme.filmStripBlack,
               letterSpacing: 1,
             ),
-                    ),
+          ),
           const SizedBox(height: 20),
-                SizedBox(
+          SizedBox(
             height: 200,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _videos.length,
-                    itemBuilder: (context, index) {
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _videos.length,
+              itemBuilder: (context, index) {
                 return _RetroVideoCard(video: _videos[index]);
-                    },
-                  ),
+              },
             ),
+          ),
         ],
       ),
     );
@@ -1096,15 +1176,15 @@ class _RetroVideoCard extends StatelessWidget {
     return Container(
       width: 300,
       margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: AppTheme.cinemaRed,
           width: 1.5,
-            ),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
         child: VideoPlayerWidget(video: video),
       ),
     );
@@ -1124,13 +1204,13 @@ class _DirectorActorsSection extends StatelessWidget {
             ?.where((member) => member.job?.toLowerCase() == 'director')
             .toList() ??
         [];
-    
+
     // Get top 10 actors from cast
     final topActors = movie.cast?.take(10).toList() ?? [];
 
     // Combine director and actors, with director first
     final List<dynamic> allPeople = [];
-    
+
     // Add directors first
     for (var director in directors) {
       allPeople.add({
@@ -1138,7 +1218,7 @@ class _DirectorActorsSection extends StatelessWidget {
         'person': director,
       });
     }
-    
+
     // Add actors
     for (var actor in topActors) {
       allPeople.add({
@@ -1152,16 +1232,16 @@ class _DirectorActorsSection extends StatelessWidget {
     }
 
     return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
           'Cast & Crew',
           style: GoogleFonts.bebasNeue(
             fontSize: 24,
             color: AppTheme.filmStripBlack,
             letterSpacing: 1,
-                        ),
-                      ),
+          ),
+        ),
         const SizedBox(height: 12),
         SizedBox(
           height: 200, // Fixed height for horizontal scroll
@@ -1172,11 +1252,11 @@ class _DirectorActorsSection extends StatelessWidget {
               final item = allPeople[index];
               final isDirector = item['type'] == 'director';
               final person = item['person'];
-              
+
               String? profileUrl;
               String name;
               String? info;
-              
+
               if (isDirector) {
                 final director = person as CrewMember;
                 profileUrl = director.profileUrl;
@@ -1186,9 +1266,10 @@ class _DirectorActorsSection extends StatelessWidget {
                 final actor = person as CastMember;
                 profileUrl = actor.profileUrl;
                 name = actor.name;
-                info = actor.character != null ? 'as ${actor.character!}' : null;
+                info =
+                    actor.character != null ? 'as ${actor.character!}' : null;
               }
-              
+
               return _CastCrewCard(
                 profileUrl: profileUrl,
                 name: name,
@@ -1222,19 +1303,19 @@ class _CastCrewCard extends StatelessWidget {
     return Container(
       width: 140,
       margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
+      ),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-                  child: Stack(
+        child: Stack(
           fit: StackFit.expand,
-                    children: [
+          children: [
             // Profile image
             profileUrl != null
                 ? CachedNetworkImage(
                     imageUrl: profileUrl!,
-                          fit: BoxFit.cover,
+                    fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
                       color: AppTheme.filmStripBlack.withValues(alpha: 20),
                       child: Center(
@@ -1246,7 +1327,7 @@ class _CastCrewCard extends StatelessWidget {
                     ),
                     errorWidget: (context, url, error) => Container(
                       color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                              child: Icon(
+                      child: Icon(
                         Icons.person,
                         color: AppTheme.filmStripBlack.withValues(alpha: 50),
                         size: 48,
@@ -1260,8 +1341,8 @@ class _CastCrewCard extends StatelessWidget {
                       color: AppTheme.filmStripBlack.withValues(alpha: 50),
                       size: 48,
                     ),
-                        ),
-                      
+                  ),
+
             // Gradient overlay at bottom for text readability
             Positioned(
               bottom: 0,
@@ -1269,7 +1350,7 @@ class _CastCrewCard extends StatelessWidget {
               right: 0,
               child: Container(
                 height: 80,
-                          decoration: BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -1281,7 +1362,7 @@ class _CastCrewCard extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // Name and info overlay at bottom
             Positioned(
               bottom: 0,
@@ -1293,34 +1374,35 @@ class _CastCrewCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-            Text(
+                    Text(
                       name,
                       style: GoogleFonts.lato(
                         color: AppTheme.warmCream,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     if (info != null) ...[
-            const SizedBox(height: 2),
-            Text(
+                      const SizedBox(height: 2),
+                      Text(
                         info!,
                         style: GoogleFonts.lato(
                           color: AppTheme.warmCream.withValues(alpha: 85),
                           fontSize: 11,
-                          fontStyle: isDirector ? FontStyle.normal : FontStyle.italic,
+                          fontStyle:
+                              isDirector ? FontStyle.normal : FontStyle.italic,
                           letterSpacing: 0.1,
-              ),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-            ),
+                      ),
                     ],
-          ],
-        ),
-      ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -1352,7 +1434,7 @@ class _StreamingAvailabilitySectionState
     // Defer streaming availability loading until after screen renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-    _loadStreamingAvailability();
+        _loadStreamingAvailability();
       }
     });
   }
@@ -1360,7 +1442,7 @@ class _StreamingAvailabilitySectionState
   Future<void> _loadStreamingAvailability() async {
     try {
       if (!mounted) return;
-      
+
       setState(() {
         _isLoading = true;
         _error = null;
@@ -1368,8 +1450,8 @@ class _StreamingAvailabilitySectionState
 
       final streamingProvider =
           Provider.of<StreamingProvider>(context, listen: false);
-      final availability = await streamingProvider
-          .getStreamingAvailability(widget.movie.id);
+      final availability =
+          await streamingProvider.getStreamingAvailability(widget.movie.id);
 
       if (!mounted) return;
 
@@ -1379,7 +1461,7 @@ class _StreamingAvailabilitySectionState
       });
     } catch (e) {
       if (!mounted) return;
-      
+
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -1450,11 +1532,11 @@ class _StreamingAvailabilitySectionState
               _availability!.availablePlatforms.isEmpty)
             Center(
               child: Text(
-                    'No streaming information available',
+                'No streaming information available',
                 style: GoogleFonts.lato(
                   color: AppTheme.filmStripBlack.withValues(alpha: 60),
                   fontSize: 14,
-                  ),
+                ),
               ),
             )
           else
@@ -1469,43 +1551,43 @@ class _StreamingAvailabilitySectionState
     final platforms = availability.platforms;
 
     return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         // Platform logos
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
           children: platforms.map((platform) {
             return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
                 color: AppTheme.vintagePaper,
                 borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
+                border: Border.all(
                   color: AppTheme.filmStripBlack.withValues(alpha: 40),
                   width: 1.5,
-                    ),
-                  ),
+                ),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                    children: [
+                children: [
                   Container(
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
                       color: AppTheme.brickRed.withValues(alpha: 20),
                       borderRadius: BorderRadius.circular(8),
-                      ),
+                    ),
                     child: Center(
-                        child: Text(
+                      child: Text(
                         _getPlatformInitials(platform.name),
                         style: GoogleFonts.bebasNeue(
                           color: AppTheme.brickRed,
                           fontSize: 20,
                           letterSpacing: 1,
-                          ),
                         ),
                       ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -1515,10 +1597,10 @@ class _StreamingAvailabilitySectionState
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
-            ),
-        ],
-      ),
-    );
+                  ),
+                ],
+              ),
+            );
           }).toList(),
         ),
 
@@ -1541,81 +1623,81 @@ class _StreamingAvailabilitySectionState
             runSpacing: 10,
             children: [
               if (availability.isFree)
-        Container(
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 8,
                   ),
-          decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppTheme.brickRed.withValues(alpha: 20),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: AppTheme.brickRed,
                       width: 1.5,
                     ),
-          ),
+                  ),
                   child: Text(
-                'Free to Watch',
+                    'Free to Watch',
                     style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-          ),
-        ),
+                    ),
+                  ),
                 ),
               if (availability.rentalPrice != null)
-        Container(
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 8,
                   ),
-          decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppTheme.brickRed.withValues(alpha: 20),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: AppTheme.brickRed.withValues(alpha: 60),
                       width: 1.5,
                     ),
-              ),
+                  ),
                   child: Text(
                     'Rent: ${availability.rentalPrice}',
                     style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack,
                       fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               if (availability.purchasePrice != null)
-        Container(
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 8,
                   ),
-          decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppTheme.brickRed.withValues(alpha: 20),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: AppTheme.brickRed.withValues(alpha: 60),
                       width: 1.5,
                     ),
-              ),
+                  ),
                   child: Text(
                     'Buy: ${availability.purchasePrice}',
                     style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack,
                       fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                     ),
+                  ),
                 ),
-              ),
             ],
           ),
         ],
       ],
-      );
-    }
-    
+    );
+  }
+
   /// Gets platform initials for display
   String _getPlatformInitials(String platformName) {
     if (platformName.toLowerCase().contains('netflix')) return 'N';
@@ -1644,10 +1726,12 @@ class _InlineStreamingAvailability extends StatefulWidget {
   });
 
   @override
-  State<_InlineStreamingAvailability> createState() => _InlineStreamingAvailabilityState();
+  State<_InlineStreamingAvailability> createState() =>
+      _InlineStreamingAvailabilityState();
 }
 
-class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailability> {
+class _InlineStreamingAvailabilityState
+    extends State<_InlineStreamingAvailability> {
   MovieStreamingAvailability? _availability;
   bool _isLoading = true;
   String? _error;
@@ -1665,8 +1749,10 @@ class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailabili
         _error = null;
       });
 
-      final streamingProvider = Provider.of<StreamingProvider>(context, listen: false);
-      final availability = await streamingProvider.getStreamingAvailability(widget.movie.id);
+      final streamingProvider =
+          Provider.of<StreamingProvider>(context, listen: false);
+      final availability =
+          await streamingProvider.getStreamingAvailability(widget.movie.id);
 
       if (mounted) {
         setState(() {
@@ -1690,7 +1776,9 @@ class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailabili
       return const SizedBox.shrink();
     }
 
-    if (_error != null || _availability == null || _availability!.availablePlatforms.isEmpty) {
+    if (_error != null ||
+        _availability == null ||
+        _availability!.availablePlatforms.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -1714,10 +1802,10 @@ class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailabili
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
-          ),
-        ],
-      ),
-          const SizedBox(height: 8),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         SizedBox(
           height: 32,
           child: ListView.builder(
@@ -1728,19 +1816,20 @@ class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailabili
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppTheme.sepiaBrown,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Center(
                     child: Text(
-            platform.name,
+                      platform.name,
                       style: GoogleFonts.lato(
                         color: widget.textColor,
                         fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -1750,21 +1839,5 @@ class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailabili
         ),
       ],
     );
-  }
-
-  /// Gets platform initials for display
-  String _getPlatformInitials(String platformName) {
-    if (platformName.toLowerCase().contains('netflix')) return 'N';
-    if (platformName.toLowerCase().contains('disney')) return 'D+';
-    if (platformName.toLowerCase().contains('amazon')) return 'AP';
-    if (platformName.toLowerCase().contains('hulu')) return 'H';
-    if (platformName.toLowerCase().contains('hbo')) return 'HBO';
-    if (platformName.toLowerCase().contains('apple')) return 'A+';
-    if (platformName.toLowerCase().contains('paramount')) return 'P+';
-    if (platformName.toLowerCase().contains('peacock')) return 'P';
-    if (platformName.toLowerCase().contains('youtube')) return 'YT';
-    if (platformName.toLowerCase().contains('tubi')) return 'T';
-    if (platformName.toLowerCase().contains('pluto')) return 'PTV';
-    return platformName.length > 0 ? platformName.substring(0, 1).toUpperCase() : '?';
   }
 }

@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:popmatch/models/user.dart';
-import 'package:popmatch/providers/auth_provider.dart';
-import 'package:popmatch/services/auth_service.dart';
 import 'package:popmatch/services/user_preference_analyzer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -9,13 +7,11 @@ import 'dart:convert';
 void main() {
   group('Onboarding Integration Tests', () {
     late SharedPreferences prefs;
-    late AuthService authService;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-      authService = AuthService();
     });
 
     test('Scenario 1: First-time user completes onboarding', () async {
@@ -28,8 +24,10 @@ void main() {
       );
 
       // Step 2: Check onboarding status
-      final onboardingCompleted = newUser.preferences['onboardingCompleted'] ?? false;
-      expect(onboardingCompleted, false, reason: 'New user should not have completed onboarding');
+      final onboardingCompleted =
+          newUser.preferences['onboardingCompleted'] ?? false;
+      expect(onboardingCompleted, false,
+          reason: 'New user should not have completed onboarding');
 
       // Step 3: Complete onboarding
       final userAfterOnboarding = newUser.updatePreferences({
@@ -41,10 +39,12 @@ void main() {
       // Step 4: Verify onboarding completed
       expect(userAfterOnboarding.preferences['onboardingCompleted'], true);
       expect(userAfterOnboarding.preferences['selectedGenres'], [28, 35, 18]);
-      expect(userAfterOnboarding.preferences['selectedPlatforms'], ['Netflix', 'Disney+']);
+      expect(userAfterOnboarding.preferences['selectedPlatforms'],
+          ['Netflix', 'Disney+']);
 
       // Step 5: Save user data (simulate)
-      await prefs.setString('user_data', jsonEncode(userAfterOnboarding.toJson()));
+      await prefs.setString(
+          'user_data', jsonEncode(userAfterOnboarding.toJson()));
 
       // Step 6: Verify data was saved
       final savedJson = prefs.getString('user_data');
@@ -73,8 +73,10 @@ void main() {
       final loadedUser = User.fromJson(jsonDecode(savedJson!));
 
       // Step 4: Check onboarding status
-      final onboardingCompleted = loadedUser.preferences['onboardingCompleted'] ?? false;
-      expect(onboardingCompleted, true, reason: 'Returning user should have completed onboarding');
+      final onboardingCompleted =
+          loadedUser.preferences['onboardingCompleted'] ?? false;
+      expect(onboardingCompleted, true,
+          reason: 'Returning user should have completed onboarding');
 
       // Step 5: Verify preferences are loaded
       expect(loadedUser.preferences['selectedGenres'], [28, 35]);
@@ -96,15 +98,21 @@ void main() {
       // Step 2: User edits preferences (adds more genres and platforms)
       user = user.updatePreferences({
         'selectedGenres': [28, 35, 18, 53], // Added Drama and Thriller
-        'selectedPlatforms': ['Netflix', 'Disney+', 'HBO Max'], // Added platforms
+        'selectedPlatforms': [
+          'Netflix',
+          'Disney+',
+          'HBO Max'
+        ], // Added platforms
       });
 
       // Step 3: Verify preferences updated
-      expect(user.preferences['onboardingCompleted'], true, reason: 'onboardingCompleted should remain true');
+      expect(user.preferences['onboardingCompleted'], true,
+          reason: 'onboardingCompleted should remain true');
       expect((user.preferences['selectedGenres'] as List).length, 4);
       expect((user.preferences['selectedPlatforms'] as List).length, 3);
       expect(user.preferences['selectedGenres'], containsAll([28, 35, 18, 53]));
-      expect(user.preferences['selectedPlatforms'], containsAll(['Netflix', 'Disney+', 'HBO Max']));
+      expect(user.preferences['selectedPlatforms'],
+          containsAll(['Netflix', 'Disney+', 'HBO Max']));
 
       // Step 4: Save updated preferences
       await prefs.setString('user_data', jsonEncode(user.toJson()));
@@ -127,13 +135,13 @@ void main() {
       );
 
       // Step 2: Extract platforms for MovieProvider
-      final selectedPlatforms = user.preferences['selectedPlatforms'] as List<dynamic>?;
+      final selectedPlatforms =
+          user.preferences['selectedPlatforms'] as List<dynamic>?;
       expect(selectedPlatforms, isNotNull);
-      
+
       // Step 3: Convert to string list (as done in SwipeScreen)
       final platformList = selectedPlatforms!.map((p) => p.toString()).toList();
       expect(platformList, ['Netflix', 'Disney+', 'HBO Max']);
-      expect(platformList.every((p) => p is String), true);
 
       // Step 4: Verify platforms can be used for filtering
       expect(platformList.isNotEmpty, true);
@@ -253,8 +261,9 @@ void main() {
     test('Handles corrupted user data gracefully', () {
       // Simulate corrupted JSON
       try {
-        final corruptedJson = '{"invalid": json}';
-        final user = User.fromJson(jsonDecode(corruptedJson) as Map<String, dynamic>);
+        const corruptedJson = '{"invalid": json}';
+        final user =
+            User.fromJson(jsonDecode(corruptedJson) as Map<String, dynamic>);
         // Should handle missing fields gracefully
         expect(user.preferences, isA<Map<String, dynamic>>());
       } catch (e) {

@@ -1,30 +1,27 @@
-import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
-import '../models/movie.dart';
 import 'recommendation_metrics_service.dart';
 
 /// Service for adaptive hybrid weighting that learns optimal algorithm weights
 /// from user feedback and recommendation performance
 class AdaptiveWeightingService {
-  static final AdaptiveWeightingService _instance = AdaptiveWeightingService._internal();
+  static final AdaptiveWeightingService _instance =
+      AdaptiveWeightingService._internal();
   factory AdaptiveWeightingService() => _instance;
   AdaptiveWeightingService._internal();
 
   // Current weights for different recommendation strategies
   Map<String, double> _currentWeights = {
-    'contentBased': 0.40,      // Genre, actor, director matching
-    'contextual': 0.20,        // Time, mood-based
-    'behavior': 0.15,          // Real-time learning
-    'embedding': 0.20,         // Embedding similarity
-    'collaborative': 0.05,     // Collaborative filtering
+    'contentBased': 0.40, // Genre, actor, director matching
+    'contextual': 0.20, // Time, mood-based
+    'behavior': 0.15, // Real-time learning
+    'embedding': 0.20, // Embedding similarity
+    'collaborative': 0.05, // Collaborative filtering
   };
 
-  // Track performance of each strategy
-  final Map<String, List<double>> _strategyPerformance = {};
-  
   // Track user feedback per strategy
-  final Map<String, List<bool>> _strategyFeedback = {}; // true = liked, false = disliked
+  final Map<String, List<bool>> _strategyFeedback =
+      {}; // true = liked, false = disliked
 
   /// Gets current adaptive weights
   Map<String, double> getWeights() {
@@ -39,13 +36,13 @@ class AdaptiveWeightingService {
     required User user,
   }) async {
     _strategyFeedback.putIfAbsent(strategy, () => []).add(liked);
-    
+
     // Keep only last 100 feedbacks per strategy
     final feedbacks = _strategyFeedback[strategy]!;
     if (feedbacks.length > 100) {
       feedbacks.removeRange(0, feedbacks.length - 100);
     }
-    
+
     // Update weights periodically based on feedback
     await _updateWeightsFromFeedback(user);
   }
@@ -53,9 +50,9 @@ class AdaptiveWeightingService {
   /// Updates weights based on user feedback
   Future<void> _updateWeightsFromFeedback(User user) async {
     // Only update if we have enough feedback (at least 10 per strategy)
-    final minFeedbacks = 10;
+    const minFeedbacks = 10;
     bool hasEnoughData = true;
-    
+
     for (final strategy in _currentWeights.keys) {
       final feedbacks = _strategyFeedback[strategy] ?? [];
       if (feedbacks.length < minFeedbacks) {
@@ -63,9 +60,9 @@ class AdaptiveWeightingService {
         break;
       }
     }
-    
+
     if (!hasEnoughData) return;
-    
+
     // Calculate success rate for each strategy
     final successRates = <String, double>{};
     for (final strategy in _currentWeights.keys) {
@@ -77,7 +74,7 @@ class AdaptiveWeightingService {
         successRates[strategy] = 0.5; // Neutral if no data
       }
     }
-    
+
     // Normalize success rates to create new weights
     final totalSuccess = successRates.values.reduce((a, b) => a + b);
     if (totalSuccess > 0) {
@@ -90,7 +87,7 @@ class AdaptiveWeightingService {
         final smoothedWeight = (currentWeight * 0.7) + (targetWeight * 0.3);
         newWeights[strategy] = smoothedWeight;
       }
-      
+
       // Normalize to ensure weights sum to 1.0
       final weightSum = newWeights.values.reduce((a, b) => a + b);
       if (weightSum > 0) {
@@ -113,7 +110,7 @@ class AdaptiveWeightingService {
     for (final entry in strategyMetrics.entries) {
       strategyScores[entry.key] = entry.value.overallScore;
     }
-    
+
     // Normalize scores
     final totalScore = strategyScores.values.reduce((a, b) => a + b);
     if (totalScore > 0) {
@@ -126,7 +123,7 @@ class AdaptiveWeightingService {
         final smoothedWeight = (currentWeight * 0.8) + (targetWeight * 0.2);
         newWeights[strategy] = smoothedWeight;
       }
-      
+
       // Normalize
       final weightSum = newWeights.values.reduce((a, b) => a + b);
       if (weightSum > 0) {
@@ -164,7 +161,7 @@ class AdaptiveWeightingService {
       for (final entry in _currentWeights.entries) {
         weightsJson[entry.key] = entry.value.toString();
       }
-      
+
       // Save per-user weights
       await prefs.setString('adaptive_weights_$userId', weightsJson.toString());
     } catch (e) {
@@ -193,26 +190,28 @@ class AdaptiveWeightingService {
     required bool hasRecentActivity,
   }) {
     final baseWeights = Map<String, double>.from(_currentWeights);
-    
+
     // Adjust weights based on user state
     if (likedMoviesCount < 5) {
       // New users: favor content-based and contextual
       baseWeights['contentBased'] = (baseWeights['contentBased'] ?? 0.4) * 1.2;
       baseWeights['contextual'] = (baseWeights['contextual'] ?? 0.2) * 1.2;
       baseWeights['embedding'] = (baseWeights['embedding'] ?? 0.2) * 0.8;
-      baseWeights['collaborative'] = (baseWeights['collaborative'] ?? 0.05) * 0.5;
+      baseWeights['collaborative'] =
+          (baseWeights['collaborative'] ?? 0.05) * 0.5;
     } else if (likedMoviesCount > 20) {
       // Experienced users: favor embedding and collaborative
       baseWeights['embedding'] = (baseWeights['embedding'] ?? 0.2) * 1.3;
-      baseWeights['collaborative'] = (baseWeights['collaborative'] ?? 0.05) * 1.5;
+      baseWeights['collaborative'] =
+          (baseWeights['collaborative'] ?? 0.05) * 1.5;
       baseWeights['contentBased'] = (baseWeights['contentBased'] ?? 0.4) * 0.9;
     }
-    
+
     if (hasRecentActivity) {
       // Active users: increase behavior weight
       baseWeights['behavior'] = (baseWeights['behavior'] ?? 0.15) * 1.2;
     }
-    
+
     // Normalize
     final sum = baseWeights.values.reduce((a, b) => a + b);
     if (sum > 0) {
@@ -220,7 +219,7 @@ class AdaptiveWeightingService {
         baseWeights[key] = baseWeights[key]! / sum;
       }
     }
-    
+
     return baseWeights;
   }
 }

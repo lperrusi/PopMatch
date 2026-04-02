@@ -8,8 +8,6 @@ import 'package:popmatch/models/movie.dart';
 import 'package:popmatch/models/video.dart';
 import 'package:popmatch/models/streaming_platform.dart';
 import 'package:popmatch/models/user.dart';
-import 'package:popmatch/models/cast_member.dart';
-import 'package:popmatch/models/crew_member.dart';
 
 /// Test utilities for PopMatch widget tests
 class TestUtilities {
@@ -203,7 +201,7 @@ class TestUtilities {
     return List.generate(count, (index) => createTestMovie(
       id: index + 1,
       title: 'Test Movie ${index + 1}',
-      voteAverage: 7.0 + (index * 0.5),
+      rating: 7.0 + (index * 0.5),
     ));
   }
 
@@ -251,18 +249,17 @@ class WidgetTestHelpers {
     double width = 400,
     double height = 600,
   }) {
-    Widget wrappedChild = child;
-    
-    for (final provider in providers.reversed) {
-      wrappedChild = provider.copyWith(child: wrappedChild);
-    }
-
     return MaterialApp(
       home: Scaffold(
         body: SizedBox(
           width: width,
           height: height,
-          child: wrappedChild,
+          child: providers.isEmpty
+              ? child
+              : MultiProvider(
+                  providers: providers,
+                  child: child,
+                ),
         ),
       ),
     );

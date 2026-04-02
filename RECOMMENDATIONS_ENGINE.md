@@ -4,6 +4,10 @@
 
 PopMatch now features a sophisticated AI-powered movie recommendation engine that provides personalized, intelligent, and context-aware movie suggestions. This system combines multiple recommendation techniques with machine learning to deliver the best possible movie discovery experience.
 
+## Current Architecture Note
+- Discover recommendations are now unified across Movies and TV Shows using the same provider-driven hybrid strategy pattern.
+- Background top-ups are staged and flushed only when active stacks get low to avoid disruptive card refreshes while swiping.
+
 ## 🧠 AI-Powered Features
 
 ### **1. Hybrid Recommendation Algorithm**

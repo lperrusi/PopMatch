@@ -41,7 +41,7 @@ class _MoodSelectionScreenState extends State<MoodSelectionScreen> {
               Text(
                 'We\'ll recommend movies that match your current vibe',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 20),
@@ -79,7 +79,7 @@ class _MoodSelectionScreenState extends State<MoodSelectionScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: isSelected ? [
                               BoxShadow(
-                                color: AppTheme.primaryRed.withOpacity(0.3),
+                                color: AppTheme.primaryRed.withValues(alpha: 0.3),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -113,8 +113,8 @@ class _MoodSelectionScreenState extends State<MoodSelectionScreen> {
                                   mood.description,
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: isSelected 
-                                        ? Colors.white.withOpacity(0.9)
-                                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                        ? Colors.white.withValues(alpha: 0.9)
+                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                   ),
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
@@ -161,7 +161,6 @@ class _MoodSelectionScreenState extends State<MoodSelectionScreen> {
     if (_selectedMood == null) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final movieProvider = Provider.of<MovieProvider>(context, listen: false);
 
     // Save selected mood to user preferences
     await authProvider.updatePreferences({

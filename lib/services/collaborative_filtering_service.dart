@@ -1,24 +1,22 @@
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' show sqrt;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/movie.dart';
-import '../models/user.dart';
 
 /// Service for item-based collaborative filtering
 /// Tracks "users who liked X also liked Y" patterns
 class CollaborativeFilteringService {
-  static final CollaborativeFilteringService _instance = CollaborativeFilteringService._internal();
+  static final CollaborativeFilteringService _instance =
+      CollaborativeFilteringService._internal();
   factory CollaborativeFilteringService() => _instance;
   CollaborativeFilteringService._internal();
 
   // Co-occurrence matrix: movieId -> {otherMovieId: count}
   final Map<int, Map<int, int>> _coOccurrenceMatrix = {};
-  
+
   // User-movie interactions: userId -> Set<movieId>
   final Map<String, Set<int>> _userLikes = {};
-  
+
   // Movie popularity: movieId -> like count
   final Map<int, int> _moviePopularity = {};
 
@@ -36,9 +34,9 @@ class CollaborativeFilteringService {
     final userMovies = _userLikes[userId]!;
     for (final otherMovieId in userMovies) {
       if (otherMovieId != movieId) {
-        _coOccurrenceMatrix.putIfAbsent(movieId, () => {})[otherMovieId] = 
+        _coOccurrenceMatrix.putIfAbsent(movieId, () => {})[otherMovieId] =
             (_coOccurrenceMatrix[movieId]![otherMovieId] ?? 0) + 1;
-        _coOccurrenceMatrix.putIfAbsent(otherMovieId, () => {})[movieId] = 
+        _coOccurrenceMatrix.putIfAbsent(otherMovieId, () => {})[movieId] =
             (_coOccurrenceMatrix[otherMovieId]![movieId] ?? 0) + 1;
       }
     }
@@ -87,7 +85,7 @@ class CollaborativeFilteringService {
     // For each liked movie, find co-occurring movies
     for (final likedMovieId in userLikedMovies) {
       final coOccurring = _coOccurrenceMatrix[likedMovieId] ?? {};
-      
+
       for (final entry in coOccurring.entries) {
         final candidateMovieId = entry.key;
         final coOccurrenceCount = entry.value;
@@ -99,7 +97,8 @@ class CollaborativeFilteringService {
         final candidatePopularity = _moviePopularity[candidateMovieId] ?? 1;
         final score = coOccurrenceCount / sqrt(candidatePopularity);
 
-        movieScores[candidateMovieId] = (movieScores[candidateMovieId] ?? 0.0) + score;
+        movieScores[candidateMovieId] =
+            (movieScores[candidateMovieId] ?? 0.0) + score;
       }
     }
 
@@ -114,7 +113,7 @@ class CollaborativeFilteringService {
   /// IMPROVED: Better normalization for additive scoring
   double getCollaborativeWeight(int movieId, Set<int> userLikedMovies) {
     final score = getCollaborativeScore(movieId, userLikedMovies);
-    
+
     // Convert score to weight (0-1 range for additive scoring)
     // Normalize score to 0-1 range (scores typically 0-5)
     // Higher score = higher weight
@@ -124,7 +123,7 @@ class CollaborativeFilteringService {
       // Return 0.3-1.0 range (minimum 0.3 for any match)
       return 0.3 + (normalizedScore * 0.7);
     }
-    
+
     return 0.5; // Neutral weight (0.5) if no collaborative data
   }
 
@@ -132,7 +131,7 @@ class CollaborativeFilteringService {
   Future<void> _saveToStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Save co-occurrence matrix (simplified - only top pairs)
       final coOccurrenceData = <String, dynamic>{};
       for (final entry in _coOccurrenceMatrix.entries) {
@@ -142,12 +141,12 @@ class CollaborativeFilteringService {
           );
         }
       }
-      
+
       // Save movie popularity
       final popularityData = _moviePopularity.map(
         (k, v) => MapEntry(k.toString(), v),
       );
-      
+
       await prefs.setString('cf_cooccurrence', jsonEncode(coOccurrenceData));
       await prefs.setString('cf_popularity', jsonEncode(popularityData));
     } catch (e) {
@@ -159,11 +158,12 @@ class CollaborativeFilteringService {
   Future<void> _loadFromStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Load co-occurrence matrix
       final coOccurrenceStr = prefs.getString('cf_cooccurrence');
       if (coOccurrenceStr != null) {
-        final coOccurrenceData = jsonDecode(coOccurrenceStr) as Map<String, dynamic>;
+        final coOccurrenceData =
+            jsonDecode(coOccurrenceStr) as Map<String, dynamic>;
         for (final entry in coOccurrenceData.entries) {
           final movieId = int.parse(entry.key);
           final coOccurrences = entry.value as Map<String, dynamic>;
@@ -172,11 +172,12 @@ class CollaborativeFilteringService {
           );
         }
       }
-      
+
       // Load movie popularity
       final popularityStr = prefs.getString('cf_popularity');
       if (popularityStr != null) {
-        final popularityData = jsonDecode(popularityStr) as Map<String, dynamic>;
+        final popularityData =
+            jsonDecode(popularityStr) as Map<String, dynamic>;
         _moviePopularity.clear();
         for (final entry in popularityData.entries) {
           _moviePopularity[int.parse(entry.key)] = entry.value as int;
@@ -195,4 +196,3 @@ class CollaborativeFilteringService {
     await _saveToStorage();
   }
 }
-

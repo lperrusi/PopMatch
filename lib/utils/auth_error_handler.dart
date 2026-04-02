@@ -144,10 +144,7 @@ class AuthErrorHandler {
       
       case 'quota-exceeded':
         return 'Service temporarily unavailable. Please try again later.';
-      
-      case 'too-many-requests':
-        return 'Too many verification emails sent. Please wait a few minutes before trying again.';
-      
+
       default:
         return error.message ?? 'Authentication failed. Please try again.';
     }

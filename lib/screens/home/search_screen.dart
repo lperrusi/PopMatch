@@ -22,36 +22,36 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMixin {
+class _SearchScreenState extends State<SearchScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   bool _showFilters = false;
   bool _isSearching = false;
-  
+
   // Filter states
   int? _selectedGenreId;
   int? _selectedYear;
   String _selectedSortBy = 'relevance';
   bool _showOnlyAvailable = false;
-  List<String> _selectedStreamingPlatforms = [];
-  
+  final List<String> _selectedStreamingPlatforms = [];
+
   // Search history
   final List<String> _searchHistory = [];
-  static const int _maxHistoryItems = 10;
 
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -59,7 +59,7 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
-    
+
     _loadSearchHistory();
   }
 
@@ -83,7 +83,7 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
   /// Saves search query to history
   Future<void> _saveToHistory(String query) async {
     if (query.trim().isEmpty) return;
-    
+
     await SearchService.instance.addToHistory(query);
     await _loadSearchHistory();
   }
@@ -92,14 +92,15 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
   Future<void> _performSearch() async {
     final query = _searchController.text.trim();
     if (!SearchService.instance.isValidSearchQuery(query)) return;
-    
+
     await _saveToHistory(query);
+    if (!mounted) return;
     _searchFocusNode.unfocus();
-    
+
     setState(() {
       _isSearching = true;
     });
-    
+
     final movieProvider = Provider.of<MovieProvider>(context, listen: false);
     await movieProvider.searchMovies(
       SearchService.instance.sanitizeQuery(query),
@@ -108,7 +109,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
       sortBy: _selectedSortBy,
       showOnlyAvailable: _showOnlyAvailable,
     );
-    
+    if (!mounted) return;
+
     if (mounted) {
       setState(() {
         _isSearching = false;
@@ -120,7 +122,7 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
   void _clearSearch() {
     _searchController.clear();
     _searchFocusNode.unfocus();
-    
+
     setState(() {
       _selectedGenreId = null;
       _selectedYear = null;
@@ -128,7 +130,7 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
       _showOnlyAvailable = false;
       _selectedStreamingPlatforms.clear();
     });
-    
+
     final movieProvider = Provider.of<MovieProvider>(context, listen: false);
     movieProvider.clearFilters();
   }
@@ -137,14 +139,14 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
   void _onMovieTap(Movie movie) async {
     // Preload movie details in background before navigation
     MovieCacheService.instance.preloadMovieDetails(movie.id);
-    
+
     // Small delay to allow preload to start
     await Future.delayed(const Duration(milliseconds: 50));
-    
+
     if (mounted) {
-    Navigator.of(context).push(
+      Navigator.of(context).push(
         NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
-    );
+      );
     }
   }
 
@@ -163,19 +165,19 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.vintagePaper,
       body: SafeArea(
         child: Column(
           children: [
             // Search header
             _buildSearchHeader(),
-            
+
             // Filters section
-            if (_showFilters) 
+            if (_showFilters)
               Flexible(
                 child: _buildFiltersSection(),
               ),
-            
+
             // Search results or history
             Expanded(
               child: Consumer<MovieProvider>(
@@ -226,7 +228,10 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
               decoration: InputDecoration(
                 hintText: 'Search movies, actors, or genres...',
                 hintStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
                 ),
                 prefixIcon: Icon(
                   Icons.search,
@@ -251,14 +256,15 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
               onChanged: (value) {
                 setState(() {});
                 if (value.isEmpty) {
-                  final movieProvider = Provider.of<MovieProvider>(context, listen: false);
+                  final movieProvider =
+                      Provider.of<MovieProvider>(context, listen: false);
                   movieProvider.clearFilters();
                 }
               },
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Filter toggle and search button
           Row(
             children: [
@@ -278,7 +284,9 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: _showFilters ? AppTheme.primaryRed : Colors.transparent,
+                      color: _showFilters
+                          ? AppTheme.primaryRed
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: AppTheme.primaryRed,
@@ -291,13 +299,16 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                         Icon(
                           Icons.filter_list,
                           size: 18,
-                          color: _showFilters ? Colors.white : AppTheme.primaryRed,
+                          color:
+                              _showFilters ? Colors.white : AppTheme.primaryRed,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'Filters',
                           style: TextStyle(
-                            color: _showFilters ? Colors.white : AppTheme.primaryRed,
+                            color: _showFilters
+                                ? Colors.white
+                                : AppTheme.primaryRed,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -307,7 +318,7 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                 ),
               ),
               const SizedBox(width: 12),
-              
+
               // Search button
               ElevatedButton(
                 onPressed: _isSearching ? null : _performSearch,
@@ -317,7 +328,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 ),
                 child: _isSearching
                     ? const SizedBox(
@@ -325,7 +337,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Text('Search'),
@@ -346,13 +359,15 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
           opacity: _fadeAnimation,
           child: Container(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.35, // Reduced from 0.4 to 0.35
+              maxHeight: MediaQuery.of(context).size.height *
+                  0.35, // Reduced from 0.4 to 0.35
             ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.grey.withValues(alpha: 0.2), // Updated to use withValues
+                  color: Colors.grey
+                      .withValues(alpha: 0.2), // Updated to use withValues
                   width: 1,
                 ),
               ),
@@ -365,11 +380,11 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                   Text(
                     'Filters',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: 6), // Reduced from 8 to 6
-                  
+
                   // Genre filter
                   Consumer<MovieProvider>(
                     builder: (context, movieProvider, child) {
@@ -383,9 +398,9 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                             child: Text('All Genres'),
                           ),
                           ...genres.map((entry) => DropdownMenuItem<int>(
-                            value: entry.key,
-                            child: Text(entry.value),
-                          )),
+                                value: entry.key,
+                                child: Text(entry.value),
+                              )),
                         ],
                         onChanged: (value) {
                           setState(() {
@@ -395,9 +410,9 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                       );
                     },
                   ),
-                  
+
                   const SizedBox(height: 4), // Reduced from 6 to 4
-                  
+
                   // Year filter
                   _buildFilterDropdown(
                     label: 'Year',
@@ -407,7 +422,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                         value: null,
                         child: Text('All Years'),
                       ),
-                      ...List.generate(20, (index) { // Reduced from 25 to 20
+                      ...List.generate(20, (index) {
+                        // Reduced from 25 to 20
                         final year = DateTime.now().year - index;
                         return DropdownMenuItem<int>(
                           value: year,
@@ -421,9 +437,9 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                       });
                     },
                   ),
-                  
+
                   const SizedBox(height: 4), // Reduced from 6 to 4
-                  
+
                   // Sort by filter
                   _buildFilterDropdown(
                     label: 'Sort By',
@@ -452,9 +468,9 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                       });
                     },
                   ),
-                  
+
                   const SizedBox(height: 6), // Reduced from 8 to 6
-                  
+
                   // Available only checkbox
                   Row(
                     children: [
@@ -472,15 +488,15 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 4), // Reduced from 6 to 4
-                  
+
                   // Streaming platform filters
                   Text(
                     'Streaming Platforms',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: 3), // Reduced from 4 to 3
                   Consumer<StreamingProvider>(
@@ -490,7 +506,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                         selectedPlatformIds: _selectedStreamingPlatforms,
                         onPlatformSelected: (platformId) {
                           setState(() {
-                            if (!_selectedStreamingPlatforms.contains(platformId)) {
+                            if (!_selectedStreamingPlatforms
+                                .contains(platformId)) {
                               _selectedStreamingPlatforms.add(platformId);
                             }
                           });
@@ -525,15 +542,17 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
         Text(
           label,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 4),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)), // Updated to use withValues
+            border: Border.all(
+                color: Colors.grey
+                    .withValues(alpha: 0.3)), // Updated to use withValues
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
@@ -561,21 +580,30 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
             Icon(
               Icons.search,
               size: 40, // Reduced from 48
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), // Updated to use withValues
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.3), // Updated to use withValues
             ),
             const SizedBox(height: 8), // Reduced from 12
             Text(
               'Search for movies, actors, or genres',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), // Updated to use withValues
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6), // Updated to use withValues
+                  ),
             ),
             const SizedBox(height: 4), // Reduced from 6
             Text(
               'Your recent searches will appear here',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), // Updated to use withValues
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.4), // Updated to use withValues
+                  ),
             ),
           ],
         ),
@@ -588,8 +616,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
         Text(
           'Recent Searches',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 4), // Reduced from 6
         ..._searchHistory.map((query) => _buildHistoryItem(query)),
@@ -605,7 +633,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.grey.withValues(alpha: 0.2), // Updated to use withValues
+          color:
+              Colors.grey.withValues(alpha: 0.2), // Updated to use withValues
         ),
       ),
       child: ListTile(
@@ -623,7 +652,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
           onPressed: () => _removeFromHistory(query),
         ),
         onTap: () => _onHistoryItemTap(query),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // Reduced padding
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 4), // Reduced padding
       ),
     );
   }
@@ -652,15 +682,18 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
             Text(
               'Search Error',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               movieProvider.error!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -676,21 +709,27 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
             Icon(
               Icons.search_off,
               size: 64,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No movies found',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Try adjusting your search terms or filters',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -739,7 +778,8 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                 width: 80,
                 height: 120,
                 child: CachedNetworkImage(
-                  imageUrl: TMDBService.getImageUrl(movie.posterPath, size: 'w200'),
+                  imageUrl:
+                      TMDBService.getImageUrl(movie.posterPath, size: 'w200'),
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
                     color: Colors.grey[300],
@@ -752,7 +792,7 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                 ),
               ),
             ),
-            
+
             // Movie details
             Expanded(
               child: Padding(
@@ -763,27 +803,28 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                     Text(
                       movie.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    
                     if (movie.year != null) ...[
                       Text(
                         movie.year!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
                       ),
                       const SizedBox(height: 4),
                     ],
-                    
                     if (movie.voteAverage != null) ...[
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.star,
                             size: 16,
                             color: Colors.amber,
@@ -791,21 +832,24 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                           const SizedBox(width: 4),
                           Text(
                             movie.voteAverage!.toStringAsFixed(1),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
                     ],
-                    
                     if (movie.overview != null) ...[
                       Text(
                         movie.overview!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.7),
+                            ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -814,16 +858,19 @@ class _SearchScreenState extends State<SearchScreen> with TickerProviderStateMix
                 ),
               ),
             ),
-            
+
             // Arrow icon
             Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.4),
             ),
           ],
         ),
       ),
     );
   }
-} 
+}

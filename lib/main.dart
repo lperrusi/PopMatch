@@ -6,10 +6,12 @@ import 'providers/movie_provider.dart';
 import 'providers/show_provider.dart';
 import 'providers/recommendations_provider.dart';
 import 'providers/streaming_provider.dart';
+import 'providers/social_provider.dart';
 import 'utils/theme.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_config.dart';
+import 'services/omdb_service.dart';
 
 /// Main entry point for the PopMatch app
 void main() async {
@@ -37,6 +39,22 @@ void main() async {
     // Continue - notifications are optional
   }
   
+  // OMDb (optional): pass at build time, e.g. flutter run --dart-define=OMDB_API_KEY=your_key
+  // Do not commit real keys; rotate any key that was previously hardcoded in source.
+  try {
+    const omdbFromEnv =
+        String.fromEnvironment('OMDB_API_KEY', defaultValue: '');
+    if (omdbFromEnv.isNotEmpty) {
+      await OMDbService.instance.setApiKey(omdbFromEnv);
+      debugPrint('OMDb API key configured from build environment');
+    } else {
+      await OMDbService.instance.loadApiKey();
+    }
+  } catch (e, stackTrace) {
+    debugPrint('Error loading OMDb API key: $e');
+    debugPrint('Stack trace: $stackTrace');
+  }
+  
   // Run app even if services fail to initialize
   runApp(const PopMatchApp());
 }
@@ -54,6 +72,7 @@ class PopMatchApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ShowProvider()),
         ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
         ChangeNotifierProvider(create: (_) => StreamingProvider()),
+        ChangeNotifierProvider(create: (_) => SocialProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {

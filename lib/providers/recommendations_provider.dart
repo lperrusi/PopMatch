@@ -3,15 +3,21 @@ import '../models/movie.dart';
 import '../models/user.dart';
 import '../models/mood.dart';
 import '../services/recommendations_service.dart';
+import '../services/social_service.dart';
+import '../models/social_activity.dart';
+import '../services/tmdb_service.dart';
 
 /// Provider for managing movie recommendations and user preferences
 class RecommendationsProvider with ChangeNotifier {
   final RecommendationsService _recommendationsService = RecommendationsService.instance;
+  final SocialService _socialService = SocialService.instance;
+  final TMDBService _tmdbService = TMDBService();
   
   List<Movie> _recommendations = [];
   List<Movie> _trendingRecommendations = [];
   List<Movie> _moodRecommendations = [];
   List<Movie> _becauseYouLikedRecommendations = [];
+  List<Movie> _friendsRecommendations = [];
   bool _isLoading = false;
   String? _error;
   User? _currentUser;
@@ -29,6 +35,7 @@ class RecommendationsProvider with ChangeNotifier {
   List<Movie> get trendingRecommendations => _filterOutRecentlyInteracted(_trendingRecommendations);
   List<Movie> get moodRecommendations => _filterOutRecentlyInteracted(_moodRecommendations);
   List<Movie> get becauseYouLikedRecommendations => _filterOutRecentlyInteracted(_becauseYouLikedRecommendations);
+  List<Movie> get friendsRecommendations => _filterOutRecentlyInteracted(_friendsRecommendations);
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -145,7 +152,13 @@ class RecommendationsProvider with ChangeNotifier {
       if (refresh) {
         _recommendations = filteredRecommendations;
       } else {
-        _recommendations.addAll(filteredRecommendations);
+        final seenIds = _recommendations.map((movie) => movie.id).toSet();
+        for (final movie in filteredRecommendations) {
+          if (!seenIds.contains(movie.id)) {
+            _recommendations.add(movie);
+            seenIds.add(movie.id);
+          }
+        }
       }
 
       _lastRecommendationsLoad = DateTime.now();
@@ -218,6 +231,40 @@ class RecommendationsProvider with ChangeNotifier {
     }
   }
 
+  /// Loads recommendations based on friends' liked movies.
+  Future<void> loadFriendsRecommendations({bool refresh = false}) async {
+    if (_currentUser == null) return;
+    if (!refresh && _friendsRecommendations.isNotEmpty) return;
+
+    try {
+      _error = null;
+      final activities = await _socialService.getFriendsFeed(limit: 80);
+      final movieActivities = activities.where((activity) {
+        return activity.itemType == SocialItemType.movie &&
+            activity.activityType == SocialActivityType.liked;
+      });
+
+      final seenIds = <int>{};
+      final results = <Movie>[];
+      for (final activity in movieActivities) {
+        final movieId = int.tryParse(activity.itemId);
+        if (movieId == null || !seenIds.add(movieId)) continue;
+        try {
+          final movie = await _tmdbService.getMovieDetails(movieId);
+          results.add(movie);
+        } catch (_) {
+          // Skip invalid or unavailable items.
+        }
+      }
+
+      _friendsRecommendations = _filterOutRecentlyInteracted(results);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
   /// Saves user interaction (like/dislike) for improving recommendations
   Future<void> saveUserInteraction(String movieId, String interactionType) async {
     try {
@@ -258,12 +305,19 @@ class RecommendationsProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Removes a movie from the friends recommendations list
+  void removeFromFriendsRecommendations(int movieId) {
+    _friendsRecommendations.removeWhere((movie) => movie.id == movieId);
+    notifyListeners();
+  }
+
   /// Removes a movie from all recommendation lists
   void removeMovieFromAllLists(int movieId) {
     removeFromPersonalizedRecommendations(movieId);
     removeFromTrendingRecommendations(movieId);
     removeFromMoodRecommendations(movieId);
     removeFromBecauseYouLikedRecommendations(movieId);
+    removeFromFriendsRecommendations(movieId);
   }
 
   /// Handles movie skip/dislike with immediate UI update
@@ -306,6 +360,7 @@ class RecommendationsProvider with ChangeNotifier {
     _trendingRecommendations = _filterOutRecentlyInteracted(_trendingRecommendations);
     _moodRecommendations = _filterOutRecentlyInteracted(_moodRecommendations);
     _becauseYouLikedRecommendations = _filterOutRecentlyInteracted(_becauseYouLikedRecommendations);
+    _friendsRecommendations = _filterOutRecentlyInteracted(_friendsRecommendations);
     
     notifyListeners();
   }
@@ -361,6 +416,7 @@ class RecommendationsProvider with ChangeNotifier {
     await Future.wait([
       loadPersonalizedRecommendations(refresh: true),
       loadTrendingRecommendations(),
+      loadFriendsRecommendations(refresh: true),
     ]);
   }
 

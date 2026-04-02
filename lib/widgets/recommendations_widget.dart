@@ -41,9 +41,9 @@ class RecommendationsWidget extends StatelessWidget {
         children: [
           // Header
           _buildHeader(context),
-          
+
           const SizedBox(height: 12),
-          
+
           // Content
           Flexible(
             child: isLoading
@@ -72,16 +72,19 @@ class RecommendationsWidget extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    ),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
                   ),
                 ],
               ],
@@ -119,7 +122,7 @@ class RecommendationsWidget extends StatelessWidget {
               color: Colors.grey[300],
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Center(
+            child: Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
               ),
@@ -138,7 +141,7 @@ class RecommendationsWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
       ),
       child: Center(
         child: Column(
@@ -153,8 +156,11 @@ class RecommendationsWidget extends StatelessWidget {
             Text(
               'Failed to load recommendations',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
             ),
           ],
         ),
@@ -170,7 +176,7 @@ class RecommendationsWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
       ),
       child: Center(
         child: Column(
@@ -178,15 +184,18 @@ class RecommendationsWidget extends StatelessWidget {
           children: [
             Icon(
               Icons.movie,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               'No recommendations available',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
             ),
           ],
         ),
@@ -229,7 +238,7 @@ class RecommendationsWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -238,7 +247,8 @@ class RecommendationsWidget extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(
-                        imageUrl: TMDBService.getImageUrl(movie.posterPath, size: 'w200'),
+                        imageUrl: TMDBService.getImageUrl(movie.posterPath,
+                            size: 'w200'),
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: Colors.grey[300],
@@ -251,9 +261,10 @@ class RecommendationsWidget extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   // Action buttons
-                  if (showActions && (onMovieLike != null || onMovieDislike != null))
+                  if (showActions &&
+                      (onMovieLike != null || onMovieDislike != null))
                     Positioned(
                       top: 4,
                       right: 4,
@@ -265,7 +276,7 @@ class RecommendationsWidget extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -282,10 +293,10 @@ class RecommendationsWidget extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Icon(
+                                child: const Icon(
                                   Icons.close,
                                   size: 12,
                                   color: Colors.grey,
@@ -296,14 +307,15 @@ class RecommendationsWidget extends StatelessWidget {
                         ],
                       ),
                     ),
-                  
+
                   // Rating badge
                   if (movie.voteAverage != null)
                     Positioned(
                       bottom: 4,
                       left: 4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
                           color: Colors.amber,
                           borderRadius: BorderRadius.circular(4),
@@ -311,7 +323,7 @@ class RecommendationsWidget extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.star,
                               size: 8,
                               color: Colors.white,
@@ -333,32 +345,35 @@ class RecommendationsWidget extends StatelessWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Movie title
           Text(
             movie.title,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           const SizedBox(height: 2),
-          
+
           // Movie year
           if (movie.year != null)
             Text(
               movie.year!,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                fontSize: 10,
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                    fontSize: 10,
+                  ),
             ),
         ],
       ),
     );
   }
-} 
+}

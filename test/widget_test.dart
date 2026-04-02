@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:popmatch/models/movie.dart';
 import 'package:popmatch/models/video.dart';
@@ -35,7 +34,8 @@ void main() {
       expect(castMember.id, 1);
       expect(castMember.name, 'John Doe');
       expect(castMember.character, 'Hero');
-      expect(castMember.profileUrl, 'https://image.tmdb.org/t/p/w185/profile.jpg');
+      expect(
+          castMember.profileUrl, 'https://image.tmdb.org/t/p/w185/profile.jpg');
     });
 
     test('CrewMember model should create correctly', () {
@@ -51,7 +51,8 @@ void main() {
       expect(crewMember.name, 'Jane Smith');
       expect(crewMember.job, 'Director');
       expect(crewMember.department, 'Directing');
-      expect(crewMember.profileUrl, 'https://image.tmdb.org/t/p/w185/profile.jpg');
+      expect(
+          crewMember.profileUrl, 'https://image.tmdb.org/t/p/w185/profile.jpg');
     });
 
     test('Video model should create correctly', () {
@@ -71,7 +72,8 @@ void main() {
       expect(video.name, 'Trailer');
       expect(video.site, 'YouTube');
       expect(video.youtubeUrl, 'https://www.youtube.com/watch?v=abc123');
-      expect(video.thumbnailUrl, 'https://img.youtube.com/vi/abc123/maxresdefault.jpg');
+      expect(video.thumbnailUrl,
+          'https://img.youtube.com/vi/abc123/maxresdefault.jpg');
     });
   });
-} 
+}

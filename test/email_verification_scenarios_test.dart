@@ -9,6 +9,14 @@ void main() {
   group('Email Verification Scenarios', () {
     late SharedPreferences prefs;
 
+    setUpAll(() {
+      FirebaseConfig.setTestMode(true);
+    });
+
+    tearDownAll(() {
+      FirebaseConfig.setTestMode(false);
+    });
+
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       prefs = await SharedPreferences.getInstance();
@@ -16,13 +24,15 @@ void main() {
     });
 
     group('Scenario 1: New User Email Sign-Up Flow', () {
-      test('User signs up → Verification email sent → User signed out → Verification screen shown', () async {
+      test(
+          'User signs up → Verification email sent → User signed out → Verification screen shown',
+          () async {
         // Arrange
         final authService = AuthService();
-        final email = 'newuser@example.com';
-        final password = 'password123';
-        final displayName = 'New User';
-        
+        const email = 'newuser@example.com';
+        const password = 'password123';
+        const displayName = 'New User';
+
         // Act
         try {
           final user = await authService.signUpWithEmailAndPassword(
@@ -30,17 +40,17 @@ void main() {
             password,
             displayName,
           );
-          
+
           // Assert
           expect(user, isNotNull);
           expect(user?.email, email);
           expect(user?.displayName, displayName);
-          
+
           // In production (Firebase enabled):
           // - Verification email would be sent automatically
           // - User would be signed out
           // - Navigation to EmailVerificationScreen would occur
-          
+
           // In development (Firebase disabled):
           // - Verification is skipped
           // - User goes directly to onboarding/home
@@ -52,13 +62,14 @@ void main() {
     });
 
     group('Scenario 2: Resend Verification Email', () {
-      test('User can resend verification email from verification screen', () async {
+      test('User can resend verification email from verification screen',
+          () async {
         // Arrange
         final authProvider = AuthProvider();
-        
+
         // Act
         await authProvider.sendEmailVerification();
-        
+
         // Assert
         // In development mode, this completes without error
         // In production, this would send another verification email
@@ -68,16 +79,16 @@ void main() {
       test('Resend button shows loading state during send', () async {
         // Arrange
         final authProvider = AuthProvider();
-        
+
         // Act
         final future = authProvider.sendEmailVerification();
-        
+
         // Assert - Loading state
         expect(authProvider.isLoading, isTrue);
-        
+
         // Wait for completion
         await future;
-        
+
         // Assert - Loading complete
         expect(authProvider.isLoading, isFalse);
       });
@@ -85,12 +96,12 @@ void main() {
       test('Resend handles error when user not signed in', () async {
         // Arrange
         final authProvider = AuthProvider();
-        
+
         // Act - Try to resend when not signed in
         // In development mode, this should complete
         // In production, this would show an error
         await authProvider.sendEmailVerification();
-        
+
         // Assert
         expect(authProvider.isLoading, isFalse);
       });
@@ -101,16 +112,16 @@ void main() {
         // This scenario is tested in widget tests
         // User taps "Continue to Sign In" button
         // Navigation occurs to LoginScreen
-        
+
         expect(true, isTrue); // Placeholder - tested in widget tests
       });
 
       test('User can sign in after verifying email', () async {
         // Arrange
         final authService = AuthService();
-        final email = 'verified@example.com';
-        final password = 'password123';
-        
+        const email = 'verified@example.com';
+        const password = 'password123';
+
         // Act - Sign up first
         try {
           await authService.signUpWithEmailAndPassword(
@@ -118,12 +129,12 @@ void main() {
             password,
             'Verified User',
           );
-          
+
           // In production:
           // 1. User verifies email via link
           // 2. User signs in
           // 3. Access granted
-          
+
           // In development:
           // 1. User signs in directly
           // 2. Access granted
@@ -137,7 +148,7 @@ void main() {
       test('Development mode skips email verification', () {
         // Arrange & Assert
         expect(FirebaseConfig.isEnabled, isFalse);
-        
+
         // In development mode:
         // - Email verification is skipped
         // - User goes directly to onboarding/home
@@ -147,9 +158,9 @@ void main() {
       test('Development mode allows sign-up without verification', () async {
         // Arrange
         final authService = AuthService();
-        final email = 'dev@example.com';
-        final password = 'password123';
-        
+        const email = 'dev@example.com';
+        const password = 'password123';
+
         // Act
         try {
           final user = await authService.signUpWithEmailAndPassword(
@@ -157,7 +168,7 @@ void main() {
             password,
             'Dev User',
           );
-          
+
           // Assert - User created without verification
           expect(user, isNotNull);
         } catch (e) {
@@ -172,7 +183,7 @@ void main() {
         // - Email already verified by provider
         // - No verification screen shown
         // - Direct navigation to onboarding/home
-        
+
         expect(true, isTrue); // Placeholder - tested in integration tests
       });
 
@@ -181,7 +192,7 @@ void main() {
         // - Email already verified by provider
         // - No verification screen shown
         // - Direct navigation to onboarding/home
-        
+
         expect(true, isTrue); // Placeholder - tested in integration tests
       });
     });
@@ -190,15 +201,15 @@ void main() {
       test('Handles "too many requests" error gracefully', () async {
         // Arrange
         final authProvider = AuthProvider();
-        
+
         // Act
         await authProvider.sendEmailVerification();
-        
+
         // Assert
         // In production, if too many requests:
         // - Error message shown
         // - User can try again later
-        
+
         // In development, this completes without error
         expect(authProvider.isLoading, isFalse);
       });
@@ -206,15 +217,15 @@ void main() {
       test('Handles "email already verified" error', () async {
         // Arrange
         final authProvider = AuthProvider();
-        
+
         // Act
         await authProvider.sendEmailVerification();
-        
+
         // Assert
         // In production, if email already verified:
         // - Error message shown
         // - User can proceed to login
-        
+
         // In development, this completes without error
         expect(authProvider.isLoading, isFalse);
       });
@@ -222,28 +233,29 @@ void main() {
       test('Handles network errors during verification email send', () async {
         // Arrange
         final authProvider = AuthProvider();
-        
+
         // Act
         await authProvider.sendEmailVerification();
-        
+
         // Assert
         // In production, if network error:
         // - Error message shown
         // - User can retry
-        
+
         // In development, this completes without error
         expect(authProvider.isLoading, isFalse);
       });
     });
 
     group('Scenario 7: User Data Persistence', () {
-      test('User data is saved after sign-up, even before verification', () async {
+      test('User data is saved after sign-up, even before verification',
+          () async {
         // Arrange
         final authService = AuthService();
-        final email = 'persist@example.com';
-        final password = 'password123';
-        final displayName = 'Persist User';
-        
+        const email = 'persist@example.com';
+        const password = 'password123';
+        const displayName = 'Persist User';
+
         // Act
         try {
           final user = await authService.signUpWithEmailAndPassword(
@@ -251,7 +263,7 @@ void main() {
             password,
             displayName,
           );
-          
+
           if (user != null) {
             // Assert - User data should be saved
             final savedData = prefs.getString('user_data');
@@ -267,7 +279,7 @@ void main() {
         // - During sign-up
         // - During verification
         // - After verification and sign-in
-        
+
         expect(true, isTrue); // Placeholder - tested in onboarding tests
       });
     });
@@ -276,17 +288,17 @@ void main() {
       test('User can request multiple verification emails', () async {
         // Arrange
         final authProvider = AuthProvider();
-        
+
         // Act - Request multiple times
         await authProvider.sendEmailVerification();
         await authProvider.sendEmailVerification();
         await authProvider.sendEmailVerification();
-        
+
         // Assert
         // In production:
         // - First few requests succeed
         // - Too many requests error after limit
-        
+
         // In development, all complete
         expect(authProvider.isLoading, isFalse);
       });

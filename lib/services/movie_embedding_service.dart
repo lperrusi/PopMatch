@@ -11,15 +11,6 @@ class MovieEmbeddingService {
   // Cache for movie embeddings
   final Map<int, List<double>> _embeddingCache = {};
   
-  // Common words in movie descriptions (for text-based features)
-  final Set<String> _commonWords = {
-    'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
-    'romance', 'sci-fi', 'fantasy', 'mystery', 'crime', 'war',
-    'family', 'animation', 'documentary', 'musical', 'western',
-    'hero', 'villain', 'love', 'death', 'fight', 'journey', 'quest',
-    'future', 'past', 'space', 'earth', 'world', 'city', 'country',
-  };
-
   /// Creates an embedding vector for a movie based on its metadata
   /// ENHANCED: Now includes text-based features from descriptions
   List<double> createEmbedding(Movie movie) {
@@ -33,7 +24,7 @@ class MovieEmbeddingService {
 
     // Genre features (first 20 dimensions)
     if (movie.genreIds != null) {
-      for (final genreId in movie.genreIds!) {
+      for (final _ in movie.genreIds!) {
         if (index < 20) {
           embedding[index] = 1.0;
           index++;

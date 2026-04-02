@@ -1,7 +1,7 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineString, defineInt, defineSecret} = require("firebase-functions/params");
 const {initializeApp} = require("firebase-admin/app");
-const {getAuth} = require("firebase-admin/auth");
+const {getFirestore} = require("firebase-admin/firestore");
 const nodemailer = require("nodemailer");
 
 initializeApp();
@@ -29,7 +29,7 @@ const createEmailTransporter = () => {
   // Access secret values using .value() at runtime
   const gmailUserValue = gmailUser.value() || process.env.GMAIL_USER;
   const gmailPasswordValue = gmailAppPassword.value() || process.env.GMAIL_APP_PASSWORD;
-  
+
   if (gmailUserValue && gmailPasswordValue) {
     return nodemailer.createTransport({
       service: "gmail",
@@ -46,7 +46,7 @@ const createEmailTransporter = () => {
   const smtpPasswordValue = smtpPassword.value() || process.env.SMTP_PASSWORD;
   const smtpPortValue = smtpPort.value() || parseInt(process.env.SMTP_PORT || "587");
   const smtpSecureValue = smtpSecure.value() === "true" || process.env.SMTP_SECURE === "true";
-  
+
   if (smtpHostValue && smtpUserValue && smtpPasswordValue) {
     return nodemailer.createTransport({
       host: smtpHostValue,
@@ -67,7 +67,7 @@ const createEmailTransporter = () => {
 
 /**
  * Cloud Function to send verification code via email
- * 
+ *
  * Called from Flutter app with:
  * {
  *   email: "user@example.com",
@@ -84,8 +84,8 @@ exports.sendVerificationCode = onCall({
   // Validate input
   if (!email || !code) {
     throw new HttpsError(
-      "invalid-argument",
-      "Email and code are required"
+        "invalid-argument",
+        "Email and code are required",
     );
   }
 
@@ -93,16 +93,16 @@ exports.sendVerificationCode = onCall({
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     throw new HttpsError(
-      "invalid-argument",
-      "Invalid email format"
+        "invalid-argument",
+        "Invalid email format",
     );
   }
 
   // Validate code format (should be 6 digits)
   if (!/^\d{6}$/.test(code)) {
     throw new HttpsError(
-      "invalid-argument",
-      "Code must be 6 digits"
+        "invalid-argument",
+        "Code must be 6 digits",
     );
   }
 
@@ -119,7 +119,11 @@ exports.sendVerificationCode = onCall({
     }
 
     // Email content
-    const fromEmail = gmailUser.value() || smtpUser.value() || process.env.GMAIL_USER || process.env.SMTP_USER || "noreply@popmatch.app";
+    const fromEmail = gmailUser.value() ||
+      smtpUser.value() ||
+      process.env.GMAIL_USER ||
+      process.env.SMTP_USER ||
+      "noreply@popmatch.app";
     const mailOptions = {
       from: process.env.EMAIL_FROM || `"PopMatch" <${fromEmail}>`,
       to: email,
@@ -231,9 +235,281 @@ Thank you for joining PopMatch! 🍿
   } catch (error) {
     console.error(`❌ Error sending verification code email:`, error);
     throw new HttpsError(
-      "internal",
-      "Failed to send verification code email",
-      error.message
+        "internal",
+        "Failed to send verification code email",
+        error.message,
+    );
+  }
+});
+
+const db = getFirestore();
+
+/**
+ * Returns the current UTC time as an ISO-8601 string.
+ * @return {string}
+ */
+function nowIso() {
+  return new Date().toISOString();
+}
+
+/**
+ * Loads a user's social privacy settings with defaults.
+ * @param {string} uid
+ * @return {Promise<Object>}
+ */
+async function getUserPrivacy(uid) {
+  const snap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("privacy")
+      .doc("settings")
+      .get();
+  const data = snap.data() || {};
+  return {
+    allowFollowers: data.allowFollowers !== false,
+    shareLikes: data.shareLikes !== false,
+    shareWatchlist: data.shareWatchlist !== false,
+    shareWatchingActivity: data.shareWatchingActivity !== false,
+    activityVisibility: data.activityVisibility || "followersOnly",
+  };
+}
+
+exports.sendFollowRequest = onCall({region: "us-central1"}, async (request) => {
+  const requesterUid = request.auth && request.auth.uid;
+  const targetUid = request.data && request.data.targetUid;
+  if (!requesterUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  if (!targetUid || typeof targetUid !== "string") {
+    throw new HttpsError("invalid-argument", "targetUid is required.");
+  }
+  if (targetUid === requesterUid) {
+    throw new HttpsError("invalid-argument", "You cannot follow yourself.");
+  }
+
+  const privacy = await getUserPrivacy(targetUid);
+  if (!privacy.allowFollowers) {
+    throw new HttpsError("permission-denied", "This user is not accepting followers.");
+  }
+
+  const docId = `${requesterUid}_${targetUid}`;
+  await db.collection("followEdges").doc(docId).set({
+    followerUid: requesterUid,
+    followeeUid: targetUid,
+    status: "pending",
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  }, {merge: true});
+
+  await db.collection("users").doc(targetUid)
+      .collection("incomingRequests")
+      .doc(requesterUid)
+      .set({
+        followerUid: requesterUid,
+        status: "pending",
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      }, {merge: true});
+
+  return {ok: true};
+});
+
+exports.respondToFollowRequest = onCall({region: "us-central1"}, async (request) => {
+  const followeeUid = request.auth && request.auth.uid;
+  const requesterUid = request.data && request.data.requesterUid;
+  const accept = request.data && request.data.accept === true;
+
+  if (!followeeUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  if (!requesterUid || typeof requesterUid !== "string") {
+    throw new HttpsError("invalid-argument", "requesterUid is required.");
+  }
+
+  const docId = `${requesterUid}_${followeeUid}`;
+  await db.collection("followEdges").doc(docId).set({
+    followerUid: requesterUid,
+    followeeUid: followeeUid,
+    status: accept ? "accepted" : "declined",
+    updatedAt: nowIso(),
+    acceptedAt: accept ? nowIso() : null,
+  }, {merge: true});
+
+  await db.collection("users").doc(followeeUid)
+      .collection("incomingRequests")
+      .doc(requesterUid)
+      .delete();
+
+  return {ok: true, status: accept ? "accepted" : "declined"};
+});
+
+exports.unfollowUser = onCall({region: "us-central1"}, async (request) => {
+  const followerUid = request.auth && request.auth.uid;
+  const targetUid = request.data && request.data.targetUid;
+  if (!followerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  if (!targetUid || typeof targetUid !== "string") {
+    throw new HttpsError("invalid-argument", "targetUid is required.");
+  }
+
+  const docId = `${followerUid}_${targetUid}`;
+  await db.collection("followEdges").doc(docId).delete();
+  return {ok: true};
+});
+
+exports.searchUsers = onCall({region: "us-central1"}, async (request) => {
+  const requesterUid = request.auth && request.auth.uid;
+  const query = ((request.data && request.data.query) || "")
+      .toString()
+      .trim()
+      .toLowerCase();
+  if (!requesterUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  if (!query) return [];
+
+  const snap = await db.collection("users").limit(50).get();
+  const users = snap.docs
+      .map((doc) => doc.data())
+      .filter((u) => {
+        const uid = (u.uid || "").toString();
+        if (!uid || uid === requesterUid) return false;
+        const name = (u.displayName || "").toString().toLowerCase();
+        const email = (u.email || "").toString().toLowerCase();
+        return name.includes(query) || email.includes(query);
+      })
+      .slice(0, 20)
+      .map((u) => ({
+        uid: u.uid || "",
+        displayName: u.displayName || "",
+        email: u.email || "",
+        photoURL: u.photoURL || "",
+      }));
+
+  if (!users.length) return users;
+
+  const statusByUid = {};
+  const targetUids = users.map((u) => u.uid).filter(Boolean);
+  const chunks = [];
+  for (let i = 0; i < targetUids.length; i += 10) {
+    chunks.push(targetUids.slice(i, i + 10));
+  }
+
+  for (const chunk of chunks) {
+    const edgeSnap = await db.collection("followEdges")
+        .where("followerUid", "==", requesterUid)
+        .where("followeeUid", "in", chunk)
+        .get();
+
+    for (const doc of edgeSnap.docs) {
+      const edge = doc.data() || {};
+      const followeeUid = (edge.followeeUid || "").toString();
+      const status = (edge.status || "pending").toString();
+      if (followeeUid) {
+        statusByUid[followeeUid] = status;
+      }
+    }
+  }
+
+  return users.map((u) => ({
+    ...u,
+    followStatus: statusByUid[u.uid] || "notFollowing",
+  }));
+});
+
+exports.recordSocialActivity = onCall({region: "us-central1"}, async (request) => {
+  const actorUid = request.auth && request.auth.uid;
+  if (!actorUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  const itemType = ((request.data && request.data.itemType) || "").toString();
+  const itemId = ((request.data && request.data.itemId) || "").toString();
+  const activityType = ((request.data && request.data.activityType) || "").toString();
+  if (!itemType || !itemId || !activityType) {
+    throw new HttpsError("invalid-argument", "itemType, itemId, activityType are required.");
+  }
+
+  const privacy = await getUserPrivacy(actorUid);
+  const blockedByPrivacy = (activityType === "liked" && !privacy.shareLikes) ||
+      (activityType === "watchlisted" && !privacy.shareWatchlist) ||
+      (activityType === "watched" && !privacy.shareWatchingActivity);
+  if (blockedByPrivacy || privacy.activityVisibility === "private") {
+    return {ok: true, skipped: true};
+  }
+
+  const actorUser = await db.collection("users").doc(actorUid).get();
+  const actorData = actorUser.data() || {};
+  const actorDisplayName = actorData.displayName || "";
+
+  const ref = db.collection("socialActivities").doc();
+  const activity = {
+    id: ref.id,
+    actorUid,
+    actorDisplayName,
+    itemType,
+    itemId,
+    activityType,
+    visibility: privacy.activityVisibility || "followersOnly",
+    createdAt: nowIso(),
+  };
+  await ref.set(activity);
+
+  return {ok: true, id: ref.id};
+});
+
+exports.getFriendsFeed = onCall({region: "us-central1"}, async (request) => {
+  const viewerUid = request.auth && request.auth.uid;
+  const limit = Math.min(
+      Number((request.data && request.data.limit) || 40),
+      100,
+  );
+  if (!viewerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  try {
+    const followsSnap = await db.collection("followEdges")
+        .where("followerUid", "==", viewerUid)
+        .where("status", "==", "accepted")
+        .get();
+    const followed = followsSnap.docs.map((d) => d.data().followeeUid).filter(Boolean);
+    if (!followed.length) return [];
+
+    const out = [];
+    const chunks = [];
+    for (let i = 0; i < followed.length; i += 10) {
+      chunks.push(followed.slice(i, i + 10));
+    }
+    for (const chunk of chunks) {
+      const feedSnap = await db.collection("socialActivities")
+          .where("actorUid", "in", chunk)
+          .orderBy("createdAt", "desc")
+          .limit(limit)
+          .get();
+      for (const doc of feedSnap.docs) {
+        const data = doc.data();
+        if (data.visibility === "private") continue;
+        out.push(data);
+      }
+    }
+
+    out.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    return out.slice(0, limit);
+  } catch (err) {
+    console.error("getFriendsFeed failed:", err);
+    const msg = err && err.message ? String(err.message) : "";
+    if (msg.includes("index") || msg.includes("FAILED_PRECONDITION") || msg.includes("requires an index")) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Firestore indexes are building or missing. Deploy firestore.indexes.json " +
+          "and wait for indexes to finish building, then try again.",
+      );
+    }
+    throw new HttpsError(
+        "internal",
+        "Could not load friends feed.",
     );
   }
 });

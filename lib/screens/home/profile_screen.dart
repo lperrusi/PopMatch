@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
+import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/navigation_utils.dart';
 import '../../models/movie.dart';
-// import '../../services/iap_service.dart'; // Removed for simplified build
-// import '../../services/ads_service.dart'; // Removed for simplified build
+import '../../models/tv_show.dart';
+import '../../services/movie_cache_service.dart';
+import '../../services/tmdb_service.dart';
+import '../../services/feature_flags.dart';
 import '../auth/login_screen.dart';
 import 'edit_preferences_screen.dart';
+import 'notifications_screen.dart';
+import 'privacy_screen.dart';
+import 'help_support_screen.dart';
+import 'social_hub_screen.dart';
+import 'favorites_screen.dart';
+import 'movie_detail_screen.dart';
+import 'show_detail_screen.dart';
 
 /// Profile screen showing user information and account management
 class ProfileScreen extends StatefulWidget {
@@ -59,38 +71,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          // Avatar
+                          // Avatar (photo from Google/Apple when available)
                           CircleAvatar(
                             radius: 40,
-                            backgroundColor: AppTheme.primaryRed,
-                            child: Text(
-                              user.email[0].toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
+                            backgroundColor: AppTheme.cinemaRed,
+                            backgroundImage: user.photoURL != null && user.photoURL!.isNotEmpty
+                                ? CachedNetworkImageProvider(user.photoURL!)
+                                : null,
+                            child: user.photoURL == null || user.photoURL!.isEmpty
+                                ? Text(
+                                    user.email[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : null,
                           ),
                           const SizedBox(height: 16),
-                          
-                          // Email
+                          // Email (theme color so visible on dark card)
                           Text(
                             user.email,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
+                            style: GoogleFonts.lato(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
-                          
-                          // Display name if available
-                          if (user.displayName != null)
+                          if (user.displayName != null && user.displayName!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
                             Text(
                               user.displayName!,
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              style: GoogleFonts.lato(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
                               ),
+                              textAlign: TextAlign.center,
                             ),
+                          ],
                         ],
                       ),
                     ),
@@ -104,119 +124,183 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: _StatCard(
                         title: 'Watchlist',
-                        value: user.watchlist.length.toString(),
-                        icon: Icons.bookmark,
-                        color: AppTheme.vintagePaper,
+                        value: (user.watchlist.length + user.watchlistShowsOrEmpty.length).toString(),
+                        icon: Icons.bookmark_rounded,
+                        color: AppTheme.filmStripBlack,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _StatCard(
                         title: 'Liked Movies',
                         value: user.likedMovies.length.toString(),
-                        icon: Icons.favorite,
-                        color: AppTheme.vintagePaper,
+                        icon: Icons.favorite_rounded,
+                        color: AppTheme.filmStripBlack,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCard(
+                        title: 'Liked Shows',
+                        value: user.likedShows.length.toString(),
+                        icon: Icons.tv_rounded,
+                        color: AppTheme.filmStripBlack,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                
-                // Liked movies section
+
+                // Recently liked movies (complete: from provider or loaded by ID via MovieCacheService)
                 if (user.likedMovies.isNotEmpty) ...[
-                  Text(
-                    'Recently Liked Movies',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.vintagePaper,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recently Liked Movies',
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 22,
+                          letterSpacing: 1,
+                          color: AppTheme.filmStripBlack,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            NavigationUtils.fastSlideRoute(const FavoritesScreen()),
+                          );
+                        },
+                        child: Text(
+                          'View all',
+                          style: GoogleFonts.lato(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.cinemaRed,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  
-                  Consumer<MovieProvider>(
-                    builder: (context, movieProvider, child) {
-                      final likedMovies = movieProvider.movies
-                          .where((movie) => user.likedMovies.contains(movie.id.toString()))
-                          .take(5)
-                          .toList();
-                      
-                      return Column(
-                        children: likedMovies.map((movie) => _LikedMovieTile(movie: movie)).toList(),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  _RecentLikedMoviesSection(likedMovieIds: user.likedMovies),
+                  const SizedBox(height: 20),
                 ],
-                
+
+                // Recently liked shows (complete: from provider or loaded by ID via TMDB)
+                if (user.likedShows.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recently Liked Shows',
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 22,
+                          letterSpacing: 1,
+                          color: AppTheme.filmStripBlack,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            NavigationUtils.fastSlideRoute(const FavoritesScreen()),
+                          );
+                        },
+                        child: Text(
+                          'View all',
+                          style: GoogleFonts.lato(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.cinemaRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _RecentLikedShowsSection(likedShowIds: user.likedShows),
+                  const SizedBox(height: 20),
+                ],
+
                 // Account settings
                 Text(
-                  'Account Settings',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.vintagePaper,
+                  'ACCOUNT SETTINGS',
+                  style: GoogleFonts.bebasNeue(
+                    fontSize: 22,
+                    letterSpacing: 1,
+                    color: AppTheme.filmStripBlack,
                   ),
                 ),
                 const SizedBox(height: 16),
-                
                 Card(
                   child: Column(
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.edit),
+                        leading: Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.onSurface),
                         title: const Text('Edit Preferences'),
                         subtitle: const Text('Genres and streaming platforms'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const EditPreferencesScreen(),
-                            ),
+                            NavigationUtils.fastSlideRoute(const EditPreferencesScreen()),
                           );
                         },
                       ),
                       const Divider(height: 1),
                       ListTile(
-                        leading: const Icon(Icons.notifications),
+                        leading: Icon(Icons.notifications_outlined, color: Theme.of(context).colorScheme.onSurface),
                         title: const Text('Notifications'),
+                        subtitle: const Text('Push, reminders, recommendations'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: Implement notifications settings
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Notifications settings coming soon!')),
+                          Navigator.of(context).push(
+                            NavigationUtils.fastSlideRoute(const NotificationsScreen()),
                           );
                         },
                       ),
                       const Divider(height: 1),
                       ListTile(
-                        leading: const Icon(Icons.privacy_tip),
+                        leading: Icon(Icons.privacy_tip_outlined, color: Theme.of(context).colorScheme.onSurface),
                         title: const Text('Privacy'),
+                        subtitle: const Text('Data usage and your data'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: Implement privacy settings
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Privacy settings coming soon!')),
+                          Navigator.of(context).push(
+                            NavigationUtils.fastSlideRoute(const PrivacyScreen()),
                           );
                         },
                       ),
                       const Divider(height: 1),
+                      if (FeatureFlags.socialUiEnabled) ...[
+                        ListTile(
+                          leading: Icon(Icons.groups_rounded, color: Theme.of(context).colorScheme.onSurface),
+                          title: const Text('Social'),
+                          subtitle: const Text('Friends and what they are watching'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              NavigationUtils.fastSlideRoute(const SocialHubScreen()),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1),
+                      ],
                       ListTile(
-                        leading: const Icon(Icons.help),
+                        leading: Icon(Icons.help_outline_rounded, color: Theme.of(context).colorScheme.onSurface),
                         title: const Text('Help & Support'),
+                        subtitle: const Text('FAQ, contact, about'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: Implement help and support
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Help & support coming soon!')),
+                          Navigator.of(context).push(
+                            NavigationUtils.fastSlideRoute(const HelpSupportScreen()),
                           );
                         },
                       ),
                       const Divider(height: 1),
                       ListTile(
-                        leading: const Icon(Icons.remove_circle_outline),
+                        leading: Icon(Icons.block_rounded, color: Theme.of(context).colorScheme.onSurface),
                         title: const Text('Remove Ads'),
-                        subtitle: const Text('Remove all ads'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _showRemoveAdsDialog(context),
+                        subtitle: const Text('Not available yet'),
+                        trailing: const Icon(Icons.lock_outline_rounded),
+                        enabled: false,
+                        onTap: null,
                       ),
                     ],
                   ),
@@ -248,12 +332,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        backgroundColor: AppTheme.vintagePaper,
+        title: Text(
+          'Sign Out',
+          style: GoogleFonts.bebasNeue(color: AppTheme.filmStripBlack, letterSpacing: 1),
+        ),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: GoogleFonts.lato(color: AppTheme.filmStripBlack),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: GoogleFonts.lato(color: AppTheme.filmStripBlack)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -264,7 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: AppTheme.cinemaRed,
               foregroundColor: AppTheme.warmCream,
             ),
-            child: const Text('Sign Out'),
+            child: Text('Sign Out', style: GoogleFonts.lato(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -284,69 +375,192 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Shows remove ads dialog
-  void _showRemoveAdsDialog(BuildContext context) {
-    // if (AdsService.instance.adsRemoved) { // Removed for simplified build
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text('Ads are already removed!')),
-    //   );
-    //   return;
-    // }
+}
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Ads'),
-        content: const Text(
-          'Remove all ads from PopMatch for a one-time purchase. '
-          'Enjoy an ad-free movie discovery experience!',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _purchaseRemoveAds();
-            },
-            child: const Text('Purchase'),
-          ),
-        ],
-      ),
-    );
+/// Recently liked movies: shows first 5 in order of liked IDs; loads by ID if not in MovieProvider.
+class _RecentLikedMoviesSection extends StatefulWidget {
+  final List<String> likedMovieIds;
+
+  const _RecentLikedMoviesSection({required this.likedMovieIds});
+
+  @override
+  State<_RecentLikedMoviesSection> createState() => _RecentLikedMoviesSectionState();
+}
+
+class _RecentLikedMoviesSectionState extends State<_RecentLikedMoviesSection> {
+  static const int _maxDisplay = 5;
+  final Map<String, Movie> _loadedById = {};
+  final Set<String> _loadingIds = {};
+
+  void _loadMovieIfNeeded(String id, List<Movie> fromProvider) {
+    if (_loadedById.containsKey(id) || _loadingIds.contains(id)) return;
+    final inProvider = fromProvider.any((m) => m.id.toString() == id);
+    if (inProvider) return;
+    final movieId = int.tryParse(id);
+    if (movieId == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_loadedById.containsKey(id) || _loadingIds.contains(id)) return;
+      setState(() => _loadingIds.add(id));
+      MovieCacheService.instance.getMovieDetails(movieId).then((movie) {
+        if (!mounted) return;
+        setState(() {
+          _loadedById[id] = movie;
+          _loadingIds.remove(id);
+        });
+      }).catchError((_) {
+        if (mounted) setState(() => _loadingIds.remove(id));
+      });
+    });
   }
 
-  /// Purchases remove ads
-  Future<void> _purchaseRemoveAds() async {
-    try {
-      // final success = await IAPService.instance.purchaseRemoveAds(); // Removed for simplified build
-      const success = false; // Placeholder for simplified build
-      
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Purchase initiated! Check your email for confirmation.'),
-            backgroundColor: Colors.green,
+  @override
+  Widget build(BuildContext context) {
+    final targetIds = widget.likedMovieIds.take(_maxDisplay).toList();
+    if (targetIds.isEmpty) return const SizedBox.shrink();
+
+    return Consumer<MovieProvider>(
+      builder: (context, movieProvider, _) {
+        final fromProvider = movieProvider.movies;
+        for (final id in targetIds) {
+          _loadMovieIfNeeded(id, fromProvider);
+        }
+
+        final List<Widget> tiles = [];
+        for (final id in targetIds) {
+          Movie? movie = _loadedById[id];
+          if (movie == null) {
+            final found = fromProvider.where((m) => m.id.toString() == id);
+            if (found.isNotEmpty) movie = found.first;
+          }
+          if (movie != null) {
+            tiles.add(_LikedMovieTile(
+              movie: movie,
+              onTap: () {
+                Navigator.of(context).push(
+                  NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie!)),
+                );
+              },
+            ));
+          } else {
+            // No data yet: show loading placeholder (either loading or pending load)
+            tiles.add(const _LoadingTile(label: 'Movie'));
+          }
+        }
+        return Column(children: tiles);
+      },
+    );
+  }
+}
+
+/// Recently liked shows: shows first 5 in order of liked IDs; loads by ID if not in ShowProvider.
+class _RecentLikedShowsSection extends StatefulWidget {
+  final List<String> likedShowIds;
+
+  const _RecentLikedShowsSection({required this.likedShowIds});
+
+  @override
+  State<_RecentLikedShowsSection> createState() => _RecentLikedShowsSectionState();
+}
+
+class _RecentLikedShowsSectionState extends State<_RecentLikedShowsSection> {
+  static const int _maxDisplay = 5;
+  final Map<String, TvShow> _loadedById = {};
+  final Set<String> _loadingIds = {};
+  final TMDBService _tmdbService = TMDBService();
+
+  void _loadShowIfNeeded(String id, List<TvShow> fromProvider) {
+    if (_loadedById.containsKey(id) || _loadingIds.contains(id)) return;
+    if (fromProvider.any((s) => s.id.toString() == id)) return;
+    final showId = int.tryParse(id);
+    if (showId == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_loadedById.containsKey(id) || _loadingIds.contains(id)) return;
+      setState(() => _loadingIds.add(id));
+      _tmdbService.getShowDetails(showId).then((show) {
+        if (!mounted) return;
+        setState(() {
+          _loadedById[id] = show;
+          _loadingIds.remove(id);
+        });
+      }).catchError((_) {
+        if (mounted) setState(() => _loadingIds.remove(id));
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final targetIds = widget.likedShowIds.take(_maxDisplay).toList();
+    if (targetIds.isEmpty) return const SizedBox.shrink();
+
+    return Consumer<ShowProvider>(
+      builder: (context, showProvider, _) {
+        final fromProvider = showProvider.shows;
+        for (final id in targetIds) {
+          _loadShowIfNeeded(id, fromProvider);
+        }
+
+        final List<Widget> tiles = [];
+        for (final id in targetIds) {
+          TvShow? show = _loadedById[id];
+          if (show == null) {
+            final found = fromProvider.where((s) => s.id.toString() == id);
+            if (found.isNotEmpty) show = found.first;
+          }
+          if (show != null) {
+            tiles.add(_LikedShowTile(
+              show: show,
+              onTap: () {
+                Navigator.of(context).push(
+                  NavigationUtils.fastSlideRoute(ShowDetailScreen(show: show!)),
+                );
+              },
+            ));
+          } else {
+            tiles.add(const _LoadingTile(label: 'Show'));
+          }
+        }
+        return Column(children: tiles);
+      },
+    );
+  }
+}
+
+/// Placeholder tile while a movie/show is loading by ID
+class _LoadingTile extends StatelessWidget {
+  final String label;
+
+  const _LoadingTile({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 60,
+          decoration: BoxDecoration(
+            color: onSurface.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(4),
           ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Purchase failed. Please try again.'),
-            backgroundColor: Colors.red,
+          child: const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.cinemaRed),
+            ),
           ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
         ),
-      );
-    }
+        title: Text(
+          'Loading $label...',
+          style: GoogleFonts.lato(fontSize: 14, color: onSurface),
+        ),
+      ),
+    );
   }
 }
 
@@ -366,6 +580,7 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -374,22 +589,26 @@ class _StatCard extends StatelessWidget {
             Icon(
               icon,
               size: 32,
-              color: color,
+              color: onSurface,
             ),
             const SizedBox(height: 8),
             Text(
               value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              style: GoogleFonts.bebasNeue(
+                fontSize: 28,
+                letterSpacing: 1,
                 fontWeight: FontWeight.bold,
-                color: color,
+                color: onSurface,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              style: GoogleFonts.lato(
+                fontSize: 12,
+                color: onSurface.withValues(alpha: 0.7),
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -401,14 +620,17 @@ class _StatCard extends StatelessWidget {
 /// Liked movie tile widget
 class _LikedMovieTile extends StatelessWidget {
   final Movie movie;
+  final VoidCallback? onTap;
 
-  const _LikedMovieTile({required this.movie});
+  const _LikedMovieTile({required this.movie, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        onTap: onTap,
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: SizedBox(
@@ -431,30 +653,86 @@ class _LikedMovieTile extends StatelessWidget {
         ),
         title: Text(
           movie.title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
+          style: GoogleFonts.lato(fontSize: 15, fontWeight: FontWeight.w600, color: onSurface),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
           movie.year ?? '',
-          style: Theme.of(context).textTheme.bodySmall,
+          style: GoogleFonts.lato(fontSize: 13, color: onSurface.withValues(alpha: 0.7)),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.star,
-              color: AppTheme.vintagePaper,
-              size: 16,
-            ),
+            const Icon(Icons.star_rounded, color: AppTheme.sepiaBrown, size: 18),
             const SizedBox(width: 4),
             Text(
               movie.formattedRating,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.vintagePaper,
-              ),
+              style: GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w600, color: onSurface),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Liked show tile widget
+class _LikedShowTile extends StatelessWidget {
+  final TvShow show;
+  final VoidCallback? onTap;
+
+  const _LikedShowTile({required this.show, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: onTap,
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            width: 40,
+            height: 60,
+            child: show.posterUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: show.posterUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      color: Colors.grey[300],
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.tv_rounded, color: Colors.grey),
+                    ),
+                  )
+                : Container(
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.tv_rounded, color: Colors.grey),
+                  ),
+          ),
+        ),
+        title: Text(
+          show.name,
+          style: GoogleFonts.lato(fontSize: 15, fontWeight: FontWeight.w600, color: onSurface),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          show.year ?? '',
+          style: GoogleFonts.lato(fontSize: 13, color: onSurface.withValues(alpha: 0.7)),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.star_rounded, color: AppTheme.sepiaBrown, size: 18),
+            const SizedBox(width: 4),
+            Text(
+              show.formattedRating,
+              style: GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w600, color: onSurface),
             ),
           ],
         ),

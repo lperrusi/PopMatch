@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/foundation.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
 import '../home/home_screen.dart';
 
-/// Onboarding screen for new users to set preferences
+/// Onboarding setup (Figma): Step 1 Welcome, Step 2 Genres, Step 3 Streaming. Gold buttons, auth styling.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -17,13 +17,9 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  
-  // Selected preferences
   final Set<int> _selectedGenres = {};
   final Set<String> _selectedPlatforms = {};
-  final Set<int> _selectedYears = {};
 
-  // Available options
   final List<String> _streamingPlatforms = [
     'Netflix',
     'Amazon Prime',
@@ -37,45 +33,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     'YouTube Premium',
   ];
 
-  final List<int> _yearRanges = [
-    2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015,
-    2010, 2005, 2000, 1995, 1990, 1985, 1980, 1975, 1970, 1965,
-  ];
-
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
 
-  /// Saves user preferences and navigates to home
   Future<void> _completeOnboarding() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    // Ensure user is logged in before saving preferences
-    if (authProvider.userData == null) {
-      debugPrint('❌ Cannot complete onboarding: user is not logged in');
-      return;
-    }
-    
-    debugPrint('🎯 Completing onboarding for user: ${authProvider.userData!.email}');
-    
-    // Save preferences to Firebase
+    if (authProvider.userData == null) return;
     await authProvider.updatePreferences({
       'selectedGenres': _selectedGenres.toList(),
       'selectedPlatforms': _selectedPlatforms.toList(),
-      'selectedYears': _selectedYears.toList(),
+      'selectedYears': <int>[],
       'onboardingCompleted': true,
     });
-    
-    // Verify the data was saved
-    final savedData = authProvider.userData;
-    if (savedData != null) {
-      final onboardingCompleted = savedData.preferences['onboardingCompleted'] ?? false;
-      debugPrint('✅ Onboarding completion verified. onboardingCompleted: $onboardingCompleted');
-      debugPrint('📋 Full preferences: ${savedData.preferences}');
-    }
-
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -83,7 +55,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  /// Toggles genre selection
   void _toggleGenre(int genreId) {
     setState(() {
       if (_selectedGenres.contains(genreId)) {
@@ -94,7 +65,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
-  /// Toggles platform selection
   void _togglePlatform(String platform) {
     setState(() {
       if (_selectedPlatforms.contains(platform)) {
@@ -105,113 +75,100 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
-  /// Toggles year selection
-  void _toggleYear(int year) {
-    setState(() {
-      if (_selectedYears.contains(year)) {
-        _selectedYears.remove(year);
-      } else {
-        _selectedYears.add(year);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
           Positioned.fill(
             child: Image.asset(
-              'assets/screens/SignIn Screen.png',
+              'assets/screens/figma/background_auth.png',
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(color: AppTheme.deepMidnightBrown);
-              },
+              errorBuilder: (_, __, ___) =>
+                  Container(color: AppTheme.authBackground),
             ),
           ),
-          // Content overlay
           SafeArea(
             child: Column(
               children: [
-                // Progress indicator
-                LinearProgressIndicator(
-                  value: (_currentPage + 1) / 3,
-                  backgroundColor: Colors.grey[800],
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.cinemaRed),
-                ),
-                
-                // Page content
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentPage = index;
-                      });
-                    },
-                    children: [
-                      _buildWelcomePage(),
-                      _buildGenreSelectionPage(),
-                      _buildPlatformSelectionPage(),
-                    ],
-                  ),
-                ),
-                
-                // Navigation buttons - matching tutorial screen style
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       if (_currentPage > 0)
-                        ElevatedButton(
+                        TextButton.icon(
                           onPressed: () {
                             _pageController.previousPage(
                               duration: const Duration(milliseconds: 300),
                               curve: Curves.easeInOut,
                             );
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.sepiaBrown,
-                            foregroundColor: AppTheme.warmCream,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                          child: const Text('Back'),
+                          icon: const Icon(Icons.chevron_left,
+                              color: AppTheme.authCream, size: 24),
+                          label: Text('Back',
+                              style: GoogleFonts.lato(
+                                  color: AppTheme.authCream,
+                                  fontWeight: FontWeight.w600)),
                         )
                       else
                         const SizedBox(width: 80),
-                      
                       Text(
                         '${_currentPage + 1} of 3',
-                        style: TextStyle(
-                          color: AppTheme.vintagePaper,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: GoogleFonts.lato(
+                            color: AppTheme.authCream.withValues(alpha: 0.8),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600),
                       ),
-                      
-                      ElevatedButton(
-                        onPressed: _currentPage == 2 ? _completeOnboarding : () {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.sepiaBrown,
-                          foregroundColor: AppTheme.warmCream,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _currentPage == 2
+                              ? _completeOnboarding
+                              : () {
+                                  _pageController.nextPage(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppTheme.authGoldStart,
+                                  AppTheme.authGoldEnd
+                                ],
+                              ),
+                            ),
+                            child: Text(
+                              _currentPage == 2 ? 'Get Started' : 'Next',
+                              style: GoogleFonts.bebasNeue(
+                                  fontSize: 18,
+                                  letterSpacing: 0.05,
+                                  color: AppTheme.authBackground),
+                            ),
                           ),
                         ),
-                        child: Text(_currentPage == 2 ? 'Get Started' : 'Next'),
                       ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) =>
+                        setState(() => _currentPage = index),
+                    children: [
+                      _buildWelcomePage(),
+                      _buildGenreSelectionPage(),
+                      _buildPlatformSelectionPage(),
                     ],
                   ),
                 ),
@@ -223,136 +180,151 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  /// Welcome page
   Widget _buildWelcomePage() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // App icon
-          Container(
+          Image.asset(
+            'assets/screens/figma/popcorn.png',
             width: 120,
             height: 120,
-            child: Image.asset(
-              'assets/icons/app_icon_512 Background Removed.png',
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                // Fallback to circular icon if main icon fails
-                return Image.asset(
-                  'assets/icons/app_icon_circular.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Final fallback to Material icon
-                    return Container(
-            decoration: BoxDecoration(
-                        color: AppTheme.brickRed,
-                        borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-                        Icons.movie_rounded,
-              size: 60,
-                        color: AppTheme.warmCream,
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(Icons.movie_rounded,
+                size: 80, color: AppTheme.authCream),
           ),
           const SizedBox(height: 32),
-          
           Text(
-            'Welcome to PopMatch!',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.warmCream,
-            ),
+            'WELCOME TO POPMATCH!',
+            style: GoogleFonts.bebasNeue(
+                fontSize: 32, color: AppTheme.authCream, letterSpacing: 0.05),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          
           Text(
-            'Let\'s personalize your movie discovery experience by setting up your preferences.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.warmCream.withValues(alpha: 0.9),
-            ),
+            "Let's personalize your movie discovery. Pick what you love and we'll find the best matches.",
+            style:
+                GoogleFonts.lato(color: AppTheme.authCreamMuted, fontSize: 16),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          
-          // Feature highlights
-          _buildFeatureItem(Icons.swipe, 'Swipe to discover movies'),
+          _buildFeatureItem(
+              Icons.swipe, 'Swipe to discover movies you\'ll love'),
           _buildFeatureItem(Icons.bookmark, 'Save to your watchlist'),
-          _buildFeatureItem(Icons.filter_list, 'Filter by your preferences'),
+          _buildFeatureItem(
+              Icons.filter_list, 'Filter by genres and preferences'),
           _buildFeatureItem(Icons.share, 'Share with friends'),
         ],
       ),
     );
   }
 
-  /// Genre selection page
+  Widget _buildFeatureItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.authGoldStart, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.lato(color: AppTheme.authCream, fontSize: 15),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGenreSelectionPage() {
     return Consumer<MovieProvider>(
       builder: (context, movieProvider, child) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
+        final genres = movieProvider.genres;
+        if (genres.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(color: AppTheme.authCream),
+                const SizedBox(height: 16),
+                Text('Loading genres...',
+                    style: GoogleFonts.lato(color: AppTheme.authCreamMuted)),
+              ],
+            ),
+          );
+        }
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'What genres do you love?',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.warmCream,
-                ),
+                'WHAT GENRES DO YOU LOVE?',
+                style: GoogleFonts.bebasNeue(
+                    fontSize: 28,
+                    color: AppTheme.authCream,
+                    letterSpacing: 0.05),
               ),
               const SizedBox(height: 8),
               Text(
-                'Select your favorite movie genres to get better recommendations.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.warmCream.withValues(alpha: 0.9),
-                ),
+                'Select your favorite genres for better recommendations.',
+                style: GoogleFonts.lato(
+                    color: AppTheme.authCreamMuted, fontSize: 14),
               ),
               const SizedBox(height: 24),
-              
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 3,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: movieProvider.genres.length,
-                  itemBuilder: (context, index) {
-                    final genre = movieProvider.genres.entries.elementAt(index);
-                    final isSelected = _selectedGenres.contains(genre.key);
-                    
-                    return GestureDetector(
-                      onTap: () => _toggleGenre(genre.key),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.popcornGold : Colors.transparent,
-                          border: Border.all(
-                            color: isSelected ? AppTheme.popcornGold : AppTheme.warmCream.withValues(alpha: 0.5),
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text(
-                            genre.value,
-                            style: TextStyle(
-                              color: isSelected ? AppTheme.filmStripBlack : AppTheme.warmCream,
-                              fontWeight: FontWeight.w600,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: genres.entries.map((e) {
+                      final isSelected = _selectedGenres.contains(e.key);
+                      return SizedBox(
+                        width: (constraints.maxWidth - 12) / 2,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _toggleGenre(e.key),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.authRed.withValues(alpha: 0.4)
+                                    : AppTheme.authInputBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppTheme.authRed
+                                      : AppTheme.authBorder,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  e.value,
+                                  style: GoogleFonts.lato(
+                                    color: isSelected
+                                        ? AppTheme.authCream
+                                        : AppTheme.authCreamMuted,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
             ],
           ),
@@ -361,90 +333,79 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  /// Platform selection page
   Widget _buildPlatformSelectionPage() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Where do you watch movies?',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.warmCream,
-            ),
+            'WHERE DO YOU WATCH MOVIES?',
+            style: GoogleFonts.bebasNeue(
+                fontSize: 28, color: AppTheme.authCream, letterSpacing: 0.05),
           ),
           const SizedBox(height: 8),
           Text(
-            'Select your streaming platforms to find movies available on your services.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.warmCream.withValues(alpha: 0.9),
-            ),
+            'Select the streaming services you have access to.',
+            style:
+                GoogleFonts.lato(color: AppTheme.authCreamMuted, fontSize: 14),
           ),
           const SizedBox(height: 24),
-          
-          Expanded(
-            child: ListView.builder(
-              itemCount: _streamingPlatforms.length,
-              itemBuilder: (context, index) {
-                final platform = _streamingPlatforms[index];
-                final isSelected = _selectedPlatforms.contains(platform);
-                
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.popcornGold.withValues(alpha: 0.3) : Colors.transparent,
-                    border: Border.all(
-                      color: isSelected ? AppTheme.popcornGold : AppTheme.warmCream.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    leading: Icon(
-                      isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                      color: isSelected ? AppTheme.popcornGold : AppTheme.warmCream.withValues(alpha: 0.7),
-                    ),
-                    title: Text(
-                      platform,
-                      style: TextStyle(
-                        color: AppTheme.warmCream,
+          ..._streamingPlatforms.map((platform) {
+            final isSelected = _selectedPlatforms.contains(platform);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _togglePlatform(platform),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppTheme.authRed.withValues(alpha: 0.2)
+                          : AppTheme.authInputBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color:
+                            isSelected ? AppTheme.authRed : AppTheme.authBorder,
+                        width: isSelected ? 2 : 1,
                       ),
                     ),
-                    onTap: () => _togglePlatform(platform),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: isSelected
+                              ? AppTheme.authRed
+                              : AppTheme.authCream.withValues(alpha: 0.5),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          platform,
+                          style: GoogleFonts.lato(
+                            color: isSelected
+                                ? AppTheme.authCream
+                                : AppTheme.authCreamMuted,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w500,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Feature item widget
-  Widget _buildFeatureItem(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: AppTheme.popcornGold,
-            size: 24,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppTheme.warmCream,
+                ),
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
   }
-} 
+}

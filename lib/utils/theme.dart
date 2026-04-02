@@ -41,6 +41,17 @@ class AppTheme {
   static String get headerFont => 'Bebas Neue'; // For headers/titles
   static String get bodyFont => 'Lato'; // For body text
 
+  // Auth/Onboarding screens (Figma Design Intro Screens)
+  static const Color authBackground = Color(0xFF1A0E08); // Dark brown
+  static const Color authCream = Color(0xFFF5E7CC); // Cream text/inputs
+  static const Color authCreamMuted = Color(0xCCF5E7CC); // ~80% opacity
+  static const Color authRed = Color(0xFFC64A3E); // Primary button
+  static const Color authRedDark = Color(0xFF983531); // Button gradient end
+  static const Color authGoldStart = Color(0xFFB8935F); // Secondary button gradient
+  static const Color authGoldEnd = Color(0xFF8B6F47);
+  static const Color authInputBg = Color(0x991A0E08); // ~60% dark brown
+  static const Color authBorder = Color(0x33F5E7CC); // ~20% cream
+
   /// Main theme configuration (Dark theme with Retro Cinema aesthetic)
   static ThemeData get retroCinemaTheme => ThemeData(
     useMaterial3: true,
@@ -50,11 +61,9 @@ class AppTheme {
           primary: brickRed,
           secondary: darkerBrickRed,
           surface: deepMidnightBrown,
-          background: deepMidnightBrown,
           onPrimary: warmCream,
           onSecondary: warmCream,
           onSurface: warmCream,
-          onBackground: warmCream,
           error: brickRed,
           onError: warmCream,
     ),
@@ -247,11 +256,9 @@ class AppTheme {
           primary: brickRed,
           secondary: darkerBrickRed,
           surface: lighterCreamHighlight,
-          background: lighterCreamHighlight,
           onPrimary: warmCream,
           onSecondary: warmCream,
           onSurface: deepMidnightBrown,
-          onBackground: deepMidnightBrown,
           error: brickRed,
           onError: warmCream,
     ),

@@ -2,13 +2,12 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/watchlist_list.dart';
-import '../models/movie.dart';
 
 /// Service for managing watchlist lists and organization features
 class WatchlistService {
   static WatchlistService? _instance;
   static WatchlistService get instance => _instance ??= WatchlistService._();
-  
+
   WatchlistService._();
 
   // Storage keys
@@ -21,7 +20,7 @@ class WatchlistService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final listsJson = prefs.getStringList(_listsKey) ?? [];
-      
+
       final lists = <WatchlistList>[];
       for (final listJson in listsJson) {
         try {
@@ -31,7 +30,7 @@ class WatchlistService {
           // Skip invalid entries
         }
       }
-      
+
       // Ensure default list exists
       if (lists.isEmpty || !lists.any((list) => list.isDefault)) {
         final defaultList = WatchlistList(
@@ -46,7 +45,7 @@ class WatchlistService {
         lists.insert(0, defaultList);
         await _saveLists(lists);
       }
-      
+
       return lists;
     } catch (e) {
       return [];
@@ -72,12 +71,12 @@ class WatchlistService {
   }) async {
     try {
       final lists = await getLists();
-      
+
       // Check if name already exists
       if (lists.any((list) => list.name.toLowerCase() == name.toLowerCase())) {
         return null;
       }
-      
+
       final newList = WatchlistList(
         id: _generateId(),
         name: name,
@@ -87,10 +86,10 @@ class WatchlistService {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      
+
       lists.add(newList);
       await _saveLists(lists);
-      
+
       return newList;
     } catch (e) {
       return null;
@@ -102,13 +101,13 @@ class WatchlistService {
     try {
       final lists = await getLists();
       final index = lists.indexWhere((l) => l.id == list.id);
-      
+
       if (index != -1) {
         lists[index] = list;
         await _saveLists(lists);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -120,15 +119,15 @@ class WatchlistService {
     try {
       final lists = await getLists();
       final list = lists.firstWhere((l) => l.id == listId);
-      
+
       // Don't allow deletion of default list
       if (list.isDefault) {
         return false;
       }
-      
+
       lists.removeWhere((l) => l.id == listId);
       await _saveLists(lists);
-      
+
       return true;
     } catch (e) {
       return false;
@@ -140,14 +139,14 @@ class WatchlistService {
     try {
       final lists = await getLists();
       final index = lists.indexWhere((l) => l.id == listId);
-      
+
       if (index != -1) {
         final updatedList = lists[index].addMovie(movieId);
         lists[index] = updatedList;
         await _saveLists(lists);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -159,14 +158,14 @@ class WatchlistService {
     try {
       final lists = await getLists();
       final index = lists.indexWhere((l) => l.id == listId);
-      
+
       if (index != -1) {
         final updatedList = lists[index].removeMovie(movieId);
         lists[index] = updatedList;
         await _saveLists(lists);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -199,12 +198,13 @@ class WatchlistService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final tagsJson = prefs.getString(_tagsKey);
-      
+
       if (tagsJson != null) {
         final tagsMap = Map<String, dynamic>.from(jsonDecode(tagsJson));
-        return tagsMap.map((key, value) => MapEntry(key, List<String>.from(value)));
+        return tagsMap
+            .map((key, value) => MapEntry(key, List<String>.from(value)));
       }
-      
+
       return {};
     } catch (e) {
       return {};
@@ -215,19 +215,19 @@ class WatchlistService {
   Future<bool> addTagToMovie(String movieId, String tag) async {
     try {
       final tags = await getMovieTags();
-      
+
       if (!tags.containsKey(movieId)) {
         tags[movieId] = [];
       }
-      
+
       if (!tags[movieId]!.contains(tag)) {
         tags[movieId]!.add(tag);
-        
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tagsKey, jsonEncode(tags));
         return true;
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -238,15 +238,15 @@ class WatchlistService {
   Future<bool> removeTagFromMovie(String movieId, String tag) async {
     try {
       final tags = await getMovieTags();
-      
+
       if (tags.containsKey(movieId) && tags[movieId]!.contains(tag)) {
         tags[movieId]!.remove(tag);
-        
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tagsKey, jsonEncode(tags));
         return true;
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -258,11 +258,11 @@ class WatchlistService {
     try {
       final tags = await getMovieTags();
       final allTags = <String>{};
-      
+
       for (final movieTags in tags.values) {
         allTags.addAll(movieTags);
       }
-      
+
       return allTags.toList()..sort();
     } catch (e) {
       return [];
@@ -274,13 +274,13 @@ class WatchlistService {
     try {
       final tags = await getMovieTags();
       final movies = <String>[];
-      
+
       for (final entry in tags.entries) {
         if (entry.value.contains(tag)) {
           movies.add(entry.key);
         }
       }
-      
+
       return movies;
     } catch (e) {
       return [];
@@ -292,20 +292,20 @@ class WatchlistService {
     try {
       final lists = await getLists();
       final tags = await getMovieTags();
-      
+
       final exportData = {
         'lists': lists.map((list) => list.toJson()).toList(),
         'tags': tags,
         'exportDate': DateTime.now().toIso8601String(),
         'version': '1.0',
       };
-      
+
       final jsonString = jsonEncode(exportData);
-      
+
       // Save export data for potential import
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_exportDataKey, jsonString);
-      
+
       return jsonString;
     } catch (e) {
       return '';
@@ -316,21 +316,22 @@ class WatchlistService {
   Future<bool> importWatchlistData(String jsonData) async {
     try {
       final importData = jsonDecode(jsonData) as Map<String, dynamic>;
-      
+
       // Import lists
       if (importData.containsKey('lists')) {
         final listsJson = importData['lists'] as List;
-        final lists = listsJson.map((json) => WatchlistList.fromJson(json)).toList();
+        final lists =
+            listsJson.map((json) => WatchlistList.fromJson(json)).toList();
         await _saveLists(lists);
       }
-      
+
       // Import tags
       if (importData.containsKey('tags')) {
         final tags = Map<String, List<String>>.from(importData['tags']);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tagsKey, jsonEncode(tags));
       }
-      
+
       return true;
     } catch (e) {
       return false;
@@ -365,21 +366,23 @@ class WatchlistService {
     try {
       final lists = await getLists();
       final tags = await getMovieTags();
-      
-      final totalMovies = lists.fold<int>(0, (sum, list) => sum + list.movieCount);
+
+      final totalMovies =
+          lists.fold<int>(0, (sum, list) => sum + list.movieCount);
       final uniqueMovies = <String>{};
-      
+
       for (final list in lists) {
         uniqueMovies.addAll(list.movieIds);
       }
-      
-      final totalTags = tags.values.fold<int>(0, (sum, movieTags) => sum + movieTags.length);
+
+      final totalTags =
+          tags.values.fold<int>(0, (sum, movieTags) => sum + movieTags.length);
       final uniqueTags = <String>{};
-      
+
       for (final movieTags in tags.values) {
         uniqueTags.addAll(movieTags);
       }
-      
+
       return {
         'totalLists': lists.length,
         'totalMovies': totalMovies,
@@ -397,23 +400,23 @@ class WatchlistService {
   /// Gets most used tags
   List<MapEntry<String, int>> _getMostUsedTags(Map<String, List<String>> tags) {
     final tagCounts = <String, int>{};
-    
+
     for (final movieTags in tags.values) {
       for (final tag in movieTags) {
         tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
       }
     }
-    
+
     final sortedTags = tagCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     return sortedTags.take(5).toList();
   }
 
   /// Gets largest list
   WatchlistList? _getLargestList(List<WatchlistList> lists) {
     if (lists.isEmpty) return null;
-    
+
     return lists.reduce((a, b) => a.movieCount > b.movieCount ? a : b);
   }
 
@@ -422,7 +425,8 @@ class WatchlistService {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     final random = Random();
     return String.fromCharCodes(
-      Iterable.generate(8, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+      Iterable.generate(
+          8, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
     );
   }
 
@@ -431,10 +435,10 @@ class WatchlistService {
     try {
       final lists = await getLists();
       final lowercaseQuery = query.toLowerCase();
-      
+
       return lists.where((list) {
         return list.name.toLowerCase().contains(lowercaseQuery) ||
-               (list.description?.toLowerCase().contains(lowercaseQuery) ?? false);
+            (list.description?.toLowerCase().contains(lowercaseQuery) ?? false);
       }).toList();
     } catch (e) {
       return [];
@@ -445,7 +449,7 @@ class WatchlistService {
   Future<List<WatchlistList>> getListsSorted(String sortBy) async {
     try {
       final lists = await getLists();
-      
+
       switch (sortBy) {
         case 'name':
           lists.sort((a, b) => a.name.compareTo(b.name));
@@ -463,10 +467,10 @@ class WatchlistService {
           // Keep original order
           break;
       }
-      
+
       return lists;
     } catch (e) {
       return [];
     }
   }
-} 
+}

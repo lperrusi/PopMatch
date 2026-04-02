@@ -8,6 +8,9 @@ import '../services/movie_cache_service.dart';
 
 /// Retro Cinema styled movie card for swipe interface
 class RetroCinemaMovieCard extends StatefulWidget {
+  @visibleForTesting
+  static bool disableAsyncColorExtraction = false;
+
   final Movie movie;
   final VoidCallback? onTap;
   final VoidCallback? onLike;
@@ -26,7 +29,6 @@ class RetroCinemaMovieCard extends StatefulWidget {
 }
 
 class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
-  Color? _dominantColor;
   bool _isLightBackground = false;
   bool _isLoadingColor = true;
 
@@ -35,10 +37,11 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
     super.initState();
     // Preload movie details in background when card is created
     MovieCacheService.instance.preloadMovieDetails(widget.movie.id);
-    
+
     // Defer color extraction to avoid blocking UI - only extract after card is visible
     // This significantly improves performance, especially on physical devices
-    if (widget.movie.posterUrl != null) {
+    if (!RetroCinemaMovieCard.disableAsyncColorExtraction &&
+        widget.movie.posterUrl != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // Delay color extraction to not block initial render
         Future.delayed(const Duration(milliseconds: 300), () {
@@ -57,7 +60,7 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
   /// OPTIMIZED: Only extracts if card is still mounted and visible
   Future<void> _extractColorFromImage() async {
     if (!mounted) return;
-    
+
     try {
       final imageProvider = CachedNetworkImageProvider(widget.movie.posterUrl!);
       // Use a smaller sample size for faster processing on mobile devices
@@ -65,14 +68,14 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
         imageProvider,
         maximumColorCount: 5, // Reduced from default for better performance
       );
-      
+
       if (mounted) {
-        final dominantColor = paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
+        final dominantColor =
+            paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
         final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
         final isLight = brightness == Brightness.light;
-        
+
         setState(() {
-          _dominantColor = dominantColor;
           _isLightBackground = isLight;
           _isLoadingColor = false;
         });
@@ -215,7 +218,8 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                               ),
                             ),
                           ),
-                        if (widget.movie.year != null) const SizedBox(width: 12),
+                        if (widget.movie.year != null)
+                          const SizedBox(width: 12),
 
                         // Rating
                         if (widget.movie.voteAverage != null) ...[
@@ -239,7 +243,8 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                     const SizedBox(height: 12),
 
                     // Genres
-                    if (widget.movie.genres != null && widget.movie.genres!.isNotEmpty)
+                    if (widget.movie.genres != null &&
+                        widget.movie.genres!.isNotEmpty)
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
@@ -284,7 +289,7 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                               child: Container(
                                 width: 56,
                                 height: 56,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: AppTheme.sepiaBrown,
                                 ),
@@ -304,7 +309,7 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                               child: Container(
                                 width: 56,
                                 height: 56,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: AppTheme.sepiaBrown,
                                 ),
@@ -350,4 +355,3 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
     );
   }
 }
-

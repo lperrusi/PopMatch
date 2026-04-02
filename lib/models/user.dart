@@ -5,6 +5,7 @@ class User {
   final String? displayName;
   final String? photoURL;
   final List<String> watchlist;
+  final List<String>? watchlistShows;
   final List<String> likedMovies;
   final List<String> dislikedMovies;
   final List<String> likedShows;
@@ -18,6 +19,7 @@ class User {
     this.displayName,
     this.photoURL,
     this.watchlist = const [],
+    this.watchlistShows,
     this.likedMovies = const [],
     this.dislikedMovies = const [],
     this.likedShows = const [],
@@ -25,6 +27,9 @@ class User {
     this.currentMood,
     this.preferences = const {},
   });
+
+  /// Safe list for watchlist shows (never null for callers).
+  List<String> get watchlistShowsOrEmpty => watchlistShows ?? [];
 
   /// Creates a User instance from JSON data
   factory User.fromJson(Map<String, dynamic> json) {
@@ -36,6 +41,9 @@ class User {
       watchlist: json['watchlist'] != null 
           ? List<String>.from(json['watchlist'])
           : [],
+      watchlistShows: json['watchlistShows'] != null 
+          ? List<String>.from(json['watchlistShows'])
+          : null,
       likedMovies: json['likedMovies'] != null 
           ? List<String>.from(json['likedMovies'])
           : [],
@@ -63,6 +71,7 @@ class User {
       'displayName': displayName,
       'photoURL': photoURL,
       'watchlist': watchlist,
+      'watchlistShows': watchlistShows ?? [],
       'likedMovies': likedMovies,
       'dislikedMovies': dislikedMovies,
       'likedShows': likedShows,
@@ -79,6 +88,7 @@ class User {
     String? displayName,
     String? photoURL,
     List<String>? watchlist,
+    List<String>? watchlistShows,
     List<String>? likedMovies,
     List<String>? dislikedMovies,
     List<String>? likedShows,
@@ -92,6 +102,7 @@ class User {
       displayName: displayName ?? this.displayName,
       photoURL: photoURL ?? this.photoURL,
       watchlist: watchlist ?? this.watchlist,
+      watchlistShows: watchlistShows ?? this.watchlistShows,
       likedMovies: likedMovies ?? this.likedMovies,
       dislikedMovies: dislikedMovies ?? this.dislikedMovies,
       likedShows: likedShows ?? this.likedShows,
@@ -112,6 +123,22 @@ class User {
   /// Removes a movie from watchlist
   User removeFromWatchlist(String movieId) {
     return copyWith(watchlist: watchlist.where((id) => id != movieId).toList());
+  }
+
+  /// Adds a show to watchlist
+  User addShowToWatchlist(String showId) {
+    final list = watchlistShowsOrEmpty;
+    if (!list.contains(showId)) {
+      return copyWith(watchlistShows: [...list, showId]);
+    }
+    return this;
+  }
+
+  /// Removes a show from watchlist
+  User removeFromWatchlistShow(String showId) {
+    return copyWith(
+      watchlistShows: watchlistShowsOrEmpty.where((id) => id != showId).toList(),
+    );
   }
 
   /// Adds a movie to liked movies
@@ -173,7 +200,7 @@ class User {
 
   @override
   String toString() {
-    return 'User(id: $id, email: $email, watchlist: ${watchlist.length} movies)';
+    return 'User(id: $id, email: $email, watchlist: ${watchlist.length} movies, ${watchlistShowsOrEmpty.length} shows)';
   }
 
   @override

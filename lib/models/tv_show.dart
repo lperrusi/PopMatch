@@ -27,6 +27,13 @@ class TvShow {
   final List<CrewMember>? crew;
   final List<Video>? videos;
   final MovieStreamingAvailability? streamingAvailability;
+  final String? imdbId; // IMDb ID for fetching external ratings
+  final double? imdbRating; // IMDb rating (0-10 scale)
+  final int? imdbVotes; // Number of IMDb votes
+  final int? rottenTomatoesTomatometer; // Rotten Tomatoes Tomatometer (0-100%)
+  final int? rottenTomatoesAudienceScore; // Rotten Tomatoes Audience Score (0-100%)
+  /// Which discovery strategy added this show (for adaptive weighting feedback).
+  final String? recommendationStrategy;
 
   TvShow({
     required this.id,
@@ -52,6 +59,12 @@ class TvShow {
     this.crew,
     this.videos,
     this.streamingAvailability,
+    this.imdbId,
+    this.imdbRating,
+    this.imdbVotes,
+    this.rottenTomatoesTomatometer,
+    this.rottenTomatoesAudienceScore,
+    this.recommendationStrategy,
   });
 
   /// Creates a TvShow instance from JSON data
@@ -92,6 +105,12 @@ class TvShow {
       streamingAvailability: json['streamingAvailability'] != null 
           ? MovieStreamingAvailability.fromJson(json['streamingAvailability'])
           : null,
+      imdbId: json['imdb_id'] ?? json['imdbId'],
+      imdbRating: json['imdb_rating']?.toDouble() ?? json['imdbRating']?.toDouble(),
+      imdbVotes: json['imdb_votes'] ?? json['imdbVotes'],
+      rottenTomatoesTomatometer: json['rotten_tomatoes_tomatometer'] ?? json['rottenTomatoesTomatometer'],
+      rottenTomatoesAudienceScore: json['rotten_tomatoes_audience_score'] ?? json['rottenTomatoesAudienceScore'],
+      recommendationStrategy: json['recommendation_strategy'] ?? json['recommendationStrategy'],
     );
   }
 
@@ -121,6 +140,12 @@ class TvShow {
       'crew': crew?.map((c) => c.toJson()).toList(),
       'videos': videos?.map((v) => v.toJson()).toList(),
       'streamingAvailability': streamingAvailability?.toJson(),
+      'imdb_id': imdbId,
+      'imdb_rating': imdbRating,
+      'imdb_votes': imdbVotes,
+      'rotten_tomatoes_tomatometer': rottenTomatoesTomatometer,
+      'rotten_tomatoes_audience_score': rottenTomatoesAudienceScore,
+      'recommendation_strategy': recommendationStrategy,
     };
   }
 
@@ -190,6 +215,12 @@ class TvShow {
     List<CrewMember>? crew,
     List<Video>? videos,
     MovieStreamingAvailability? streamingAvailability,
+    String? imdbId,
+    double? imdbRating,
+    int? imdbVotes,
+    int? rottenTomatoesTomatometer,
+    int? rottenTomatoesAudienceScore,
+    String? recommendationStrategy,
   }) {
     return TvShow(
       id: id ?? this.id,
@@ -215,9 +246,58 @@ class TvShow {
       crew: crew ?? this.crew,
       videos: videos ?? this.videos,
       streamingAvailability: streamingAvailability ?? this.streamingAvailability,
+      imdbId: imdbId ?? this.imdbId,
+      imdbRating: imdbRating ?? this.imdbRating,
+      imdbVotes: imdbVotes ?? this.imdbVotes,
+      rottenTomatoesTomatometer: rottenTomatoesTomatometer ?? this.rottenTomatoesTomatometer,
+      rottenTomatoesAudienceScore: rottenTomatoesAudienceScore ?? this.rottenTomatoesAudienceScore,
+      recommendationStrategy: recommendationStrategy ?? this.recommendationStrategy,
     );
   }
 
   @override
   int get hashCode => id.hashCode;
+}
+
+/// A single TV episode (season number + episode number, name, overview, air date, still)
+class TvEpisode {
+  final int seasonNumber;
+  final int episodeNumber;
+  final String name;
+  final String? overview;
+  final String? airDate;
+  final String? stillPath;
+  final double? voteAverage;
+  final int? runtime;
+
+  const TvEpisode({
+    required this.seasonNumber,
+    required this.episodeNumber,
+    required this.name,
+    this.overview,
+    this.airDate,
+    this.stillPath,
+    this.voteAverage,
+    this.runtime,
+  });
+
+  String get episodeKey => 'S${seasonNumber}E$episodeNumber';
+
+  String? get stillUrl {
+    if (stillPath == null) return null;
+    return 'https://image.tmdb.org/t/p/w300$stillPath';
+  }
+
+  factory TvEpisode.fromJson(Map<String, dynamic> json) {
+    return TvEpisode(
+      seasonNumber: json['season_number'] ?? 0,
+      episodeNumber: json['episode_number'] ?? 0,
+      name: json['name'] ?? 'Episode ${json['episode_number'] ?? 0}',
+      overview: json['overview'],
+      airDate: json['air_date'],
+      stillPath: json['still_path'],
+      voteAverage: json['vote_average']?.toDouble(),
+      runtime: json['runtime'],
+    );
+  }
 }

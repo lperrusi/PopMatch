@@ -26,7 +26,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
-  
+
   // Filter states
   Map<String, dynamic> _filters = {};
   List<Movie> _filteredMovies = [];
@@ -36,7 +36,8 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _filters = widget.initialFilters ?? FilterService.instance.getDefaultFilters();
+    _filters =
+        widget.initialFilters ?? FilterService.instance.getDefaultFilters();
     _applyFilters();
   }
 
@@ -124,10 +125,10 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         children: [
           // Filter summary
           _buildFilterSummary(),
-          
+
           // Tab bar
           _buildTabBar(),
-          
+
           // Tab content
           Expanded(
             child: TabBarView(
@@ -139,7 +140,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
               ],
             ),
           ),
-          
+
           // Apply button
           _buildApplyButton(),
         ],
@@ -166,7 +167,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         color: Theme.of(context).colorScheme.surface,
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -183,15 +184,16 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             child: Text(
               summary,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
           Text(
             '${_filteredMovies.length} results',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-            ),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
           ),
         ],
       ),
@@ -205,7 +207,8 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       child: TabBar(
         controller: _tabController,
         labelColor: AppTheme.primaryRed,
-        unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        unselectedLabelColor:
+            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         indicatorColor: AppTheme.primaryRed,
         tabs: const [
           Tab(text: 'Filters'),
@@ -226,29 +229,29 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         children: [
           // Genre filter
           _buildGenreFilter(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Year filter
           _buildYearFilter(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Rating filter
           _buildRatingFilter(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Language filter
           _buildLanguageFilter(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Content filter
           _buildContentFilter(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Availability filter
           _buildAvailabilityFilter(),
         ],
@@ -266,23 +269,24 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
           Text(
             'Sort By',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 16),
-          
-          ...FilterService.sortOptions.map((option) => _buildSortOption(option)),
-          
+
+          ...FilterService.sortOptions
+              .map((option) => _buildSortOption(option)),
+
           const SizedBox(height: 24),
-          
+
           // Sort direction
           Row(
             children: [
               Text(
                 'Sort Direction:',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               const SizedBox(width: 16),
               ChoiceChip(
@@ -291,7 +295,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                 onSelected: (selected) {
                   if (selected) _updateFilter('ascending', false);
                 },
-                selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+                selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
                 checkmarkColor: AppTheme.primaryRed,
               ),
               const SizedBox(width: 8),
@@ -301,7 +305,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                 onSelected: (selected) {
                   if (selected) _updateFilter('ascending', true);
                 },
-                selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+                selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
                 checkmarkColor: AppTheme.primaryRed,
               ),
             ],
@@ -329,21 +333,24 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             Icon(
               Icons.search_off,
               size: 64,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No movies match your filters',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Try adjusting your filter criteria',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
             ),
           ],
         ),
@@ -367,7 +374,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         color: Theme.of(context).colorScheme.surface,
         border: Border(
           top: BorderSide(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -402,8 +409,8 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         Text(
           'Genres',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -423,7 +430,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                 }
                 _updateFilter('genres', newGenres);
               },
-              selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+              selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
               checkmarkColor: AppTheme.primaryRed,
             );
           }).toList(),
@@ -444,15 +451,15 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         Text(
           'Year Range',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: DropdownButtonFormField<int>(
-                value: minYear,
+                initialValue: minYear,
                 decoration: const InputDecoration(
                   labelText: 'From',
                   border: OutlineInputBorder(),
@@ -463,9 +470,9 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                     child: Text('Any'),
                   ),
                   ...years.map((year) => DropdownMenuItem<int>(
-                    value: year,
-                    child: Text(year.toString()),
-                  )),
+                        value: year,
+                        child: Text(year.toString()),
+                      )),
                 ],
                 onChanged: (value) => _updateFilter('minYear', value),
               ),
@@ -473,7 +480,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             const SizedBox(width: 16),
             Expanded(
               child: DropdownButtonFormField<int>(
-                value: maxYear,
+                initialValue: maxYear,
                 decoration: const InputDecoration(
                   labelText: 'To',
                   border: OutlineInputBorder(),
@@ -484,9 +491,9 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                     child: Text('Any'),
                   ),
                   ...years.map((year) => DropdownMenuItem<int>(
-                    value: year,
-                    child: Text(year.toString()),
-                  )),
+                        value: year,
+                        child: Text(year.toString()),
+                      )),
                 ],
                 onChanged: (value) => _updateFilter('maxYear', value),
               ),
@@ -509,15 +516,15 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         Text(
           'Rating Range',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: DropdownButtonFormField<double>(
-                value: minRating,
+                initialValue: minRating,
                 decoration: const InputDecoration(
                   labelText: 'Min Rating',
                   border: OutlineInputBorder(),
@@ -528,9 +535,9 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                     child: Text('Any'),
                   ),
                   ...ratings.map((rating) => DropdownMenuItem<double>(
-                    value: rating,
-                    child: Text('${rating.toStringAsFixed(1)}+'),
-                  )),
+                        value: rating,
+                        child: Text('${rating.toStringAsFixed(1)}+'),
+                      )),
                 ],
                 onChanged: (value) => _updateFilter('minRating', value),
               ),
@@ -538,7 +545,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             const SizedBox(width: 16),
             Expanded(
               child: DropdownButtonFormField<double>(
-                value: maxRating,
+                initialValue: maxRating,
                 decoration: const InputDecoration(
                   labelText: 'Max Rating',
                   border: OutlineInputBorder(),
@@ -549,9 +556,9 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                     child: Text('Any'),
                   ),
                   ...ratings.map((rating) => DropdownMenuItem<double>(
-                    value: rating,
-                    child: Text('Up to ${rating.toStringAsFixed(1)}'),
-                  )),
+                        value: rating,
+                        child: Text('Up to ${rating.toStringAsFixed(1)}'),
+                      )),
                 ],
                 onChanged: (value) => _updateFilter('maxRating', value),
               ),
@@ -564,7 +571,8 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
 
   /// Builds language filter
   Widget _buildLanguageFilter() {
-    final languages = FilterService.instance.getAvailableLanguages(widget.movies);
+    final languages =
+        FilterService.instance.getAvailableLanguages(widget.movies);
     final selectedLanguages = _filters['languages'] as List<String>;
 
     return Column(
@@ -573,8 +581,8 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         Text(
           'Languages',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -594,7 +602,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
                 }
                 _updateFilter('languages', newLanguages);
               },
-              selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+              selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
               checkmarkColor: AppTheme.primaryRed,
             );
           }).toList(),
@@ -613,8 +621,8 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         Text(
           'Content Type',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 12),
         Row(
@@ -625,7 +633,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
               onSelected: (selected) {
                 if (selected) _updateFilter('includeAdult', null);
               },
-              selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+              selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
               checkmarkColor: AppTheme.primaryRed,
             ),
             const SizedBox(width: 8),
@@ -635,7 +643,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
               onSelected: (selected) {
                 if (selected) _updateFilter('includeAdult', false);
               },
-              selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+              selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
               checkmarkColor: AppTheme.primaryRed,
             ),
             const SizedBox(width: 8),
@@ -645,7 +653,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
               onSelected: (selected) {
                 if (selected) _updateFilter('includeAdult', true);
               },
-              selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+              selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
               checkmarkColor: AppTheme.primaryRed,
             ),
           ],
@@ -664,16 +672,17 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         Text(
           'Availability',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 12),
         SwitchListTile(
           title: const Text('Show only available to stream'),
-          subtitle: const Text('Filter movies available on streaming platforms'),
+          subtitle:
+              const Text('Temporarily unavailable in this build'),
           value: availableOnly,
-          onChanged: (value) => _updateFilter('availableOnly', value),
-          activeColor: AppTheme.primaryRed,
+          onChanged: null,
+          activeThumbColor: AppTheme.primaryRed,
         ),
       ],
     );
@@ -681,13 +690,14 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
 
   /// Builds sort option
   Widget _buildSortOption(String option) {
-    final isSelected = _filters['sortBy'] == option;
     final displayName = _getSortDisplayName(option);
 
     return RadioListTile<String>(
       title: Text(displayName),
       value: option,
+      // ignore: deprecated_member_use
       groupValue: _filters['sortBy'] as String,
+      // ignore: deprecated_member_use
       onChanged: (value) {
         if (value != null) _updateFilter('sortBy', value);
       },
@@ -724,7 +734,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
@@ -748,8 +758,8 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         title: Text(
           movie.title,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -758,7 +768,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             if (movie.voteAverage != null)
               Row(
                 children: [
-                  Icon(Icons.star, size: 14, color: Colors.amber),
+                  const Icon(Icons.star, size: 14, color: Colors.amber),
                   const SizedBox(width: 4),
                   Text(movie.voteAverage!.toStringAsFixed(1)),
                 ],
@@ -768,9 +778,9 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         trailing: Icon(
           Icons.arrow_forward_ios,
           size: 16,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
         ),
       ),
     );
   }
-} 
+}

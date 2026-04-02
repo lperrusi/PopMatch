@@ -94,7 +94,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 Icon(
                   Icons.play_circle_outline,
                   size: 64,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -167,13 +167,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               Icon(
                 Icons.error_outline,
                 size: 48,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
               const SizedBox(height: 16),
               Text(
                 'Failed to load video',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 16,
                 ),
                 textAlign: TextAlign.center,
@@ -182,7 +182,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               Text(
                 _errorMessage,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 12,
                 ),
                 textAlign: TextAlign.center,
@@ -239,7 +239,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.9),
+                    color: Colors.red.withValues(alpha: 0.9),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -263,7 +263,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.8),
+                        Colors.black.withValues(alpha: 0.8),
                       ],
                     ),
                   ),
@@ -283,7 +283,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                       Text(
                         'Tap to watch on YouTube',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 12,
                         ),
                       ),
@@ -364,7 +364,7 @@ class VideoThumbnailWidget extends StatelessWidget {
                       child: Icon(
                         Icons.video_library,
                         size: 32,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     );
                   },
@@ -376,7 +376,7 @@ class VideoThumbnailWidget extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -400,7 +400,7 @@ class VideoThumbnailWidget extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.8),
+                      Colors.black.withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: BorderRadius.only(
@@ -426,7 +426,7 @@ class VideoThumbnailWidget extends StatelessWidget {
                       Text(
                         video.type.toUpperCase(),
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                         ),

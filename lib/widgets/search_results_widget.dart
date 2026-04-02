@@ -5,7 +5,7 @@ import '../services/tmdb_service.dart';
 import '../utils/theme.dart';
 
 /// Widget for displaying search results in a grid or list format
-class SearchResultsWidget extends StatelessWidget {
+class SearchResultsWidget extends StatefulWidget {
   final List<Movie> movies;
   final bool isLoading;
   final String? error;
@@ -26,16 +26,37 @@ class SearchResultsWidget extends StatelessWidget {
   });
 
   @override
+  State<SearchResultsWidget> createState() => _SearchResultsWidgetState();
+}
+
+class _SearchResultsWidgetState extends State<SearchResultsWidget> {
+  late bool _isGridView;
+
+  @override
+  void initState() {
+    super.initState();
+    _isGridView = widget.isGridView;
+  }
+
+  @override
+  void didUpdateWidget(SearchResultsWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isGridView != widget.isGridView) {
+      _isGridView = widget.isGridView;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (isLoading && movies.isEmpty) {
+    if (widget.isLoading && widget.movies.isEmpty) {
       return _buildLoadingState();
     }
 
-    if (error != null && movies.isEmpty) {
+    if (widget.error != null && widget.movies.isEmpty) {
       return _buildErrorState(context);
     }
 
-    if (movies.isEmpty) {
+    if (widget.movies.isEmpty) {
       return _buildEmptyState(context);
     }
 
@@ -44,15 +65,15 @@ class SearchResultsWidget extends StatelessWidget {
 
   /// Builds the loading state
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
           ),
-          SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 16),
+          const Text(
             'Searching for movies...',
             style: TextStyle(
               color: Colors.grey,
@@ -84,16 +105,16 @@ class SearchResultsWidget extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            error ?? 'An error occurred while searching',
+            widget.error ?? 'An error occurred while searching',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          if (onRetry != null)
+          if (widget.onRetry != null)
             ElevatedButton(
-              onPressed: onRetry,
+              onPressed: widget.onRetry,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryRed,
                 foregroundColor: Colors.white,
@@ -114,7 +135,7 @@ class SearchResultsWidget extends StatelessWidget {
           Icon(
             Icons.search_off,
             size: 64,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
@@ -127,7 +148,7 @@ class SearchResultsWidget extends StatelessWidget {
           Text(
             'Try adjusting your search terms or filters',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             textAlign: TextAlign.center,
           ),
@@ -146,25 +167,22 @@ class SearchResultsWidget extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                '${movies.length} result${movies.length == 1 ? '' : 's'} found',
+                '${widget.movies.length} result${widget.movies.length == 1 ? '' : 's'} found',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               const Spacer(),
-              // View toggle
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      // TODO: Implement view toggle
-                    },
-                    icon: Icon(
-                      isGridView ? Icons.view_list : Icons.grid_view,
-                      color: AppTheme.primaryRed,
-                    ),
-                  ),
-                ],
+              // View toggle: grid vs list
+              IconButton(
+                onPressed: () {
+                  setState(() => _isGridView = !_isGridView);
+                },
+                icon: Icon(
+                  _isGridView ? Icons.view_list : Icons.grid_view,
+                  color: AppTheme.primaryRed,
+                ),
+                tooltip: _isGridView ? 'Switch to list view' : 'Switch to grid view',
               ),
             ],
           ),
@@ -172,19 +190,19 @@ class SearchResultsWidget extends StatelessWidget {
         
         // Results grid/list
         Expanded(
-          child: isGridView
+          child: _isGridView
               ? _buildGridView(context)
               : _buildListView(context),
         ),
         
         // Load more button
-        if (onLoadMore != null && !isLoading)
+        if (widget.onLoadMore != null && !widget.isLoading)
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: onLoadMore,
+                onPressed: widget.onLoadMore,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryRed,
                   foregroundColor: Colors.white,
@@ -195,9 +213,9 @@ class SearchResultsWidget extends StatelessWidget {
           ),
         
         // Loading indicator for load more
-        if (isLoading && movies.isNotEmpty)
-          const Padding(
-            padding: EdgeInsets.all(16),
+        if (widget.isLoading && widget.movies.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
             ),
@@ -216,9 +234,9 @@ class SearchResultsWidget extends StatelessWidget {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: movies.length,
+      itemCount: widget.movies.length,
       itemBuilder: (context, index) {
-        return _buildGridItem(context, movies[index]);
+        return _buildGridItem(context, widget.movies[index]);
       },
     );
   }
@@ -227,9 +245,9 @@ class SearchResultsWidget extends StatelessWidget {
   Widget _buildListView(BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: movies.length,
+      itemCount: widget.movies.length,
       itemBuilder: (context, index) {
-        return _buildListItem(context, movies[index]);
+        return _buildListItem(context, widget.movies[index]);
       },
     );
   }
@@ -237,14 +255,14 @@ class SearchResultsWidget extends StatelessWidget {
   /// Builds a grid item
   Widget _buildGridItem(BuildContext context, Movie movie) {
     return GestureDetector(
-      onTap: () => onMovieTap(movie),
+      onTap: () => widget.onMovieTap(movie),
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -298,7 +316,7 @@ class SearchResultsWidget extends StatelessWidget {
                     Text(
                       movie.year!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -307,7 +325,7 @@ class SearchResultsWidget extends StatelessWidget {
                   if (movie.voteAverage != null)
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.star,
                           size: 14,
                           color: Colors.amber,
@@ -339,7 +357,7 @@ class SearchResultsWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -381,7 +399,7 @@ class SearchResultsWidget extends StatelessWidget {
               Text(
                 movie.year!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               const SizedBox(height: 4),
@@ -389,7 +407,7 @@ class SearchResultsWidget extends StatelessWidget {
             if (movie.voteAverage != null)
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.star,
                     size: 14,
                     color: Colors.amber,
@@ -408,7 +426,7 @@ class SearchResultsWidget extends StatelessWidget {
               Text(
                 movie.overview!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -419,9 +437,9 @@ class SearchResultsWidget extends StatelessWidget {
         trailing: Icon(
           Icons.arrow_forward_ios,
           size: 16,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
         ),
-        onTap: () => onMovieTap(movie),
+        onTap: () => widget.onMovieTap(movie),
       ),
     );
   }

@@ -230,7 +230,7 @@ class FilterService {
     }
 
     if (availableOnly == true) {
-      filters.add('Available to stream');
+      filters.add('Availability filter unavailable');
     }
 
     return filters.isEmpty ? 'All movies' : filters.join(', ');

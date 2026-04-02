@@ -14,7 +14,7 @@ import 'tutorial/tutorial_screen.dart';
 import '../utils/navigation_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Retro Cinema styled splash screen with custom image
+/// Splash screen matching Figma Design Intro: popcorn, title, loading indicator (3s)
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -22,45 +22,26 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
   bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    
-    // Initialize animations
     _animationController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeIn,
-    ));
-    
-    _scaleAnimation = Tween<double>(
-      begin: 0.9,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
     _animationController.forward();
-    
-    // Initialize providers and navigate after animation completes
-    _animationController.addStatusListener((status) {
-      if (status == AnimationStatus.completed && !_initialized) {
-        _initializeProviders();
-      }
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && !_initialized) _initializeProviders();
     });
   }
 
@@ -70,88 +51,65 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     super.dispose();
   }
 
-  /// Initializes all providers
   Future<void> _initializeProviders() async {
     if (_initialized) return;
-    
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final movieProvider = Provider.of<MovieProvider>(context, listen: false);
-      final recommendationsProvider = Provider.of<RecommendationsProvider>(context, listen: false);
-      final streamingProvider = Provider.of<StreamingProvider>(context, listen: false);
+      final recommendationsProvider =
+          Provider.of<RecommendationsProvider>(context, listen: false);
+      final streamingProvider =
+          Provider.of<StreamingProvider>(context, listen: false);
 
-      // Initialize auth provider first (required for navigation decision)
       await authProvider.initialize().catchError((e) {
         debugPrint('AuthProvider initialization error: $e');
       });
-
       _initialized = true;
-      
-      // Navigate immediately after auth check - don't wait for other providers
-      if (mounted) {
-      _checkAuthState();
-      }
+      if (mounted) _checkAuthState();
 
-      // Initialize other providers in background (non-blocking)
-      // These will load in parallel while navigation happens
-      movieProvider.initialize().catchError((e) {
-        debugPrint('MovieProvider initialization error: $e');
-      });
-      recommendationsProvider.initialize().catchError((e) {
-        debugPrint('RecommendationsProvider initialization error: $e');
-      });
-      streamingProvider.initialize().catchError((e) {
-        debugPrint('StreamingProvider initialization error: $e');
-      });
+      movieProvider
+          .initialize()
+          .catchError((e) => debugPrint('MovieProvider: $e'));
+      recommendationsProvider
+          .initialize()
+          .catchError((e) => debugPrint('RecommendationsProvider: $e'));
+      streamingProvider
+          .initialize()
+          .catchError((e) => debugPrint('StreamingProvider: $e'));
     } catch (e) {
-      debugPrint('Splash screen initialization error: $e');
-      // If initialization fails, still try to navigate
+      debugPrint('Splash initialization error: $e');
       _initialized = true;
-      if (mounted) {
-      _checkAuthState();
-      }
+      if (mounted) _checkAuthState();
     }
   }
 
-  /// Checks authentication state and navigates accordingly
   Future<void> _checkAuthState() async {
     if (!mounted) return;
-    
-    // Check if tutorial has been completed
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final tutorialCompleted = prefs.getBool('tutorial_completed') ?? false;
-    
+
     if (!tutorialCompleted) {
-      // Show tutorial for first-time users
       Navigator.of(context).pushReplacement(
         NavigationUtils.fastSlideRoute(const TutorialScreen()),
       );
       return;
     }
-    
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    // IMPORTANT: Only show onboarding AFTER user has logged in
-    // Onboarding should NEVER be shown before login
-    // Check authentication status - user must be logged in to see onboarding
     if (authProvider.isAuthenticated && authProvider.userData != null) {
-      // User is authenticated - check if onboarding is completed
-      final onboardingCompleted = authProvider.userData?.preferences['onboardingCompleted'] ?? false;
-      
+      final onboardingCompleted =
+          authProvider.userData?.preferences['onboardingCompleted'] ?? false;
       if (onboardingCompleted) {
-        // User has completed onboarding - go to home
         Navigator.of(context).pushReplacement(
           NavigationUtils.fastSlideRoute(const HomeScreen()),
         );
       } else {
-        // User is logged in but hasn't completed onboarding - show onboarding
         Navigator.of(context).pushReplacement(
           NavigationUtils.fastSlideRoute(const OnboardingScreen()),
         );
       }
     } else {
-      // User is NOT authenticated - show login screen
-      // Onboarding should NEVER be shown here
       Navigator.of(context).pushReplacement(
         NavigationUtils.fastSlideRoute(const LoginScreen()),
       );
@@ -161,71 +119,143 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.cinemaRed,
-      body: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return FadeTransition(
-              opacity: _fadeAnimation,
-            child: Stack(
-              fit: StackFit.expand,
+      backgroundColor: AppTheme.authBackground,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Full screen splash image - fills entire screen edge-to-edge
-                Positioned.fill(
-                  child: Image.asset(
-                    'assets/screens/Splash Screen.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint('Error loading splash image: $error');
-                      // Fallback if image not found
-                      return Container(
-                        color: AppTheme.deepMidnightBrown,
-                        child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                const Spacer(flex: 1),
+                // Popcorn with glow
+                Stack(
+                  alignment: Alignment.center,
                   children: [
                     Container(
-                      width: 120,
-                      height: 120,
-                                child: Image.asset(
-                                  'assets/icons/app_icon_1024.png',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      'assets/icons/app_icon_circular.png',
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const Icon(
-                                          Icons.movie_rounded,
-                        size: 60,
-                                          color: AppTheme.warmCream,
-                                        );
-                                      },
-                                    );
-                                  },
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.authCream.withValues(alpha: 0.2),
+                            blurRadius: 80,
+                            spreadRadius: 20,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'PopMatch',
-                                style: GoogleFonts.bebasNeue(
-                                  fontSize: 48,
-                                  color: AppTheme.warmCream,
-                                  letterSpacing: 2,
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: const Duration(seconds: 2),
+                      builder: (context, value, child) {
+                        return Transform.translate(
+                          offset:
+                              Offset(0, -8 * (0.5 - (value - 0.5).abs()) * 2),
+                          child: child,
+                        );
+                      },
+                      child: Image.asset(
+                        'assets/screens/figma/popcorn.png',
+                        width: 200,
+                        height: 200,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.movie_rounded,
+                          size: 120,
+                          color: AppTheme.authCream,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            );
-          },
-        ),
+                const SizedBox(height: 24),
+                Text(
+                  'PopMatch',
+                  style: GoogleFonts.bebasNeue(
+                    fontSize: 56,
+                    color: AppTheme.authCream,
+                    letterSpacing: 0.02,
+                    height: 0.9,
+                  ),
                 ),
+                const Spacer(flex: 2),
+                // Loading: film icon + spinning gears
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _SpinningGear(size: 32, duration: 3, left: true),
+                    SizedBox(width: 8),
+                    Icon(Icons.movie_creation,
+                        size: 32, color: AppTheme.authCream),
+                    SizedBox(width: 8),
+                    _SpinningGear(size: 24, duration: 2, reverse: true),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Loading...',
+                  style: GoogleFonts.lato(
+                    fontSize: 18,
+                    color: AppTheme.authCream,
+                  ),
+                ),
+                const SizedBox(height: 48),
               ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
-} 
+}
+
+class _SpinningGear extends StatefulWidget {
+  final double size;
+  final int duration;
+  final bool reverse;
+  final bool left;
+
+  const _SpinningGear(
+      {required this.size,
+      required this.duration,
+      this.reverse = false,
+      this.left = false});
+
+  @override
+  State<_SpinningGear> createState() => _SpinningGearState();
+}
+
+class _SpinningGearState extends State<_SpinningGear>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: widget.duration),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, child) => Transform.rotate(
+        angle: _controller.value * 2 * 3.14159 * (widget.reverse ? -1 : 1),
+        child:
+            Icon(Icons.settings, size: widget.size, color: AppTheme.authCream),
+      ),
+    );
+  }
+}

@@ -1,5 +1,5 @@
+// ignore_for_file: avoid_print
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 /// Script to update app icons from assets/icons folder
@@ -10,9 +10,6 @@ void main() async {
 
   // Check if source icons exist
   final sourceIcon1024 = File('assets/icons/app_icon_1024.png');
-  final sourceIcon512 = File('assets/icons/app_icon_512.png');
-  final sourceIcon192 = File('assets/icons/app_icon_192.png');
-  final sourceIcon96 = File('assets/icons/app_icon_96.png');
 
   if (!await sourceIcon1024.exists()) {
     print('❌ Error: app_icon_1024.png not found in assets/icons/');
@@ -143,4 +140,3 @@ void main() async {
   print('   2. Run: flutter pub get');
   print('   3. Rebuild the app to see new icons');
 }
-

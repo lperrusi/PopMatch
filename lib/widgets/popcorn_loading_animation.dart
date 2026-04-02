@@ -15,7 +15,8 @@ class PopcornLoadingAnimation extends StatefulWidget {
   });
 
   @override
-  State<PopcornLoadingAnimation> createState() => _PopcornLoadingAnimationState();
+  State<PopcornLoadingAnimation> createState() =>
+      _PopcornLoadingAnimationState();
 }
 
 class _PopcornLoadingAnimationState extends State<PopcornLoadingAnimation>
@@ -37,7 +38,8 @@ class _PopcornLoadingAnimationState extends State<PopcornLoadingAnimation>
 
   /// Starts the animation loop cycling through frames 1-4
   void _startAnimation() {
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+    _animationTimer =
+        Timer.periodic(const Duration(milliseconds: 200), (timer) {
       if (mounted) {
         setState(() {
           _currentFrame = (_currentFrame % 4) + 1; // Cycle 1, 2, 3, 4, 1, 2...
@@ -58,7 +60,7 @@ class _PopcornLoadingAnimationState extends State<PopcornLoadingAnimation>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         // Animated popcorn/heart image
-        Container(
+        SizedBox(
           width: widget.size,
           height: widget.size,
           child: Image.asset(
@@ -202,4 +204,3 @@ class _FallbackAnimationState extends State<_FallbackAnimation>
     }
   }
 }
-

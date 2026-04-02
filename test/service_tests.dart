@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:popmatch/models/movie.dart';
-import 'package:popmatch/services/tmdb_service.dart';
-import 'package:popmatch/services/auth_service.dart';
 
 void main() {
   group('Service Tests', () {
@@ -26,7 +24,7 @@ void main() {
       };
 
       final movie = Movie.fromJson(movieJson);
-      
+
       expect(movie.id, 123);
       expect(movie.title, 'Test Movie');
       expect(movie.overview, 'A test movie for testing');
@@ -35,8 +33,10 @@ void main() {
       expect(movie.releaseDate, '2023-01-15');
       expect(movie.year, '2023');
       expect(movie.formattedRating, '8.5');
-      expect(movie.posterUrl, 'https://image.tmdb.org/t/p/w500/test-poster.jpg');
-      expect(movie.backdropUrl, 'https://image.tmdb.org/t/p/original/test-backdrop.jpg');
+      expect(
+          movie.posterUrl, 'https://image.tmdb.org/t/p/w500/test-poster.jpg');
+      expect(movie.backdropUrl,
+          'https://image.tmdb.org/t/p/original/test-backdrop.jpg');
     });
 
     test('Movie should handle null values correctly', () {
@@ -47,7 +47,7 @@ void main() {
       };
 
       final movie = Movie.fromJson(movieJson);
-      
+
       expect(movie.id, 456);
       expect(movie.title, 'Minimal Movie');
       expect(movie.overview, isNull);
@@ -92,13 +92,14 @@ void main() {
       };
 
       final movie = Movie.fromJson(movieJson);
-      
+
       expect(movie.cast, isNotNull);
       expect(movie.cast!.length, 2);
       expect(movie.cast!.first.name, 'Actor One');
       expect(movie.cast!.first.character, 'Hero');
-      expect(movie.cast!.first.profileUrl, 'https://image.tmdb.org/t/p/w185/actor1.jpg');
-      
+      expect(movie.cast!.first.profileUrl,
+          'https://image.tmdb.org/t/p/w185/actor1.jpg');
+
       expect(movie.crew, isNotNull);
       expect(movie.crew!.length, 1);
       expect(movie.crew!.first.name, 'Director One');
@@ -136,13 +137,15 @@ void main() {
       };
 
       final movie = Movie.fromJson(movieJson);
-      
+
       expect(movie.videos, isNotNull);
       expect(movie.videos!.length, 2);
       expect(movie.videos!.first.name, 'Official Trailer');
       expect(movie.videos!.first.site, 'YouTube');
-      expect(movie.videos!.first.youtubeUrl, 'https://www.youtube.com/watch?v=abc123');
-      expect(movie.videos!.first.thumbnailUrl, 'https://img.youtube.com/vi/abc123/maxresdefault.jpg');
+      expect(movie.videos!.first.youtubeUrl,
+          'https://www.youtube.com/watch?v=abc123');
+      expect(movie.videos!.first.thumbnailUrl,
+          'https://img.youtube.com/vi/abc123/maxresdefault.jpg');
     });
 
     test('Movie toJson should work correctly', () {
@@ -156,7 +159,7 @@ void main() {
       );
 
       final json = movie.toJson();
-      
+
       expect(json['id'], 123);
       expect(json['title'], 'Test Movie');
       expect(json['overview'], 'Test overview');
@@ -169,10 +172,10 @@ void main() {
       final movie1 = Movie(id: 1, title: 'Movie 1');
       final movie2 = Movie(id: 1, title: 'Movie 1');
       final movie3 = Movie(id: 2, title: 'Movie 2');
-      
+
       expect(movie1, equals(movie2));
       expect(movie1, isNot(equals(movie3)));
       expect(movie1.hashCode, equals(movie2.hashCode));
     });
   });
-} 
+}

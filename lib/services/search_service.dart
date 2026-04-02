@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service for handling search functionality and history
 class SearchService {
   static SearchService? _instance;
   static SearchService get instance => _instance ??= SearchService._();
-  
+
   SearchService._();
 
   static const String _searchHistoryKey = 'search_history';
@@ -36,21 +35,21 @@ class SearchService {
   /// Adds a search query to history
   Future<void> addToHistory(String query) async {
     if (query.trim().isEmpty) return;
-    
+
     final history = await loadSearchHistory();
     final trimmedQuery = query.trim();
-    
+
     // Remove if already exists
     history.remove(trimmedQuery);
-    
+
     // Add to beginning
     history.insert(0, trimmedQuery);
-    
+
     // Limit to max items
     if (history.length > _maxHistoryItems) {
       history.removeRange(_maxHistoryItems, history.length);
     }
-    
+
     await saveSearchHistory(history);
   }
 
@@ -74,17 +73,17 @@ class SearchService {
   /// Gets search suggestions based on query
   List<String> getSearchSuggestions(String query, List<String> history) {
     if (query.isEmpty) return [];
-    
+
     final suggestions = <String>{};
     final lowerQuery = query.toLowerCase();
-    
+
     // Add matching history items
     for (final item in history) {
       if (item.toLowerCase().contains(lowerQuery)) {
         suggestions.add(item);
       }
     }
-    
+
     // Add common movie-related suggestions
     final commonSuggestions = [
       'Action',
@@ -98,13 +97,13 @@ class SearchService {
       'Animation',
       'Adventure',
     ];
-    
+
     for (final suggestion in commonSuggestions) {
       if (suggestion.toLowerCase().contains(lowerQuery)) {
         suggestions.add(suggestion);
       }
     }
-    
+
     return suggestions.toList().take(5).toList();
   }
 
@@ -117,4 +116,4 @@ class SearchService {
   String sanitizeQuery(String query) {
     return query.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
-} 
+}

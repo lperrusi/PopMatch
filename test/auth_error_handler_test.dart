@@ -11,7 +11,8 @@ void main() {
         message: 'User not found',
       );
       final message = AuthErrorHandler.getErrorMessage(error);
-      expect(message, 'No account found with this email. Please sign up first.');
+      expect(
+          message, 'No account found with this email. Please sign up first.');
     });
 
     test('Handles FirebaseAuthException - wrong-password', () {
@@ -29,7 +30,8 @@ void main() {
         message: 'Email already in use',
       );
       final message = AuthErrorHandler.getErrorMessage(error);
-      expect(message, 'An account with this email already exists. Please sign in instead.');
+      expect(message,
+          'An account with this email already exists. Please sign in instead.');
     });
 
     test('Handles FirebaseAuthException - weak-password', () {
@@ -38,7 +40,8 @@ void main() {
         message: 'Weak password',
       );
       final message = AuthErrorHandler.getErrorMessage(error);
-      expect(message, 'Password is too weak. Please use a stronger password (at least 6 characters).');
+      expect(message,
+          'Password is too weak. Please use a stronger password (at least 6 characters).');
     });
 
     test('Handles FirebaseAuthException - network-request-failed', () {
@@ -47,17 +50,19 @@ void main() {
         message: 'Network error',
       );
       final message = AuthErrorHandler.getErrorMessage(error);
-      expect(message, 'Network error. Please check your connection and try again.');
+      expect(message,
+          'Network error. Please check your connection and try again.');
     });
 
     test('Handles SocketException', () {
-      final error = SocketException('Connection failed');
+      const error = SocketException('Connection failed');
       final message = AuthErrorHandler.getErrorMessage(error);
-      expect(message, 'No internet connection. Please check your network and try again.');
+      expect(message,
+          'No internet connection. Please check your network and try again.');
     });
 
     test('Handles HttpException', () {
-      final error = HttpException('HTTP error');
+      const error = HttpException('HTTP error');
       final message = AuthErrorHandler.getErrorMessage(error);
       expect(message, 'Network error occurred. Please try again later.');
     });
@@ -65,13 +70,15 @@ void main() {
     test('Handles timeout errors', () {
       final error = Exception('Request timeout');
       final message = AuthErrorHandler.getErrorMessage(error);
-      expect(message, 'Request timed out. Please check your connection and try again.');
+      expect(message,
+          'Request timed out. Please check your connection and try again.');
     });
 
     test('Handles JSON parsing errors', () {
       final error = Exception('FormatException: Invalid JSON');
       final message = AuthErrorHandler.getErrorMessage(error);
-      expect(message, 'Data format error. Please try again or contact support.');
+      expect(
+          message, 'Data format error. Please try again or contact support.');
     });
 
     test('Handles canceled errors', () {
@@ -87,7 +94,7 @@ void main() {
     });
 
     test('Removes Exception: prefix', () {
-      // When creating Exception('Exception: Test error'), 
+      // When creating Exception('Exception: Test error'),
       // toString() returns "Exception: Exception: Test error"
       final error = Exception('Exception: Test error');
       final message = AuthErrorHandler.getErrorMessage(error);
@@ -95,7 +102,7 @@ void main() {
     });
 
     test('isNetworkError detects SocketException', () {
-      final error = SocketException('Connection failed');
+      const error = SocketException('Connection failed');
       expect(AuthErrorHandler.isNetworkError(error), true);
     });
 

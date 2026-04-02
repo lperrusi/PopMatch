@@ -22,6 +22,7 @@ migrate_working_dir/
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
 #.vscode/
+.vscode/launch.json
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -47,8 +48,8 @@ app.*.map.json
 # Firebase & API Keys (Sensitive)
 **/GoogleService-Info.plist
 **/google-services.json
-**/*-Info.plist
-!ios/Runner/Info.plist
+ios/Runner/GoogleService-Info.plist
+android/app/google-services.json
 *.plist
 !ios/Runner/Info.plist
 
@@ -67,6 +68,7 @@ ui-debug.log
 # Node modules (for Cloud Functions)
 functions/node_modules/
 functions/.env
+functions/.env.*
 
 # iOS
 ios/Pods/

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/streaming_platform.dart';
 import '../models/movie.dart';
 
@@ -27,7 +26,7 @@ class StreamingPlatformLogo extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
             ),
           ),
           child: ClipRRect(
@@ -40,8 +39,8 @@ class StreamingPlatformLogo extends StatelessWidget {
           Text(
             platform.name,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+                  fontWeight: FontWeight.w500,
+                ),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -142,7 +141,7 @@ class StreamingAvailabilityWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final availability = movie.streamingAvailability;
-    
+
     if (availability == null) {
       return const SizedBox.shrink();
     }
@@ -153,11 +152,11 @@ class StreamingAvailabilityWidget extends StatelessWidget {
         Text(
           'Available on:',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 8),
-        
+
         // Platform logos
         Wrap(
           spacing: 12,
@@ -170,16 +169,17 @@ class StreamingAvailabilityWidget extends StatelessWidget {
             );
           }).toList(),
         ),
-        
-        if (showPricing && (availability.rentalPrice != null || 
-                           availability.purchasePrice != null || 
-                           availability.isFree)) ...[
+
+        if (showPricing &&
+            (availability.rentalPrice != null ||
+                availability.purchasePrice != null ||
+                availability.isFree)) ...[
           const SizedBox(height: 16),
           Text(
             'Pricing:',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 8),
           _buildPricingInfo(context, availability),
@@ -188,15 +188,16 @@ class StreamingAvailabilityWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildPricingInfo(BuildContext context, MovieStreamingAvailability availability) {
+  Widget _buildPricingInfo(
+      BuildContext context, MovieStreamingAvailability availability) {
     final List<Widget> pricingWidgets = [];
-    
+
     if (availability.isFree) {
       pricingWidgets.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.green),
           ),
@@ -210,13 +211,13 @@ class StreamingAvailabilityWidget extends StatelessWidget {
         ),
       );
     }
-    
+
     if (availability.rentalPrice != null) {
       pricingWidgets.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
+            color: Colors.blue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.blue),
           ),
@@ -230,13 +231,13 @@ class StreamingAvailabilityWidget extends StatelessWidget {
         ),
       );
     }
-    
+
     if (availability.purchasePrice != null) {
       pricingWidgets.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.1),
+            color: Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.orange),
           ),
@@ -250,7 +251,7 @@ class StreamingAvailabilityWidget extends StatelessWidget {
         ),
       );
     }
-    
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -281,7 +282,7 @@ class StreamingPlatformFilterChips extends StatelessWidget {
       runSpacing: 6,
       children: platforms.map((platform) {
         final isSelected = selectedPlatformIds.contains(platform.id);
-        
+
         return FilterChip(
           label: Row(
             mainAxisSize: MainAxisSize.min,
@@ -341,11 +342,10 @@ class StreamingPlatformStats extends StatelessWidget {
         Text(
           'Platform Availability',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 12),
-        
         ...sortedStats.map((entry) {
           final platform = availablePlatforms.firstWhere(
             (p) => p.id == entry.key,
@@ -355,7 +355,7 @@ class StreamingPlatformStats extends StatelessWidget {
               logoPath: '',
             ),
           );
-          
+
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
@@ -373,7 +373,8 @@ class StreamingPlatformStats extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
@@ -389,8 +390,8 @@ class StreamingPlatformStats extends StatelessWidget {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
-} 
+}

@@ -11,7 +11,7 @@ class StreamingProvider with ChangeNotifier {
   List<StreamingPlatform> _availablePlatforms = [];
   
   // Selected platforms for filtering
-  List<String> _selectedPlatformIds = [];
+  final List<String> _selectedPlatformIds = [];
   
   // Filtered movies
   List<Movie> _filteredMovies = [];
@@ -147,10 +147,21 @@ class StreamingProvider with ChangeNotifier {
     }
   }
 
-  /// Gets streaming availability for a movie
+  /// Gets streaming availability for a movie (TMDB watch/providers).
   Future<MovieStreamingAvailability?> getStreamingAvailability(int movieId) async {
     try {
       return await _streamingService.getStreamingAvailability(movieId);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Gets streaming availability for a TV series (TMDB watch/providers).
+  Future<MovieStreamingAvailability?> getStreamingAvailabilityForTv(int seriesId) async {
+    try {
+      return await _streamingService.getStreamingAvailabilityForTv(seriesId);
     } catch (e) {
       _error = e.toString();
       notifyListeners();

@@ -1,18 +1,19 @@
+// ignore_for_file: avoid_print
 import 'dart:io';
 
 /// Script to generate all iOS app icon sizes from the main 1024x1024 icon
 
 void main() async {
   print('Generating all iOS app icon sizes...');
-  
+
   final outputDir = Directory('ios/Runner/Assets.xcassets/AppIcon.appiconset');
   final mainIcon = File('${outputDir.path}/Icon-App-1024x1024@1x.png');
-  
+
   if (!await mainIcon.exists()) {
     print('Error: Main icon not found. Run create_simple_app_icon.dart first.');
     return;
   }
-  
+
   // iOS app icon sizes
   final iconSizes = {
     'Icon-App-20x20@1x.png': 20,
@@ -32,22 +33,25 @@ void main() async {
     'Icon-App-83.5x83.5@2x.png': 167,
     'Icon-App-83x83@1x.png': 83,
   };
-  
+
   print('Converting main icon to all required sizes...');
-  
+
   for (final entry in iconSizes.entries) {
     final filename = entry.key;
     final size = entry.value;
-    
+
     try {
       final result = await Process.run('sips', [
-        '-z', size.toString(), size.toString(),
+        '-z',
+        size.toString(),
+        size.toString(),
         mainIcon.path,
-        '--out', '${outputDir.path}/$filename',
+        '--out',
+        '${outputDir.path}/$filename',
       ]);
-      
+
       if (result.exitCode == 0) {
-        print('✓ Generated $filename (${size}x${size})');
+        print('✓ Generated $filename (${size}x$size)');
       } else {
         print('✗ Failed to generate $filename: ${result.stderr}');
       }
@@ -55,7 +59,7 @@ void main() async {
       print('✗ Failed to generate $filename: $e');
     }
   }
-  
+
   print('\nAll app icons generated!');
   print('Now run the app to see the new icon.');
-} 
+}

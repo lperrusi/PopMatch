@@ -110,6 +110,13 @@ class Movie {
   final List<CrewMember>? crew;
   final List<Video>? videos;
   final MovieStreamingAvailability? streamingAvailability;
+  final String? imdbId; // IMDb ID for fetching external ratings
+  final double? imdbRating; // IMDb rating (0-10 scale)
+  final int? imdbVotes; // Number of IMDb votes
+  final int? rottenTomatoesTomatometer; // Rotten Tomatoes Tomatometer (0-100%)
+  final int? rottenTomatoesAudienceScore; // Rotten Tomatoes Audience Score (0-100%)
+  /// Which discovery strategy added this movie (for adaptive weighting feedback).
+  final String? recommendationStrategy;
 
   Movie({
     required this.id,
@@ -135,6 +142,12 @@ class Movie {
     this.crew,
     this.videos,
     this.streamingAvailability,
+    this.imdbId,
+    this.imdbRating,
+    this.imdbVotes,
+    this.rottenTomatoesTomatometer,
+    this.rottenTomatoesAudienceScore,
+    this.recommendationStrategy,
   });
 
   /// Creates a Movie instance from JSON data
@@ -175,6 +188,12 @@ class Movie {
       streamingAvailability: json['streamingAvailability'] != null 
           ? MovieStreamingAvailability.fromJson(json['streamingAvailability'])
           : null,
+      imdbId: json['imdb_id'] ?? json['imdbId'],
+      imdbRating: json['imdb_rating']?.toDouble() ?? json['imdbRating']?.toDouble(),
+      imdbVotes: json['imdb_votes'] ?? json['imdbVotes'],
+      rottenTomatoesTomatometer: json['rotten_tomatoes_tomatometer'] ?? json['rottenTomatoesTomatometer'],
+      rottenTomatoesAudienceScore: json['rotten_tomatoes_audience_score'] ?? json['rottenTomatoesAudienceScore'],
+      recommendationStrategy: json['recommendation_strategy'] ?? json['recommendationStrategy'],
     );
   }
 
@@ -204,6 +223,12 @@ class Movie {
       'crew': crew?.map((c) => c.toJson()).toList(),
       'videos': videos?.map((v) => v.toJson()).toList(),
       'streamingAvailability': streamingAvailability?.toJson(),
+      'imdb_id': imdbId,
+      'imdb_rating': imdbRating,
+      'imdb_votes': imdbVotes,
+      'rotten_tomatoes_tomatometer': rottenTomatoesTomatometer,
+      'rotten_tomatoes_audience_score': rottenTomatoesAudienceScore,
+      'recommendation_strategy': recommendationStrategy,
     };
   }
 
@@ -267,6 +292,12 @@ class Movie {
     List<CrewMember>? crew,
     List<Video>? videos,
     MovieStreamingAvailability? streamingAvailability,
+    String? imdbId,
+    double? imdbRating,
+    int? imdbVotes,
+    int? rottenTomatoesTomatometer,
+    int? rottenTomatoesAudienceScore,
+    String? recommendationStrategy,
   }) {
     return Movie(
       id: id ?? this.id,
@@ -292,6 +323,12 @@ class Movie {
       crew: crew ?? this.crew,
       videos: videos ?? this.videos,
       streamingAvailability: streamingAvailability ?? this.streamingAvailability,
+      imdbId: imdbId ?? this.imdbId,
+      imdbRating: imdbRating ?? this.imdbRating,
+      imdbVotes: imdbVotes ?? this.imdbVotes,
+      rottenTomatoesTomatometer: rottenTomatoesTomatometer ?? this.rottenTomatoesTomatometer,
+      rottenTomatoesAudienceScore: rottenTomatoesAudienceScore ?? this.rottenTomatoesAudienceScore,
+      recommendationStrategy: recommendationStrategy ?? this.recommendationStrategy,
     );
   }
 

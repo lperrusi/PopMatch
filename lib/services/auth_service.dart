@@ -11,6 +11,12 @@ import '../models/user.dart';
 import 'firebase_config.dart';
 import '../utils/auth_error_handler.dart';
 
+enum VerificationCodeDelivery {
+  cloudEmailSent,
+  fallbackCodeGenerated,
+  devModeCodeGenerated,
+}
+
 /// Service for handling authentication operations including Google and Apple sign-in
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -62,40 +68,42 @@ class AuthService {
         
         User user;
         if (userInfoMap.containsKey(emailLower)) {
-          // Existing user - try to load their existing data from user_data first
+          // Existing user - try to load their existing data from user_data first (preserve watchlist, likes, preferences)
           final existingUserJson = prefs.getString('user_data');
+          User? existingUser;
           if (existingUserJson != null) {
             try {
               final existingUserMap = jsonDecode(existingUserJson) as Map<String, dynamic>;
-              final existingUser = User.fromJson(existingUserMap);
-              final existingUserInfo = userInfoMap[emailLower] as Map<String, dynamic>;
-              
-              // If the user ID matches, return the existing user (with all their data including preferences)
-              if (existingUser.id == existingUserInfo['id'] as String) {
-                // Update photo URL if available from Google
-                final updatedUser = existingUser.copyWith(photoURL: googleUser.photoUrl);
-                await _saveUserData(updatedUser);
-                return updatedUser;
-              }
+              existingUser = User.fromJson(existingUserMap);
             } catch (e) {
-              // If parsing fails, create new user below
               debugPrint('Error loading existing user data: $e');
             }
           }
-          
-          // No existing user data found, create new user with user info (but preserve structure)
           final existingUserInfo = userInfoMap[emailLower] as Map<String, dynamic>;
+          final sessionId = existingUserInfo['id'] as String;
+          if (existingUser != null && existingUser.email.toLowerCase() == emailLower) {
+            // Preserve all user data (watchlist, likes, preferences); update id/photo if needed
+            final updatedUser = existingUser.copyWith(
+              id: sessionId,
+              photoURL: googleUser.photoUrl,
+              displayName: googleUser.displayName ?? existingUser.displayName ?? googleUser.email.split('@')[0],
+            );
+            await _saveUserData(updatedUser);
+            return updatedUser;
+          }
+          // No existing user data found for this email, create new user with user info
           user = User(
-            id: existingUserInfo['id'] as String,
+            id: sessionId,
             email: googleUser.email,
             displayName: googleUser.displayName ?? googleUser.email.split('@')[0],
             photoURL: googleUser.photoUrl,
             watchlist: [],
+            watchlistShows: [],
             likedMovies: [],
             dislikedMovies: [],
             likedShows: [],
             dislikedShows: [],
-            preferences: {}, // Will be set during onboarding
+            preferences: {},
           );
         } else {
           // New user - create account
@@ -115,6 +123,7 @@ class AuthService {
             displayName: googleUser.displayName ?? googleUser.email.split('@')[0],
             photoURL: googleUser.photoUrl,
             watchlist: [],
+            watchlistShows: [],
             likedMovies: [],
             dislikedMovies: [],
             likedShows: [],
@@ -141,13 +150,34 @@ class AuthService {
         throw Exception('Failed to sign in with Google');
       }
 
-      // Convert Firebase user to our User model
+      // Try to load existing user data first to preserve watchlist, likes, preferences
+      final prefs = await SharedPreferences.getInstance();
+      final existingUserJson = prefs.getString('user_data');
+      if (existingUserJson != null) {
+        try {
+          final existingUserMap = jsonDecode(existingUserJson) as Map<String, dynamic>;
+          final existingUser = User.fromJson(existingUserMap);
+          if (existingUser.id == firebaseUser.uid) {
+            final updatedUser = existingUser.copyWith(
+              photoURL: firebaseUser.photoURL,
+              displayName: firebaseUser.displayName ?? existingUser.displayName ?? firebaseUser.email?.split('@')[0] ?? 'User',
+            );
+            await _saveUserData(updatedUser);
+            return updatedUser;
+          }
+        } catch (e) {
+          debugPrint('Error loading existing user data on Google sign-in: $e');
+        }
+      }
+
+      // No existing user data found, create new User model
       final user = User(
         id: firebaseUser.uid,
         email: firebaseUser.email ?? '',
         displayName: firebaseUser.displayName ?? firebaseUser.email?.split('@')[0] ?? 'User',
         photoURL: firebaseUser.photoURL,
         watchlist: [],
+        watchlistShows: [],
         likedMovies: [],
         dislikedMovies: [],
         likedShows: [],
@@ -193,7 +223,7 @@ class AuthService {
       final email = credential.email;
       final givenName = credential.givenName ?? '';
       final familyName = credential.familyName ?? '';
-      final displayName = '${givenName} ${familyName}'.trim();
+      final displayName = '$givenName $familyName'.trim();
       
       if (email == null) {
         throw Exception('Email is required for Apple Sign In');
@@ -210,55 +240,45 @@ class AuthService {
         
         User user;
         if (userInfoMap.containsKey(emailLower)) {
-          // Existing user - try to load their existing data from user_data
+          // Existing user - try to load their existing data from user_data (preserve watchlist, likes, preferences)
           final existingUserJson = prefs.getString('user_data');
+          User? existingUser;
           if (existingUserJson != null) {
             try {
               final existingUserMap = jsonDecode(existingUserJson) as Map<String, dynamic>;
-              final existingUser = User.fromJson(existingUserMap);
-              final existingUserInfo = userInfoMap[emailLower] as Map<String, dynamic>;
-              
-              // If the user ID matches, return the existing user (with all their data)
-              if (existingUser.id == existingUserInfo['id'] as String) {
-                await _saveUserData(existingUser);
-                return existingUser;
-              }
+              existingUser = User.fromJson(existingUserMap);
             } catch (e) {
-              // If parsing fails, create new user below
               debugPrint('Error loading existing user data: $e');
             }
           }
-          
-          // No existing user data found, try to preserve any existing preferences structure
           final existingUserInfo = userInfoMap[emailLower] as Map<String, dynamic>;
-          // Try to load any existing preferences from a previous session
-          Map<String, dynamic> existingPreferences = {};
-          // Reuse existingUserJson from above if it was loaded, otherwise try again
-          final existingUserJsonForPrefs = existingUserJson ?? prefs.getString('user_data');
-          if (existingUserJsonForPrefs != null) {
-            try {
-              final existingUserMap = jsonDecode(existingUserJsonForPrefs) as Map<String, dynamic>;
-              if (existingUserMap['preferences'] != null) {
-                existingPreferences = Map<String, dynamic>.from(existingUserMap['preferences']);
-              }
-            } catch (e) {
-              debugPrint('Error loading existing preferences: $e');
-            }
+          final sessionId = existingUserInfo['id'] as String;
+          if (existingUser != null && existingUser.email.toLowerCase() == emailLower) {
+            // Preserve all user data; update id/displayName if needed
+            final updatedUser = existingUser.copyWith(
+              id: sessionId,
+              displayName: displayName.isNotEmpty
+                  ? displayName
+                  : (existingUser.displayName ?? existingUserInfo['displayName'] as String? ?? email.split('@')[0]),
+            );
+            await _saveUserData(updatedUser);
+            return updatedUser;
           }
-          
+          // No existing user data found for this email, create new user
           user = User(
-            id: existingUserInfo['id'] as String,
+            id: sessionId,
             email: email,
-            displayName: displayName.isNotEmpty 
-                ? displayName 
+            displayName: displayName.isNotEmpty
+                ? displayName
                 : (existingUserInfo['displayName'] as String? ?? email.split('@')[0]),
             photoURL: null,
             watchlist: [],
+            watchlistShows: [],
             likedMovies: [],
             dislikedMovies: [],
             likedShows: [],
             dislikedShows: [],
-            preferences: existingPreferences, // Preserve existing preferences if any
+            preferences: {},
           );
         } else {
           // New user - create account
@@ -278,6 +298,7 @@ class AuthService {
             displayName: displayName.isNotEmpty ? displayName : email.split('@')[0],
             photoURL: null,
             watchlist: [],
+            watchlistShows: [],
             likedMovies: [],
             dislikedMovies: [],
             likedShows: [],
@@ -306,17 +327,38 @@ class AuthService {
         throw Exception('Failed to sign in with Apple');
       }
 
-      // Convert Firebase user to our User model
-      final String finalDisplayName = firebaseUser.displayName ?? 
-          (displayName.isNotEmpty 
-              ? displayName 
-              : (firebaseUser.email?.split('@')[0] ?? 'User'));
+      // Try to load existing user data first to preserve watchlist, likes, preferences
+      final prefs = await SharedPreferences.getInstance();
+      final existingUserJson = prefs.getString('user_data');
+      if (existingUserJson != null) {
+        try {
+          final existingUserMap = jsonDecode(existingUserJson) as Map<String, dynamic>;
+          final existingUser = User.fromJson(existingUserMap);
+          if (existingUser.id == firebaseUser.uid) {
+            final finalDisplayName = firebaseUser.displayName ??
+                (displayName.isNotEmpty ? displayName : (existingUser.displayName ?? firebaseUser.email?.split('@')[0] ?? 'User'));
+            final updatedUser = existingUser.copyWith(
+              photoURL: firebaseUser.photoURL,
+              displayName: finalDisplayName,
+            );
+            await _saveUserData(updatedUser);
+            return updatedUser;
+          }
+        } catch (e) {
+          debugPrint('Error loading existing user data on Apple sign-in: $e');
+        }
+      }
+
+      // No existing user data found, create new User model
+      final String finalDisplayName = firebaseUser.displayName ??
+          (displayName.isNotEmpty ? displayName : (firebaseUser.email?.split('@')[0] ?? 'User'));
       final user = User(
         id: firebaseUser.uid,
         email: firebaseUser.email ?? email,
         displayName: finalDisplayName,
         photoURL: firebaseUser.photoURL,
         watchlist: [],
+        watchlistShows: [],
         likedMovies: [],
         dislikedMovies: [],
         likedShows: [],
@@ -324,9 +366,7 @@ class AuthService {
         preferences: {},
       );
 
-      // Save user data locally
       await _saveUserData(user);
-      
       return user;
     } catch (e) {
       // Re-throw Firebase exceptions directly to preserve error codes
@@ -445,6 +485,7 @@ class AuthService {
           displayName: userInfo['displayName'] as String? ?? email.split('@')[0],
           photoURL: null,
           watchlist: [],
+          watchlistShows: [],
           likedMovies: [],
           dislikedMovies: [],
           likedShows: [],
@@ -493,6 +534,7 @@ class AuthService {
         displayName: firebaseUser.displayName ?? firebaseUser.email?.split('@')[0] ?? 'User',
         photoURL: firebaseUser.photoURL,
         watchlist: [],
+        watchlistShows: [],
         likedMovies: [],
         dislikedMovies: [],
         likedShows: [],
@@ -566,6 +608,7 @@ class AuthService {
           displayName: displayName,
           photoURL: null,
           watchlist: [],
+          watchlistShows: [],
           likedMovies: [],
           dislikedMovies: [],
           likedShows: [],
@@ -606,6 +649,7 @@ class AuthService {
         displayName: displayName,
         photoURL: firebaseUser.photoURL,
         watchlist: [],
+        watchlistShows: [],
         likedMovies: [],
         dislikedMovies: [],
         likedShows: [],
@@ -656,6 +700,41 @@ class AuthService {
     }
   }
 
+  /// Sends a password reset email to the given email address.
+  /// When Firebase is enabled, uses Firebase Auth sendPasswordResetEmail.
+  /// In development (Firebase disabled), throws a friendly message.
+  Future<void> sendPasswordResetEmail(String email) async {
+    final emailTrimmed = email.trim().toLowerCase();
+    if (emailTrimmed.isEmpty) {
+      throw Exception('Please enter your email address.');
+    }
+
+    if (!FirebaseConfig.isEnabled) {
+      // Development: no Firebase - check if email is registered and show helpful message
+      final prefs = await SharedPreferences.getInstance();
+      final registeredUsersJson = prefs.getString('registered_users');
+      if (registeredUsersJson != null) {
+        try {
+          final registeredUsers = Map<String, String>.from(jsonDecode(registeredUsersJson));
+          if (registeredUsers.containsKey(emailTrimmed)) {
+            throw Exception(
+              'Password reset is not available in development mode. '
+              'Use your existing password to sign in, or clear app data to sign up again.',
+            );
+          }
+        } catch (e) {
+          if (e is Exception) rethrow;
+        }
+      }
+      throw Exception(
+        'Password reset is only available when the app is connected to Firebase. '
+        'In development, please sign up again or use an existing account.',
+      );
+    }
+
+    await _auth!.sendPasswordResetEmail(email: emailTrimmed);
+  }
+
   /// Gets the current user
   Future<User?> getCurrentUser() async {
     try {
@@ -703,6 +782,7 @@ class AuthService {
         displayName: firebaseUser.displayName ?? firebaseUser.email?.split('@')[0] ?? 'User',
         photoURL: firebaseUser.photoURL,
         watchlist: [],
+        watchlistShows: [],
         likedMovies: [],
         dislikedMovies: [],
         likedShows: [],
@@ -714,7 +794,10 @@ class AuthService {
     }
   }
 
-  /// Saves user data to local storage
+  /// Saves user data to local storage (SharedPreferences key: user_data).
+  /// Persists: watchlist, watchlistShows, likedMovies, dislikedMovies, likedShows,
+  /// dislikedShows, preferences (incl. onboarding, genres, tv_watched_episodes, etc.).
+  /// Do not overwrite with a fresh User on sign-in; load existing and merge when possible.
   Future<void> _saveUserData(User user) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -727,6 +810,7 @@ class AuthService {
   }
 
   /// Clears user data from local storage
+  // ignore: unused_element
   Future<void> _clearUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -902,8 +986,9 @@ class AuthService {
     }
   }
 
-  /// Sends verification code via email using Firebase Cloud Functions
-  Future<void> sendVerificationCodeEmail(String email) async {
+  /// Sends verification code via email using Firebase Cloud Functions.
+  /// Always generates/stores a code and returns which delivery path was used.
+  Future<VerificationCodeDelivery> sendVerificationCodeEmail(String email) async {
     try {
       final code = await generateVerificationCode(email);
       
@@ -922,6 +1007,7 @@ class AuthService {
           if (kDebugMode && result.data != null) {
             debugPrint('Cloud Function response: ${result.data}');
           }
+          return VerificationCodeDelivery.cloudEmailSent;
         } catch (e) {
           // If Cloud Function fails, log the code so user can still verify
           debugPrint('⚠️ Cloud Function error: $e');
@@ -930,10 +1016,12 @@ class AuthService {
           
           // Don't rethrow - code is still generated and stored, user can verify manually
           // Or configure email service in Cloud Functions
+          return VerificationCodeDelivery.fallbackCodeGenerated;
         }
       } else {
         // Development mode - just log the code
         debugPrint('📧 [DEV] Verification code for $email: $code');
+        return VerificationCodeDelivery.devModeCodeGenerated;
       }
     } catch (e) {
       debugPrint('Error sending verification code email: $e');

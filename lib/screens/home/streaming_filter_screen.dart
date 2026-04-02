@@ -125,7 +125,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
               color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -164,7 +164,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
           // Results section
           Expanded(
             child: _isLoading
-                ? const Center(
+                ? Center(
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
                     ),
@@ -190,7 +190,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                             Text(
                               _error!,
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -213,21 +213,21 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                               children: [
                                 Icon(
                                   Icons.tv_off,
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                                   size: 64,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No movies found',
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Try selecting different streaming platforms',
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -254,7 +254,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                                           return Text(
                                             'Filtered by ${streamingProvider.selectedPlatformIds.length} platform${streamingProvider.selectedPlatformIds.length > 1 ? 's' : ''}',
                                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                             ),
                                           );
                                         }

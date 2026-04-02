@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/movie.dart';
 import '../models/tv_show.dart';
@@ -6,22 +7,70 @@ import '../models/video.dart';
 
 /// Service class for handling TMDB API calls
 class TMDBService {
+  static bool _testMode = false;
+
+  /// For testing only: when true, genre endpoints return sample data without calling the API.
+  @visibleForTesting
+  static void setTestMode(bool value) {
+    _testMode = value;
+  }
+
   static const String _baseUrl = 'https://api.themoviedb.org/3';
-  // Note: You need to replace this with your own TMDB API key
-  // Get one from: https://www.themoviedb.org/settings/api
-  static const String _apiKey = 'd797534eecc1ec1c1b2f2c126f2cba91'; // Updated API key
+  // Provide via: flutter run --dart-define=TMDB_API_KEY=your_key
+  static const String _apiKey =
+      String.fromEnvironment('TMDB_API_KEY', defaultValue: 'YOUR_TMDB_API_KEY_HERE');
+  // Optional: enable sample fallbacks intentionally during local debugging.
+  static const bool _useSampleFallback =
+      bool.fromEnvironment('TMDB_USE_SAMPLE_FALLBACK', defaultValue: false);
   static const String _imageBaseUrl = 'https://image.tmdb.org/t/p/';
+  static const String _missingApiKeySentinel = 'YOUR_TMDB_API_KEY_HERE';
+  static const Duration _requestTimeout = Duration(seconds: 8);
+
+  bool get _hasConfiguredApiKey => _apiKey != _missingApiKeySentinel;
+  bool get _allowSampleFallback => _testMode || _useSampleFallback;
+
+  Future<http.Response> _getWithTimeout(Uri uri, {Map<String, String>? headers}) {
+    return http
+        .get(uri, headers: headers)
+        .timeout(_requestTimeout);
+  }
+
+  List<Movie> _movieListFallback() {
+    if (_allowSampleFallback) return _getSampleMovies();
+    return <Movie>[];
+  }
+
+  Movie _placeholderMovieForId(int movieId) {
+    return Movie(
+      id: movieId,
+      title: 'Movie unavailable',
+      overview: 'Unable to load details right now. Please try again later.',
+      posterPath: null,
+      voteAverage: 0,
+      releaseDate: '',
+      genreIds: const <int>[],
+    );
+  }
+
+  /// Offline/error fallback: map unknown IDs to rotating sample entries.
+  Movie _sampleMovieForId(int movieId) {
+    final sampleMovies = _getSampleMovies();
+    return sampleMovies.firstWhere(
+      (movie) => movie.id == movieId,
+      orElse: () => sampleMovies[movieId.abs() % sampleMovies.length],
+    );
+  }
 
   /// Fetches popular movies from TMDB API
   Future<List<Movie>> getPopularMovies({int page = 1}) async {
+    if (_testMode) return _getSampleMovies();
     try {
       // Check if API key is set
-      if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
-        // Return sample data for development
-        return _getSampleMovies();
+      if (!_hasConfiguredApiKey) {
+        return _movieListFallback();
       }
       
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/movie/popular?api_key=$_apiKey&page=$page'),
       );
 
@@ -30,14 +79,12 @@ class TMDBService {
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
       } else {
-        print('TMDB API Error: ${response.statusCode} - ${response.body}');
-        // Return sample data as fallback
-        return _getSampleMovies();
+        debugPrint('TMDB API Error: ${response.statusCode} - ${response.body}');
+        return _movieListFallback();
       }
     } catch (e) {
-      print('TMDB API Exception: $e');
-      // Return sample data as fallback
-      return _getSampleMovies();
+      debugPrint('TMDB API Exception: $e');
+      return _movieListFallback();
     }
   }
 
@@ -101,10 +148,10 @@ class TMDBService {
     bool includeAdult = false,
     String? region,
   }) async {
+    if (_testMode) return _getSampleMovies();
     try {
       final encodedQuery = Uri.encodeComponent(query);
-      final uri = Uri.parse('$_baseUrl/search/movie?api_key=$_apiKey&query=$encodedQuery&page=$page');
-      
+
       final queryParams = <String, String>{
         'api_key': _apiKey,
         'query': encodedQuery,
@@ -193,6 +240,8 @@ class TMDBService {
 
   /// Fetches movies by genre
   Future<List<Movie>> getMoviesByGenre(int genreId, {int page = 1}) async {
+    if (_testMode) return _getSampleMovies();
+    if (!_hasConfiguredApiKey) return _movieListFallback();
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/discover/movie?api_key=$_apiKey&with_genres=$genreId&page=$page'),
@@ -202,16 +251,21 @@ class TMDBService {
         final data = json.decode(response.body);
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load movies by genre');
       }
+      debugPrint(
+        'TMDB getMoviesByGenre($genreId) failed (${response.statusCode}): ${response.body}',
+      );
+      return _movieListFallback();
     } catch (e) {
-      throw Exception('Error fetching movies by genre: $e');
+      debugPrint('TMDB getMoviesByGenre($genreId) error: $e');
+      return _movieListFallback();
     }
   }
 
   /// Fetches movies by year range
   Future<List<Movie>> getMoviesByYear(int year, {int page = 1}) async {
+    if (_testMode) return _getSampleMovies();
+    if (!_hasConfiguredApiKey) return _movieListFallback();
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/discover/movie?api_key=$_apiKey&primary_release_year=$year&page=$page'),
@@ -221,15 +275,19 @@ class TMDBService {
         final data = json.decode(response.body);
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load movies by year');
       }
+      debugPrint(
+        'TMDB getMoviesByYear($year) failed (${response.statusCode}): ${response.body}',
+      );
+      return _movieListFallback();
     } catch (e) {
-      throw Exception('Error fetching movies by year: $e');
+      debugPrint('TMDB getMoviesByYear($year) error: $e');
+      return _movieListFallback();
     }
   }
 
-  /// Discovers movies with multiple filters for personalized recommendations
+  /// Discovers movies with multiple filters for personalized recommendations.
+  /// [withWatchProviderIds] TMDB provider IDs (e.g. 8=Netflix); use with [watchRegion] (e.g. US).
   Future<List<Movie>> discoverMovies({
     List<int>? genres,
     int? year,
@@ -238,8 +296,15 @@ class TMDBService {
     double? maxRating,
     String sortBy = 'popularity.desc',
     int page = 1,
+    List<int>? withWatchProviderIds,
+    String watchRegion = 'US',
   }) async {
+    if (_testMode) return _getSampleMovies();
     try {
+      if (!_hasConfiguredApiKey) {
+        return _movieListFallback();
+      }
+
       final queryParams = <String, String>{
         'api_key': _apiKey,
         'page': page.toString(),
@@ -267,25 +332,43 @@ class TMDBService {
         queryParams['vote_average.lte'] = maxRating.toString();
       }
 
+      // Filter by streaming providers (must set both with_watch_providers and watch_region)
+      if (withWatchProviderIds != null && withWatchProviderIds.isNotEmpty) {
+        queryParams['with_watch_providers'] = withWatchProviderIds.join('|'); // OR logic
+        queryParams['watch_region'] = watchRegion;
+      }
+
       final uri = Uri.parse('$_baseUrl/discover/movie').replace(queryParameters: queryParams);
-      final response = await http.get(uri);
+      final response = await _getWithTimeout(uri);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to discover movies');
+        debugPrint(
+          'TMDB discoverMovies failed (${response.statusCode}): ${response.body}',
+        );
+        return _movieListFallback();
       }
     } catch (e) {
-      throw Exception('Error discovering movies: $e');
+      debugPrint('TMDB discoverMovies error: $e');
+      return _movieListFallback();
     }
   }
 
   /// Fetches movie details by ID
   Future<Movie> getMovieDetails(int movieId) async {
+    if (_testMode) {
+      return _sampleMovieForId(movieId);
+    }
+    if (!_hasConfiguredApiKey) {
+      return _allowSampleFallback
+          ? _sampleMovieForId(movieId)
+          : _placeholderMovieForId(movieId);
+    }
     try {
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/movie/$movieId?api_key=$_apiKey'),
       );
 
@@ -293,15 +376,91 @@ class TMDBService {
         final data = json.decode(response.body);
         return Movie.fromJson(data);
       } else {
-        throw Exception('Failed to load movie details');
+        debugPrint(
+          'TMDB getMovieDetails($movieId) failed (${response.statusCode}): ${response.body}',
+        );
+        return _allowSampleFallback
+            ? _sampleMovieForId(movieId)
+            : _placeholderMovieForId(movieId);
       }
     } catch (e) {
-      throw Exception('Error fetching movie details: $e');
+      debugPrint('TMDB getMovieDetails($movieId) error: $e');
+      return _allowSampleFallback
+          ? _sampleMovieForId(movieId)
+          : _placeholderMovieForId(movieId);
+    }
+  }
+
+  /// Fetches watch providers for a movie (where to stream/rent/buy).
+  /// [country] ISO 3166-1 (e.g. US). Returns list of TMDB provider IDs.
+  Future<List<int>> getMovieWatchProviderIds(int movieId, {String country = 'US'}) async {
+    if (_testMode) return [8, 384]; // netflix, hbo_max for tests
+    try {
+      if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') return [];
+      final response = await http.get(
+        Uri.parse('$_baseUrl/movie/$movieId/watch/providers?api_key=$_apiKey'),
+      );
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final results = data['results'];
+      if (results == null || results is! Map<String, dynamic>) return [];
+      final region = results[country];
+      if (region == null || region is! Map<String, dynamic>) return [];
+      final Set<int> ids = {};
+      for (final key in ['flatrate', 'rent', 'buy']) {
+        final list = region[key];
+        if (list is List) {
+          for (final p in list) {
+            if (p is Map<String, dynamic>) {
+              final id = p['provider_id'];
+              if (id is int) ids.add(id);
+            }
+          }
+        }
+      }
+      return ids.toList();
+    } catch (e) {
+      debugPrint('TMDB watch providers error for movie $movieId: $e');
+      return [];
+    }
+  }
+
+  /// Fetches watch providers for a TV series (where to stream/rent/buy).
+  Future<List<int>> getTvWatchProviderIds(int seriesId, {String country = 'US'}) async {
+    if (_testMode) return [8, 384]; // netflix, hbo_max for tests
+    try {
+      if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') return [];
+      final response = await http.get(
+        Uri.parse('$_baseUrl/tv/$seriesId/watch/providers?api_key=$_apiKey'),
+      );
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final results = data['results'];
+      if (results == null || results is! Map<String, dynamic>) return [];
+      final region = results[country];
+      if (region == null || region is! Map<String, dynamic>) return [];
+      final Set<int> ids = {};
+      for (final key in ['flatrate', 'rent', 'buy']) {
+        final list = region[key];
+        if (list is List) {
+          for (final p in list) {
+            if (p is Map<String, dynamic>) {
+              final id = p['provider_id'];
+              if (id is int) ids.add(id);
+            }
+          }
+        }
+      }
+      return ids.toList();
+    } catch (e) {
+      debugPrint('TMDB watch providers error for TV $seriesId: $e');
+      return [];
     }
   }
 
   /// Fetches available genres
   Future<Map<int, String>> getGenres() async {
+    if (_testMode) return _getSampleGenres();
     try {
       // Check if API key is set
       if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
@@ -310,7 +469,8 @@ class TMDBService {
       }
       
       final response = await http.get(
-        Uri.parse('$_baseUrl/genre/movie/list?api_key=$_apiKey'),
+        Uri.parse('$_baseUrl/genre/movie/list?api_key=$_apiKey&language=en'),
+        headers: {'Accept': 'application/json'},
       );
 
       if (response.statusCode == 200) {
@@ -324,12 +484,12 @@ class TMDBService {
         
         return genreMap;
       } else {
-        print('TMDB Genres API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('TMDB Genres API Error: ${response.statusCode} - ${response.body}');
         // Return sample data as fallback
         return _getSampleGenres();
       }
     } catch (e) {
-      print('TMDB Genres API Exception: $e');
+      debugPrint('TMDB Genres API Exception: $e');
       // Return sample data as fallback
       return _getSampleGenres();
     }
@@ -362,8 +522,10 @@ class TMDBService {
 
   /// Fetches trending movies
   Future<List<Movie>> getTrendingMovies({int page = 1}) async {
+    if (_testMode) return _getSampleMovies();
+    if (!_hasConfiguredApiKey) return _movieListFallback();
     try {
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/trending/movie/week?api_key=$_apiKey&page=$page'),
       );
 
@@ -372,17 +534,23 @@ class TMDBService {
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load trending movies');
+        debugPrint(
+          'TMDB getTrendingMovies failed (${response.statusCode}): ${response.body}',
+        );
+        return _movieListFallback();
       }
     } catch (e) {
-      throw Exception('Error fetching trending movies: $e');
+      debugPrint('TMDB getTrendingMovies error: $e');
+      return _movieListFallback();
     }
   }
 
   /// Fetches top rated movies
   Future<List<Movie>> getTopRatedMovies({int page = 1}) async {
+    if (_testMode) return _getSampleMovies();
+    if (!_hasConfiguredApiKey) return _movieListFallback();
     try {
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/movie/top_rated?api_key=$_apiKey&page=$page'),
       );
 
@@ -391,10 +559,14 @@ class TMDBService {
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load top rated movies');
+        debugPrint(
+          'TMDB getTopRatedMovies failed (${response.statusCode}): ${response.body}',
+        );
+        return _movieListFallback();
       }
     } catch (e) {
-      throw Exception('Error fetching top rated movies: $e');
+      debugPrint('TMDB getTopRatedMovies error: $e');
+      return _movieListFallback();
     }
   }
 
@@ -404,8 +576,61 @@ class TMDBService {
     return '$_imageBaseUrl$size$path';
   }
 
+  /// Fetches external IDs (IMDb, Facebook, Twitter, etc.) for a movie
+  /// Returns a map with keys like 'imdb_id', 'facebook_id', etc.
+  Future<Map<String, String?>> getMovieExternalIds(int movieId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/movie/$movieId/external_ids?api_key=$_apiKey'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'imdb_id': data['imdb_id'],
+          'facebook_id': data['facebook_id'],
+          'twitter_id': data['twitter_id'],
+          'instagram_id': data['instagram_id'],
+          'wikidata_id': data['wikidata_id'],
+        };
+      } else {
+        return {};
+      }
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /// Fetches external IDs (IMDb, Facebook, Twitter, etc.) for a TV show
+  /// Returns a map with keys like 'imdb_id', 'facebook_id', etc.
+  Future<Map<String, String?>> getShowExternalIds(int showId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/tv/$showId/external_ids?api_key=$_apiKey'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'imdb_id': data['imdb_id'],
+          'facebook_id': data['facebook_id'],
+          'twitter_id': data['twitter_id'],
+          'instagram_id': data['instagram_id'],
+          'wikidata_id': data['wikidata_id'],
+        };
+      } else {
+        return {};
+      }
+    } catch (e) {
+      return {};
+    }
+  }
+
   /// Fetches movie credits (cast and crew) by movie ID
   Future<Map<String, dynamic>> getMovieCredits(int movieId) async {
+    if (_testMode || !_hasConfiguredApiKey) {
+      return {'cast': <dynamic>[], 'crew': <dynamic>[]};
+    }
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/movie/$movieId/credits?api_key=$_apiKey'),
@@ -418,20 +643,25 @@ class TMDBService {
           'crew': data['crew'] as List,
         };
       } else {
-        throw Exception('Failed to load movie credits');
+        debugPrint(
+          'TMDB getMovieCredits($movieId) failed (${response.statusCode}): ${response.body}',
+        );
+        return {'cast': <dynamic>[], 'crew': <dynamic>[]};
       }
     } catch (e) {
-      throw Exception('Error fetching movie credits: $e');
+      debugPrint('TMDB getMovieCredits($movieId) error: $e');
+      return {'cast': <dynamic>[], 'crew': <dynamic>[]};
     }
   }
 
   /// Fetches movie videos (trailers, clips, etc.) by movie ID
   Future<List<Video>> getMovieVideos(int movieId) async {
+    if (_testMode) return _getSampleVideos();
     try {
       // Check if API key is set - if not, return empty list (don't show wrong trailers)
       if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
         // Return empty list - no trailers available without API key
-        print('TMDB API key not configured. No trailers available for movie ID: $movieId');
+        debugPrint('TMDB API key not configured. No trailers available for movie ID: $movieId');
         return [];
       }
       
@@ -465,21 +695,58 @@ class TMDBService {
         }
         
         // If no videos found in API, return empty list (don't show wrong trailers)
-        print('No trailers found for movie ID: $movieId');
+        debugPrint('No trailers found for movie ID: $movieId');
         return [];
       } else {
-        print('TMDB Videos API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('TMDB Videos API Error: ${response.statusCode} - ${response.body}');
         // Return empty list instead of wrong trailers
         return [];
       }
     } catch (e) {
-      print('TMDB Videos API Exception: $e');
+      debugPrint('TMDB Videos API Exception: $e');
       // Return empty list instead of wrong trailers
       return [];
     }
   }
 
+  /// Returns sample videos for testing (when _testMode is true).
+  List<Video> _getSampleVideos() {
+    return [
+      Video(
+        id: 'video-1',
+        key: 'dQw4w9WgXcQ',
+        name: 'Official Trailer',
+        site: 'YouTube',
+        type: 'Trailer',
+        official: 'true',
+        publishedAt: '2023-01-01',
+        size: 1080,
+      ),
+      Video(
+        id: 'video-2',
+        key: 'teaser-key',
+        name: 'Teaser Trailer',
+        site: 'YouTube',
+        type: 'Teaser',
+        official: 'true',
+        publishedAt: '2023-01-01',
+        size: 1080,
+      ),
+      Video(
+        id: 'video-3',
+        key: 'bts-key',
+        name: 'Behind the Scenes',
+        site: 'YouTube',
+        type: 'Behind the Scenes',
+        official: 'false',
+        publishedAt: '2023-01-01',
+        size: 1080,
+      ),
+    ];
+  }
+
   /// Returns movie-specific trailers based on actual movie IDs
+  // ignore: unused_element
   List<Video> _getMovieSpecificTrailer(int movieId) {
     // Map of actual movie IDs to their real trailer keys
     final movieTrailers = {
@@ -626,9 +893,15 @@ class TMDBService {
 
   /// Fetches detailed movie information including cast, crew, and videos
   Future<Movie> getMovieDetailsWithCredits(int movieId) async {
+    if (_testMode) return _sampleMovieForId(movieId);
+    if (!_hasConfiguredApiKey) {
+      return _allowSampleFallback
+          ? _sampleMovieForId(movieId)
+          : _placeholderMovieForId(movieId);
+    }
     try {
       // Fetch basic movie details
-      final movieResponse = await http.get(
+      final movieResponse = await _getWithTimeout(
         Uri.parse('$_baseUrl/movie/$movieId?api_key=$_apiKey'),
       );
 
@@ -653,10 +926,19 @@ class TMDBService {
         
         return Movie.fromJson(movieData);
       } else {
-        throw Exception('Failed to load movie details');
+        debugPrint(
+          'TMDB getMovieDetailsWithCredits($movieId) failed '
+          '(${movieResponse.statusCode}): ${movieResponse.body}',
+        );
+        return _allowSampleFallback
+            ? _sampleMovieForId(movieId)
+            : _placeholderMovieForId(movieId);
       }
     } catch (e) {
-      throw Exception('Error fetching movie details with credits: $e');
+      debugPrint('TMDB getMovieDetailsWithCredits($movieId) error: $e');
+      return _allowSampleFallback
+          ? _sampleMovieForId(movieId)
+          : _placeholderMovieForId(movieId);
     }
   }
 
@@ -674,6 +956,12 @@ class TMDBService {
   /// Gets similar movies for a given movie
   Future<List<Movie>> getSimilarMovies(int movieId) async {
     try {
+      if (_testMode) {
+        final sample = _getSampleMovies();
+        final filtered = sample.where((m) => m.id != movieId).toList();
+        return filtered.take(5).toList();
+      }
+
       if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
         // Return empty list if API key not configured
         return [];
@@ -688,11 +976,11 @@ class TMDBService {
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
       } else {
-        print('TMDB Similar Movies API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('TMDB Similar Movies API Error: ${response.statusCode} - ${response.body}');
         return []; // Return empty list instead of throwing
       }
     } catch (e) {
-      print('TMDB Similar Movies API Exception: $e');
+      debugPrint('TMDB Similar Movies API Exception: $e');
       return []; // Return empty list instead of throwing
     }
   }
@@ -700,6 +988,12 @@ class TMDBService {
   /// Gets movie recommendations based on a movie
   Future<List<Movie>> getMovieRecommendations(int movieId) async {
     try {
+      if (_testMode) {
+        final sample = _getSampleMovies();
+        final filtered = sample.where((m) => m.id != movieId).toList();
+        return filtered.take(5).toList();
+      }
+
       if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
         // Return empty list if API key not configured
         return [];
@@ -714,11 +1008,11 @@ class TMDBService {
         final results = data['results'] as List;
         return results.map((json) => Movie.fromJson(json)).toList();
       } else {
-        print('TMDB Recommendations API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('TMDB Recommendations API Error: ${response.statusCode} - ${response.body}');
         return []; // Return empty list instead of throwing
       }
     } catch (e) {
-      print('TMDB Recommendations API Exception: $e');
+      debugPrint('TMDB Recommendations API Exception: $e');
       return []; // Return empty list instead of throwing
     }
   }
@@ -727,12 +1021,13 @@ class TMDBService {
 
   /// Fetches popular TV shows from TMDB API
   Future<List<TvShow>> getPopularShows({int page = 1}) async {
+    if (_testMode) return [];
     try {
       if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
         return [];
       }
       
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/tv/popular?api_key=$_apiKey&page=$page'),
       );
 
@@ -741,11 +1036,11 @@ class TMDBService {
         final results = data['results'] as List;
         return results.map((json) => TvShow.fromJson(json)).toList();
       } else {
-        print('TMDB API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('TMDB API Error: ${response.statusCode} - ${response.body}');
         return [];
       }
     } catch (e) {
-      print('TMDB API Exception: $e');
+      debugPrint('TMDB API Exception: $e');
       return [];
     }
   }
@@ -788,40 +1083,61 @@ class TMDBService {
       }
 
       final uri = Uri.parse('$_baseUrl/discover/tv').replace(queryParameters: queryParams);
-      final response = await http.get(uri);
+      final response = await _getWithTimeout(uri);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['results'] as List;
         return results.map((json) => TvShow.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to discover TV shows');
       }
+      debugPrint('TMDB discoverShows failed (${response.statusCode}): ${response.body}');
+      return [];
     } catch (e) {
-      throw Exception('Error discovering TV shows: $e');
+      debugPrint('TMDB discoverShows error: $e');
+      return [];
     }
   }
 
   /// Fetches TV show details by ID
   Future<TvShow> getShowDetails(int showId) async {
+    if (_testMode) return _getSampleShow();
     try {
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/tv/$showId?api_key=$_apiKey'),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return TvShow.fromJson(data);
-      } else {
-        throw Exception('Failed to load TV show details');
       }
+      debugPrint('TMDB getShowDetails($showId) failed (${response.statusCode}): ${response.body}');
+      return _getSampleShow().copyWith(id: showId);
     } catch (e) {
-      throw Exception('Error fetching TV show details: $e');
+      debugPrint('TMDB getShowDetails($showId) error: $e');
+      return _getSampleShow().copyWith(id: showId);
     }
+  }
+
+  /// Returns a sample TV show for testing
+  TvShow _getSampleShow() {
+    return TvShow(
+      id: 1,
+      name: 'Breaking Bad',
+      overview: 'A high school chemistry teacher diagnosed with cancer turns to cooking meth.',
+      posterPath: '/sample.jpg',
+      backdropPath: '/sample_backdrop.jpg',
+      voteAverage: 9.5,
+      voteCount: 15000,
+      firstAirDate: '2008-01-20',
+      genreIds: [18, 80],
+      numberOfSeasons: 5,
+      numberOfEpisodes: 62,
+    );
   }
 
   /// Fetches TV show credits (cast and crew) by show ID
   Future<Map<String, dynamic>> getShowCredits(int showId) async {
+    if (_testMode) return {'cast': <dynamic>[], 'crew': <dynamic>[]};
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/tv/$showId/credits?api_key=$_apiKey'),
@@ -843,6 +1159,7 @@ class TMDBService {
 
   /// Fetches TV show videos (trailers, clips, etc.) by show ID
   Future<List<Video>> getShowVideos(int showId) async {
+    if (_testMode) return [];
     try {
       if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
         return [];
@@ -879,24 +1196,48 @@ class TMDBService {
         
         return [];
       } else {
-        print('TMDB Videos API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('TMDB Videos API Error: ${response.statusCode} - ${response.body}');
         return [];
       }
     } catch (e) {
-      print('TMDB Videos API Exception: $e');
+      debugPrint('TMDB Videos API Exception: $e');
+      return [];
+    }
+  }
+
+  /// Fetches a TV show season with list of episodes
+  Future<List<TvEpisode>> getSeasonDetails(int showId, int seasonNumber) async {
+    if (_testMode) return [];
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/tv/$showId/season/$seasonNumber?api_key=$_apiKey&language=en'),
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final episodes = data['episodes'] as List?;
+        if (episodes == null) return [];
+        return episodes.map((e) => TvEpisode.fromJson({...e as Map<String, dynamic>, 'season_number': seasonNumber})).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching season $seasonNumber for show $showId: $e');
       return [];
     }
   }
 
   /// Fetches TV show genres
   Future<Map<int, String>> getTvGenres() async {
+    if (_testMode) return _getSampleTvGenres();
     try {
       if (_apiKey == 'YOUR_TMDB_API_KEY_HERE') {
         return _getSampleTvGenres();
       }
       
       final response = await http.get(
-        Uri.parse('$_baseUrl/genre/tv/list?api_key=$_apiKey'),
+        Uri.parse('$_baseUrl/genre/tv/list?api_key=$_apiKey&language=en'),
+        headers: {'Accept': 'application/json'},
       );
 
       if (response.statusCode == 200) {
@@ -910,11 +1251,11 @@ class TMDBService {
         
         return genreMap;
       } else {
-        print('TMDB TV Genres API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('TMDB TV Genres API Error: ${response.statusCode} - ${response.body}');
         return _getSampleTvGenres();
       }
     } catch (e) {
-      print('TMDB TV Genres API Exception: $e');
+      debugPrint('TMDB TV Genres API Exception: $e');
       return _getSampleTvGenres();
     }
   }
@@ -981,8 +1322,10 @@ class TMDBService {
 
   /// Fetches trending TV shows
   Future<List<TvShow>> getTrendingShows({int page = 1}) async {
+    if (_testMode) return [];
+    if (!_hasConfiguredApiKey) return [];
     try {
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/trending/tv/week?api_key=$_apiKey&page=$page'),
       );
 
@@ -990,18 +1333,21 @@ class TMDBService {
         final data = json.decode(response.body);
         final results = data['results'] as List;
         return results.map((json) => TvShow.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load trending TV shows');
       }
+      debugPrint('TMDB getTrendingShows failed (${response.statusCode}): ${response.body}');
+      return [];
     } catch (e) {
-      throw Exception('Error fetching trending TV shows: $e');
+      debugPrint('TMDB getTrendingShows error: $e');
+      return [];
     }
   }
 
   /// Fetches top rated TV shows
   Future<List<TvShow>> getTopRatedShows({int page = 1}) async {
+    if (_testMode) return [];
+    if (!_hasConfiguredApiKey) return [];
     try {
-      final response = await http.get(
+      final response = await _getWithTimeout(
         Uri.parse('$_baseUrl/tv/top_rated?api_key=$_apiKey&page=$page'),
       );
 
@@ -1009,11 +1355,12 @@ class TMDBService {
         final data = json.decode(response.body);
         final results = data['results'] as List;
         return results.map((json) => TvShow.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load top rated TV shows');
       }
+      debugPrint('TMDB getTopRatedShows failed (${response.statusCode}): ${response.body}');
+      return [];
     } catch (e) {
-      throw Exception('Error fetching top rated TV shows: $e');
+      debugPrint('TMDB getTopRatedShows error: $e');
+      return [];
     }
   }
 } 

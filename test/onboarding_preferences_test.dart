@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:popmatch/models/user.dart';
-import 'package:popmatch/providers/auth_provider.dart';
-import 'package:popmatch/services/auth_service.dart';
 import 'package:popmatch/services/user_preference_analyzer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -36,7 +34,8 @@ void main() {
 
       // Verify preferences are saved
       expect(updatedUser.preferences['selectedGenres'], [28, 35, 18]);
-      expect(updatedUser.preferences['selectedPlatforms'], ['Netflix', 'Disney+']);
+      expect(
+          updatedUser.preferences['selectedPlatforms'], ['Netflix', 'Disney+']);
       expect(updatedUser.preferences['onboardingCompleted'], true);
     });
 
@@ -60,8 +59,10 @@ void main() {
       );
 
       // Check onboarding status
-      final onboardingCompleted1 = userWithOnboarding.preferences['onboardingCompleted'] ?? false;
-      final onboardingCompleted2 = userWithoutOnboarding.preferences['onboardingCompleted'] ?? false;
+      final onboardingCompleted1 =
+          userWithOnboarding.preferences['onboardingCompleted'] ?? false;
+      final onboardingCompleted2 =
+          userWithoutOnboarding.preferences['onboardingCompleted'] ?? false;
 
       expect(onboardingCompleted1, true);
       expect(onboardingCompleted2, false);
@@ -87,10 +88,12 @@ void main() {
       // Verify all preferences are preserved
       expect(updatedUser.preferences['onboardingCompleted'], true);
       expect(updatedUser.preferences['selectedGenres'], [28, 35, 18]);
-      expect(updatedUser.preferences['selectedPlatforms'], ['Netflix', 'Disney+']);
+      expect(
+          updatedUser.preferences['selectedPlatforms'], ['Netflix', 'Disney+']);
     });
 
-    test('UserPreferenceAnalyzer uses selectedGenres from onboarding', () async {
+    test('UserPreferenceAnalyzer uses selectedGenres from onboarding',
+        () async {
       final user = User(
         id: 'test_user_5',
         email: 'test5@example.com',
@@ -107,7 +110,9 @@ void main() {
       expect(preferences.topGenres, containsAll([28, 35, 18]));
     });
 
-    test('UserPreferenceAnalyzer falls back to defaults if no onboarding genres', () async {
+    test(
+        'UserPreferenceAnalyzer falls back to defaults if no onboarding genres',
+        () async {
       final user = User(
         id: 'test_user_6',
         email: 'test6@example.com',
@@ -137,13 +142,15 @@ void main() {
       final json = user.toJson();
       expect(json['preferences'], isA<Map<String, dynamic>>());
       expect(json['preferences']['selectedGenres'], [28, 35, 18]);
-      expect(json['preferences']['selectedPlatforms'], ['Netflix', 'Disney+', 'HBO Max']);
+      expect(json['preferences']['selectedPlatforms'],
+          ['Netflix', 'Disney+', 'HBO Max']);
       expect(json['preferences']['onboardingCompleted'], true);
 
       // Deserialize from JSON
       final deserializedUser = User.fromJson(json);
       expect(deserializedUser.preferences['selectedGenres'], [28, 35, 18]);
-      expect(deserializedUser.preferences['selectedPlatforms'], ['Netflix', 'Disney+', 'HBO Max']);
+      expect(deserializedUser.preferences['selectedPlatforms'],
+          ['Netflix', 'Disney+', 'HBO Max']);
       expect(deserializedUser.preferences['onboardingCompleted'], true);
     });
 
@@ -186,7 +193,8 @@ void main() {
       expect(user.preferences['onboardingCompleted'], isNull);
 
       // Should default to false for onboardingCompleted check
-      final onboardingCompleted = user.preferences['onboardingCompleted'] ?? false;
+      final onboardingCompleted =
+          user.preferences['onboardingCompleted'] ?? false;
       expect(onboardingCompleted, false);
     });
 
@@ -209,7 +217,7 @@ void main() {
       // Verify list contents
       final genres = user.preferences['selectedGenres'] as List;
       final platforms = user.preferences['selectedPlatforms'] as List;
-      
+
       expect(genres.every((g) => g is int), true);
       expect(platforms.every((p) => p is String), true);
     });
@@ -219,9 +227,8 @@ void main() {
     test('Platform list can be converted to string list', () {
       final platforms = ['Netflix', 'Disney+', 'HBO Max'];
       final platformList = platforms.map((p) => p.toString()).toList();
-      
+
       expect(platformList, ['Netflix', 'Disney+', 'HBO Max']);
-      expect(platformList.every((p) => p is String), true);
     });
 
     test('Platform preferences loaded from user data', () {
@@ -233,7 +240,8 @@ void main() {
         },
       );
 
-      final selectedPlatforms = user.preferences['selectedPlatforms'] as List<dynamic>?;
+      final selectedPlatforms =
+          user.preferences['selectedPlatforms'] as List<dynamic>?;
       expect(selectedPlatforms, isNotNull);
       expect(selectedPlatforms!.length, 3);
       expect(selectedPlatforms.contains('Netflix'), true);
@@ -250,7 +258,8 @@ void main() {
         },
       );
 
-      final selectedPlatforms = user.preferences['selectedPlatforms'] as List<dynamic>?;
+      final selectedPlatforms =
+          user.preferences['selectedPlatforms'] as List<dynamic>?;
       expect(selectedPlatforms, isNotNull);
       expect(selectedPlatforms!.isEmpty, true);
     });
@@ -275,7 +284,8 @@ void main() {
       expect(user.preferences['onboardingCompleted'], true);
 
       // Step 3: User signs in again (simulate)
-      final onboardingCompleted = user.preferences['onboardingCompleted'] ?? false;
+      final onboardingCompleted =
+          user.preferences['onboardingCompleted'] ?? false;
       expect(onboardingCompleted, true); // Should skip onboarding
 
       // Step 4: User edits preferences

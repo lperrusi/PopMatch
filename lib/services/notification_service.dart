@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as timezone;
@@ -24,7 +25,7 @@ class NotificationService {
 
       _isInitialized = true;
     } catch (e) {
-      print('Error initializing notification service: $e');
+      debugPrint('Error initializing notification service: $e');
     }
   }
 
@@ -48,14 +49,14 @@ class NotificationService {
         onDidReceiveNotificationResponse: _handleLocalNotificationTap,
       );
     } catch (e) {
-      print('Error initializing local notifications: $e');
+      debugPrint('Error initializing local notifications: $e');
       // Don't rethrow - allow app to continue without notifications
     }
   }
 
   /// Handles local notification taps
   void _handleLocalNotificationTap(NotificationResponse response) {
-    print('Local notification tapped: ${response.payload}');
+    debugPrint('Local notification tapped: ${response.payload}');
     
     // Handle notification tap based on payload
     if (response.payload != null) {
@@ -64,7 +65,7 @@ class NotificationService {
         // Handle different notification types
         _handleNotificationData(data);
       } catch (e) {
-        print('Error parsing notification payload: $e');
+        debugPrint('Error parsing notification payload: $e');
       }
     }
   }
@@ -76,14 +77,20 @@ class NotificationService {
     switch (type) {
       case 'movie_recommendation':
         // Navigate to movie detail
-        print('Navigate to movie: ${data['movieId']}');
+        debugPrint('Navigate to movie: ${data['movieId']}');
         break;
       case 'new_release':
         // Navigate to new releases
-        print('Navigate to new releases');
+        debugPrint('Navigate to new releases');
+        break;
+      case 'friend_request':
+        debugPrint('Navigate to social follow requests');
+        break;
+      case 'follow_accepted':
+        debugPrint('Navigate to social hub');
         break;
       default:
-        print('Unknown notification type: $type');
+        debugPrint('Unknown notification type: $type');
     }
   }
 
@@ -217,6 +224,34 @@ class NotificationService {
       scheduledDate: scheduledDate,
       data: {
         'type': 'reminder',
+      },
+    );
+  }
+
+  Future<void> showFriendRequestNotification({
+    required String fromName,
+    required String fromUid,
+  }) async {
+    await showNotification(
+      title: 'New follow request',
+      body: '$fromName wants to follow you',
+      data: {
+        'type': 'friend_request',
+        'fromUid': fromUid,
+      },
+    );
+  }
+
+  Future<void> showFollowAcceptedNotification({
+    required String byName,
+    required String byUid,
+  }) async {
+    await showNotification(
+      title: 'Follow request accepted',
+      body: '$byName accepted your request',
+      data: {
+        'type': 'follow_accepted',
+        'byUid': byUid,
       },
     );
   }
