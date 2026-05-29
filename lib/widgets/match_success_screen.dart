@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../models/tv_show.dart';
 import '../utils/theme.dart';
+import '../utils/l10n_extension.dart';
 
 /// Match success screen that appears when a user swipes up on a movie or show
 /// Displays a festive "It's a Match!" celebration with Retro Cinema styling
@@ -232,6 +233,7 @@ class _MatchSuccessScreenState extends State<MatchSuccessScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       body: SafeArea(
@@ -290,7 +292,7 @@ class _MatchSuccessScreenState extends State<MatchSuccessScreen>
                               child: Column(
                                 children: [
                                   Text(
-                                    "It's a",
+                                    l10n.matchItsA,
                                     style: GoogleFonts.bebasNeue(
                                       fontSize: 28,
                                       color: AppTheme.sepiaBrown,
@@ -300,7 +302,7 @@ class _MatchSuccessScreenState extends State<MatchSuccessScreen>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    "MATCH!",
+                                    l10n.matchTitle,
                                     style: GoogleFonts.bebasNeue(
                                       fontSize: 42,
                                       color: AppTheme.brickRed,
@@ -454,7 +456,7 @@ class _MatchSuccessScreenState extends State<MatchSuccessScreen>
                             child: FadeTransition(
                               opacity: _extraOpacity,
                               child: Text(
-                                'Saved to your watchlist',
+                                l10n.savedToWatchlist,
                                 style: GoogleFonts.lato(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -491,7 +493,7 @@ class _MatchSuccessScreenState extends State<MatchSuccessScreen>
                                       elevation: 0,
                                     ),
                                     child: Text(
-                                      'View Details',
+                                      l10n.viewDetailsButton,
                                       style: GoogleFonts.lato(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
@@ -521,7 +523,7 @@ class _MatchSuccessScreenState extends State<MatchSuccessScreen>
                                         elevation: 0,
                                       ),
                                       child: Text(
-                                        'Add to Watchlist',
+                                        l10n.addToWatchlistButton,
                                         style: GoogleFonts.lato(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,

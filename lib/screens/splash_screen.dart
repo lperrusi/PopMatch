@@ -7,6 +7,7 @@ import '../providers/movie_provider.dart';
 import '../providers/recommendations_provider.dart';
 import '../providers/streaming_provider.dart';
 import '../utils/theme.dart';
+import '../utils/l10n_extension.dart';
 import 'auth/login_screen.dart';
 import 'home/home_screen.dart';
 import 'onboarding/onboarding_screen.dart';
@@ -118,6 +119,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.authBackground,
       body: FadeTransition(
@@ -173,7 +175,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'PopMatch',
+                  l10n.appTitle,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 56,
                     color: AppTheme.authCream,
@@ -196,7 +198,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Loading...',
+                  l10n.loadingText,
                   style: GoogleFonts.lato(
                     fontSize: 18,
                     color: AppTheme.authCream,

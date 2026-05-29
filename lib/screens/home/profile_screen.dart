@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../models/movie.dart';
 import '../../models/tv_show.dart';
@@ -17,7 +18,7 @@ import 'edit_preferences_screen.dart';
 import 'notifications_screen.dart';
 import 'privacy_screen.dart';
 import 'help_support_screen.dart';
-import 'social_hub_screen.dart';
+import 'home_screen.dart' show updateHomeScreenTab;
 import 'favorites_screen.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
@@ -34,11 +35,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
         title: Text(
-          'PROFILE',
+          l10n.profileTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 32,
             color: AppTheme.warmCream,
@@ -123,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Expanded(
                       child: _StatCard(
-                        title: 'Watchlist',
+                        title: l10n.watchlistStat,
                         value: (user.watchlist.length + user.watchlistShowsOrEmpty.length).toString(),
                         icon: Icons.bookmark_rounded,
                         color: AppTheme.filmStripBlack,
@@ -132,7 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _StatCard(
-                        title: 'Liked Movies',
+                        title: l10n.likedMoviesStat,
                         value: user.likedMovies.length.toString(),
                         icon: Icons.favorite_rounded,
                         color: AppTheme.filmStripBlack,
@@ -141,7 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _StatCard(
-                        title: 'Liked Shows',
+                        title: l10n.likedShowsStat,
                         value: user.likedShows.length.toString(),
                         icon: Icons.tv_rounded,
                         color: AppTheme.filmStripBlack,
@@ -157,7 +159,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Recently Liked Movies',
+                        l10n.recentlyLikedMoviesTitle,
                         style: GoogleFonts.bebasNeue(
                           fontSize: 22,
                           letterSpacing: 1,
@@ -171,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           );
                         },
                         child: Text(
-                          'View all',
+                          l10n.viewAll,
                           style: GoogleFonts.lato(
                             fontWeight: FontWeight.w600,
                             color: AppTheme.cinemaRed,
@@ -191,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Recently Liked Shows',
+                        l10n.recentlyLikedShowsTitle,
                         style: GoogleFonts.bebasNeue(
                           fontSize: 22,
                           letterSpacing: 1,
@@ -205,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           );
                         },
                         child: Text(
-                          'View all',
+                          l10n.viewAll,
                           style: GoogleFonts.lato(
                             fontWeight: FontWeight.w600,
                             color: AppTheme.cinemaRed,
@@ -221,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 // Account settings
                 Text(
-                  'ACCOUNT SETTINGS',
+                  l10n.accountSettingsTitle,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 22,
                     letterSpacing: 1,
@@ -234,8 +236,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       ListTile(
                         leading: Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.onSurface),
-                        title: const Text('Edit Preferences'),
-                        subtitle: const Text('Genres and streaming platforms'),
+                        title: Text(l10n.editPreferencesLabel),
+                        subtitle: Text(l10n.editPreferencesSubtitle),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.of(context).push(
@@ -246,8 +248,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const Divider(height: 1),
                       ListTile(
                         leading: Icon(Icons.notifications_outlined, color: Theme.of(context).colorScheme.onSurface),
-                        title: const Text('Notifications'),
-                        subtitle: const Text('Push, reminders, recommendations'),
+                        title: Text(l10n.notificationsLabel),
+                        subtitle: Text(l10n.notificationsSubtitle),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.of(context).push(
@@ -258,8 +260,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const Divider(height: 1),
                       ListTile(
                         leading: Icon(Icons.privacy_tip_outlined, color: Theme.of(context).colorScheme.onSurface),
-                        title: const Text('Privacy'),
-                        subtitle: const Text('Data usage and your data'),
+                        title: Text(l10n.privacyLabel),
+                        subtitle: Text(l10n.privacySubtitle),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.of(context).push(
@@ -271,21 +273,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (FeatureFlags.socialUiEnabled) ...[
                         ListTile(
                           leading: Icon(Icons.groups_rounded, color: Theme.of(context).colorScheme.onSurface),
-                          title: const Text('Social'),
-                          subtitle: const Text('Friends and what they are watching'),
+                          title: Text(l10n.socialLabel),
+                          subtitle: Text(l10n.socialSubtitle),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              NavigationUtils.fastSlideRoute(const SocialHubScreen()),
-                            );
-                          },
+                          onTap: () => updateHomeScreenTab(1),
                         ),
                         const Divider(height: 1),
                       ],
                       ListTile(
                         leading: Icon(Icons.help_outline_rounded, color: Theme.of(context).colorScheme.onSurface),
-                        title: const Text('Help & Support'),
-                        subtitle: const Text('FAQ, contact, about'),
+                        title: Text(l10n.helpSupportLabel),
+                        subtitle: Text(l10n.helpSupportSubtitle),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.of(context).push(
@@ -296,11 +294,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const Divider(height: 1),
                       ListTile(
                         leading: Icon(Icons.block_rounded, color: Theme.of(context).colorScheme.onSurface),
-                        title: const Text('Remove Ads'),
-                        subtitle: const Text('Not available yet'),
+                        title: Text(l10n.removeAdsLabel),
+                        subtitle: Text(l10n.removeAdsSubtitle),
                         trailing: const Icon(Icons.lock_outline_rounded),
-                        enabled: false,
-                        onTap: null,
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: AppTheme.vintagePaper,
+                              title: Text(
+                                l10n.comingSoonTitle,
+                                style: GoogleFonts.bebasNeue(
+                                  color: AppTheme.filmStripBlack,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              content: Text(
+                                l10n.comingSoonMessage,
+                                style: GoogleFonts.lato(color: AppTheme.filmStripBlack),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  child: Text(l10n.okButton, style: GoogleFonts.lato(color: AppTheme.filmStripBlack)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -316,7 +337,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       backgroundColor: AppTheme.cinemaRed,
                       foregroundColor: AppTheme.warmCream,
                     ),
-                    child: const Text('Sign Out'),
+                    child: Text(l10n.signOutButton),
                   ),
                 ),
               ],
@@ -334,17 +355,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.vintagePaper,
         title: Text(
-          'Sign Out',
+          context.l10n.signOutTitle,
           style: GoogleFonts.bebasNeue(color: AppTheme.filmStripBlack, letterSpacing: 1),
         ),
         content: Text(
-          'Are you sure you want to sign out?',
+          context.l10n.signOutConfirmation,
           style: GoogleFonts.lato(color: AppTheme.filmStripBlack),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel', style: GoogleFonts.lato(color: AppTheme.filmStripBlack)),
+            child: Text(context.l10n.cancelButton, style: GoogleFonts.lato(color: AppTheme.filmStripBlack)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -355,7 +376,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: AppTheme.cinemaRed,
               foregroundColor: AppTheme.warmCream,
             ),
-            child: Text('Sign Out', style: GoogleFonts.lato(fontWeight: FontWeight.w600)),
+            child: Text(context.l10n.signOutButton, style: GoogleFonts.lato(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -444,7 +465,7 @@ class _RecentLikedMoviesSectionState extends State<_RecentLikedMoviesSection> {
             ));
           } else {
             // No data yet: show loading placeholder (either loading or pending load)
-            tiles.add(const _LoadingTile(label: 'Movie'));
+            tiles.add(_LoadingTile(label: context.l10n.loadingMovie));
           }
         }
         return Column(children: tiles);
@@ -519,7 +540,7 @@ class _RecentLikedShowsSectionState extends State<_RecentLikedShowsSection> {
               },
             ));
           } else {
-            tiles.add(const _LoadingTile(label: 'Show'));
+            tiles.add(_LoadingTile(label: context.l10n.loadingShow));
           }
         }
         return Column(children: tiles);
@@ -556,7 +577,7 @@ class _LoadingTile extends StatelessWidget {
           ),
         ),
         title: Text(
-          'Loading $label...',
+          label,
           style: GoogleFonts.lato(fontSize: 14, color: onSurface),
         ),
       ),

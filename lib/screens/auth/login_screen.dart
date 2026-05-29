@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/auth_error_handler.dart';
+import '../../utils/l10n_extension.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import '../home/home_screen.dart';
@@ -55,34 +56,19 @@ class _LoginScreenState extends State<LoginScreen> {
           // CRITICAL: Double-check user data is loaded correctly
           // Sometimes the data might not be immediately available
           final userData = authProvider.userData;
-          final email = _emailController.text.trim().toLowerCase();
-
-          debugPrint('🔍 Login check - User: ${userData?.email}');
-          debugPrint(
-              '🔍 Login check - Email match: ${userData?.email.toLowerCase() == email}');
-          debugPrint('🔍 Login check - Preferences: ${userData?.preferences}');
 
           // Check if onboarding is completed
           final onboardingCompleted =
               userData?.preferences['onboardingCompleted'] ?? false;
-          debugPrint(
-              '🔍 Login check - onboardingCompleted: $onboardingCompleted');
 
           // Verify the preference is actually a boolean true, not just truthy
           final isOnboardingCompleted = onboardingCompleted == true;
-          debugPrint(
-              '🔍 Login check - isOnboardingCompleted (strict): $isOnboardingCompleted');
 
           if (isOnboardingCompleted) {
-            debugPrint('✅ Onboarding completed, navigating to HomeScreen');
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const HomeScreen()),
             );
           } else {
-            debugPrint(
-                '⚠️ Onboarding not completed, navigating to OnboardingScreen');
-            debugPrint(
-                '⚠️ Reason: onboardingCompleted = $onboardingCompleted (type: ${onboardingCompleted.runtimeType})');
             // Show onboarding for first-time login
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const OnboardingScreen()),
@@ -199,6 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       body: Stack(
         children: [
@@ -219,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'PopMatch',
+                      l10n.appTitle,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 48,
                         color: AppTheme.authCream,
@@ -239,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Sign in to continue discovering movies',
+                      l10n.signInSubtitle,
                       style: GoogleFonts.lato(color: AppTheme.authCreamMuted),
                       textAlign: TextAlign.center,
                     ),
@@ -252,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         style: GoogleFonts.lato(color: AppTheme.authCream),
                         decoration: InputDecoration(
-                          hintText: 'Email',
+                          hintText: l10n.emailHint,
                           hintStyle: GoogleFonts.lato(
                               color: AppTheme.authCream.withValues(alpha: 0.4)),
                           prefixIcon: Icon(Icons.mail_outline,
@@ -264,11 +251,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         validator: (v) {
                           if (v == null || v.isEmpty) {
-                            return 'Please enter your email';
+                            return l10n.emailErrorEmpty;
                           }
                           if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
                               .hasMatch(v)) {
-                            return 'Please enter a valid email';
+                            return l10n.emailErrorInvalid;
                           }
                           return null;
                         },
@@ -283,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: !_isPasswordVisible,
                         style: GoogleFonts.lato(color: AppTheme.authCream),
                         decoration: InputDecoration(
-                          hintText: 'Password',
+                          hintText: l10n.passwordHint,
                           hintStyle: GoogleFonts.lato(
                               color: AppTheme.authCream.withValues(alpha: 0.4)),
                           prefixIcon: Icon(Icons.lock_outline,
@@ -306,10 +293,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         validator: (v) {
                           if (v == null || v.isEmpty) {
-                            return 'Please enter your password';
+                            return l10n.passwordErrorEmpty;
                           }
                           if (v.length < 6) {
-                            return 'Password must be at least 6 characters';
+                            return l10n.passwordErrorTooShort;
                           }
                           return null;
                         },
@@ -351,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 AppTheme.authCream)),
                                   )
                                 : Text(
-                                    'Sign In',
+                                    l10n.signInButton,
                                     style: GoogleFonts.bebasNeue(
                                         fontSize: 18,
                                         letterSpacing: 0.05,
@@ -367,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Divider(color: AppTheme.authBorder)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('OR',
+                        child: Text(l10n.orSeparator,
                             style: GoogleFonts.lato(
                                 color:
                                     AppTheme.authCream.withValues(alpha: 0.4),
@@ -394,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             _googleIcon(),
                             const SizedBox(width: 12),
-                            Text('Continue with Google',
+                            Text(l10n.continueWithGoogleButton,
                                 style: GoogleFonts.lato(
                                     fontSize: 16, fontWeight: FontWeight.w600)),
                           ],
@@ -406,20 +393,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
                               builder: (_) => const ForgotPasswordScreen())),
-                      child: Text('Forgot Password?',
+                      child: Text(l10n.forgotPasswordButton,
                           style: GoogleFonts.lato(color: AppTheme.authRed)),
                     ),
                     const SizedBox(height: 32),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text("Don't have an account? ",
+                        Text(l10n.noAccountPrompt,
                             style: GoogleFonts.lato(
                                 color:
                                     AppTheme.authCream.withValues(alpha: 0.6))),
                         TextButton(
                           onPressed: _navigateToRegister,
-                          child: Text('Sign Up',
+                          child: Text(l10n.signUpLinkText,
                               style: GoogleFonts.lato(
                                   color: AppTheme.authRed,
                                   fontWeight: FontWeight.w600)),

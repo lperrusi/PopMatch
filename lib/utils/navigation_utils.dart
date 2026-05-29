@@ -5,7 +5,7 @@ class NavigationUtils {
   /// Creates a smooth slide transition route optimized for loading screens
   static PageRouteBuilder<T> fastSlideRoute<T extends Object?>(
     Widget page, {
-    Duration duration = const Duration(milliseconds: 400),
+    Duration duration = const Duration(milliseconds: 280),
     Duration? reverseDuration,
     Offset begin = const Offset(1.0, 0.0),
     Offset end = Offset.zero,

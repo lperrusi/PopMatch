@@ -18,6 +18,8 @@ import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
 import '../../services/tmdb_service.dart';
 import '../../widgets/transparent_button_image.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
+import '../../utils/l10n_extension.dart';
+import '../../utils/streaming_url_launcher.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
 
 /// Retro Cinema styled TV show detail screen
@@ -218,9 +220,9 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                   labelColor: AppTheme.filmStripBlack,
                   unselectedLabelColor: AppTheme.filmStripBlack.withValues(alpha: 0.6),
                   labelStyle: GoogleFonts.bebasNeue(fontSize: 18, letterSpacing: 1),
-                  tabs: const [
-                    Tab(text: 'Overview'),
-                    Tab(text: 'Seasons & Episodes'),
+                  tabs: [
+                    Tab(text: context.l10n.overviewTab),
+                    Tab(text: context.l10n.seasonsEpisodesTab),
                   ],
                 ),
               ),
@@ -233,33 +235,37 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                 fit: StackFit.expand,
                 children: [
                   // Show backdrop
+                  // Shared-element destination for the Discover card poster.
                   Positioned.fill(
-                    child: (_displayShow.backdropUrl != null || _displayShow.posterUrl != null)
-                        ? CachedNetworkImage(
-                            imageUrl: _displayShow.backdropUrl ?? _displayShow.posterUrl ?? '',
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: AppTheme.vintagePaper,
-                            ),
-                            errorWidget: (context, url, error) {
-                              return Container(
+                    child: Hero(
+                      tag: 'poster-show-${widget.show.id}',
+                      child: (_displayShow.backdropUrl != null || _displayShow.posterUrl != null)
+                          ? CachedNetworkImage(
+                              imageUrl: _displayShow.backdropUrl ?? _displayShow.posterUrl ?? '',
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
                                 color: AppTheme.vintagePaper,
-                                child: Icon(
-                                  Icons.tv_outlined,
-                                size: 64,
-                                  color: AppTheme.filmStripBlack.withValues(alpha: 50),
                               ),
-                              );
-                            },
-                          )
-                        : Container(
-                            color: AppTheme.vintagePaper,
-                            child: Icon(
-                              Icons.tv_outlined,
-                              size: 64,
-                              color: AppTheme.filmStripBlack.withValues(alpha: 50),
+                              errorWidget: (context, url, error) {
+                                return Container(
+                                  color: AppTheme.vintagePaper,
+                                  child: Icon(
+                                    Icons.tv_outlined,
+                                  size: 64,
+                                    color: AppTheme.filmStripBlack.withValues(alpha: 50),
+                                ),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: AppTheme.vintagePaper,
+                              child: Icon(
+                                Icons.tv_outlined,
+                                size: 64,
+                                color: AppTheme.filmStripBlack.withValues(alpha: 50),
+                              ),
                             ),
-                          ),
+                    ),
                   ),
                   
                   // Gradient overlay at bottom for text readability
@@ -392,7 +398,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${_displayShow.numberOfEpisodes} Episodes',
+                                    context.l10n.episodesLabel(_displayShow.numberOfEpisodes!),
                                     style: GoogleFonts.lato(
                                       color: _textColor.withValues(alpha: 80),
                                       fontSize: 13,
@@ -431,7 +437,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                           if (!context.mounted) return;
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Removed ${_displayShow.name} from watchlist'),
+                                            content: Text(context.l10n.snackbarRemovedFromWatchlist(_displayShow.name)),
                                             backgroundColor: AppTheme.fadedCurtain,
                                             behavior: SnackBarBehavior.floating,
                                           ),
@@ -441,7 +447,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                           if (!context.mounted) return;
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Added ${_displayShow.name} to watchlist'),
+                                            content: Text(context.l10n.snackbarAddedToWatchlist(_displayShow.name)),
                                             backgroundColor: AppTheme.fadedCurtain,
                                             behavior: SnackBarBehavior.floating,
                                           ),
@@ -473,7 +479,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Removed ${_displayShow.name} from favorites'),
+                                              content: Text(context.l10n.removedFromFavoritesSnackbar(_displayShow.name)),
                                               backgroundColor: AppTheme.fadedCurtain,
                                               behavior: SnackBarBehavior.floating,
                                             ),
@@ -485,7 +491,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Added ${_displayShow.name} to favorites'),
+                                              content: Text(context.l10n.addedToFavoritesSnackbar(_displayShow.name)),
                                               backgroundColor: AppTheme.fadedCurtain,
                                               behavior: SnackBarBehavior.floating,
                                             ),
@@ -517,7 +523,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Removed ${_displayShow.name} from disliked'),
+                                              content: Text(context.l10n.removedFromDislikedSnackbar(_displayShow.name)),
                                               backgroundColor: AppTheme.fadedCurtain,
                                               behavior: SnackBarBehavior.floating,
                                             ),
@@ -529,7 +535,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Added ${_displayShow.name} to disliked'),
+                                              content: Text(context.l10n.addedToDislikedSnackbar(_displayShow.name)),
                                               backgroundColor: AppTheme.fadedCurtain,
                                               behavior: SnackBarBehavior.floating,
                                             ),
@@ -620,7 +626,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                         children: [
                           if (_displayShow.overview != null && _displayShow.overview!.isNotEmpty) ...[
                             Text(
-                              'Synopsis',
+                              context.l10n.synopsisLabel,
                               style: GoogleFonts.bebasNeue(
                                 fontSize: 24,
                                 color: AppTheme.filmStripBlack,
@@ -657,7 +663,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                         });
                                       },
                                       child: Text(
-                                        _isSynopsisExpanded ? 'Show less' : 'More',
+                                        _isSynopsisExpanded ? context.l10n.showLessLabel : context.l10n.moreLabel,
                                         style: GoogleFonts.lato(
                                           color: AppTheme.cinemaRed,
                                           fontSize: 14,
@@ -800,7 +806,7 @@ class _SeasonsEpisodesTabState extends State<_SeasonsEpisodesTab> {
     if (seasons == 0) {
       return Center(
         child: Text(
-          'No seasons available',
+          context.l10n.noSeasonsAvailable,
           style: GoogleFonts.lato(color: AppTheme.filmStripBlack.withValues(alpha: 0.7), fontSize: 16),
         ),
       );
@@ -836,7 +842,7 @@ class _SeasonsEpisodesTabState extends State<_SeasonsEpisodesTab> {
                 return Row(
                   children: [
                     Text(
-                      'Season $seasonNumber',
+                      context.l10n.seasonLabel(seasonNumber),
                       style: GoogleFonts.bebasNeue(
                         fontSize: 22,
                         color: AppTheme.filmStripBlack,
@@ -1045,7 +1051,7 @@ class _EpisodeDetailDialog extends StatelessWidget {
                     if (episode.runtime != null) ...[
                       const SizedBox(height: 8),
                       Text(
-                        '${episode.runtime} min',
+                        context.l10n.minutesLabel(episode.runtime!),
                         style: GoogleFonts.lato(
                           fontSize: 13,
                           color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
@@ -1062,7 +1068,7 @@ class _EpisodeDetailDialog extends StatelessWidget {
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: Text(
-                      'Close',
+                      context.l10n.closeButton,
                       style: GoogleFonts.lato(
                         color: AppTheme.cinemaRed,
                         fontWeight: FontWeight.w600,
@@ -1146,7 +1152,7 @@ class _VideosSectionState extends State<_VideosSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
               Text(
-            'Trailers & Videos',
+            context.l10n.trailersVideosLabel,
             style: GoogleFonts.bebasNeue(
               fontSize: 28,
               color: AppTheme.filmStripBlack,
@@ -1239,7 +1245,7 @@ class _CastCrewSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-          'Cast & Crew',
+          context.l10n.castCrewLabel,
           style: GoogleFonts.bebasNeue(
             fontSize: 24,
             color: AppTheme.filmStripBlack,
@@ -1485,7 +1491,7 @@ class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailabili
             ),
             const SizedBox(width: 8),
             Text(
-              'Where to Watch:',
+              context.l10n.whereToWatchLabel,
               style: GoogleFonts.lato(
                 color: widget.textColor,
                 fontSize: 14,
@@ -1504,20 +1510,30 @@ class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailabili
               final platform = platforms[index];
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.sepiaBrown,
-                    borderRadius: BorderRadius.circular(6),
+                child: GestureDetector(
+                  onTap: () => launchStreamingSearch(
+                    context: context,
+                    platform: platform,
+                    title: widget.show.name,
                   ),
-                  child: Center(
-                    child: Text(
-            platform.name,
-                      style: GoogleFonts.lato(
-                        color: widget.textColor,
-                        fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+                  child: Tooltip(
+                    message: 'Open on ${platform.name}',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.sepiaBrown,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          platform.name,
+                          style: GoogleFonts.lato(
+                            color: widget.textColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

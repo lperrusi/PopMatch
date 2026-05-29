@@ -1,11 +1,13 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/social_service.dart';
 import '../models/social_activity.dart';
 import '../utils/auth_error_handler.dart';
+import '../services/discover_movie_list_cache.dart';
 
 /// Provider for managing authentication state
 class AuthProvider with ChangeNotifier {
@@ -467,6 +469,13 @@ class AuthProvider with ChangeNotifier {
       _userData = null;
       _isLoading = false;
       notifyListeners();
+      // Clear per-user caches so the next session doesn't show stale personalized content
+      unawaited(DiscoverMovieListCache.instance
+          .clear(DiscoverMovieListCache.keyPersonalized));
+      unawaited(DiscoverMovieListCache.instance
+          .clear(DiscoverMovieListCache.keyShowsPersonalized));
+      final sp = await SharedPreferences.getInstance();
+      unawaited(sp.remove('user_preferences_cache'));
     } catch (e) {
       _error = AuthErrorHandler.getErrorMessage(e);
       _isLoading = false;

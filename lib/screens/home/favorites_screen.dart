@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/tmdb_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/navigation_utils.dart';
+import '../../utils/l10n_extension.dart';
 import '../../services/movie_cache_service.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
@@ -248,7 +249,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                         child: Text(
-                          'Sort ${isMovies ? "movies" : "shows"} by',
+                          isMovies ? context.l10n.sortMoviesBy : context.l10n.sortShowsBy,
                           style: GoogleFonts.bebasNeue(
                             fontSize: 22,
                             color: AppTheme.filmStripBlack,
@@ -258,16 +259,16 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                       ),
                       const Divider(height: 1),
                       if (!isMovies) ...[
-                        _sortTile('Watching first', FavoriteSortOrder.watchingFirst, effectiveShowsSort),
-                        _sortTile('Finished first', FavoriteSortOrder.finishedFirst, effectiveShowsSort),
+                        _sortTile(context.l10n.watchingFirstSort, FavoriteSortOrder.watchingFirst, effectiveShowsSort),
+                        _sortTile(context.l10n.finishedFirstSort, FavoriteSortOrder.finishedFirst, effectiveShowsSort),
                         const Divider(height: 1),
                       ],
-                      _sortTile('Title A–Z', FavoriteSortOrder.titleAsc, isMovies ? current : effectiveShowsSort),
-                      _sortTile('Title Z–A', FavoriteSortOrder.titleDesc, isMovies ? current : effectiveShowsSort),
-                      _sortTile('Year (newest first)', FavoriteSortOrder.yearNewest, isMovies ? current : effectiveShowsSort),
-                      _sortTile('Year (oldest first)', FavoriteSortOrder.yearOldest, isMovies ? current : effectiveShowsSort),
-                      _sortTile('Rating (highest first)', FavoriteSortOrder.ratingHigh, isMovies ? current : effectiveShowsSort),
-                      _sortTile('Rating (lowest first)', FavoriteSortOrder.ratingLow, isMovies ? current : effectiveShowsSort),
+                      _sortTile(context.l10n.titleAscendingSort, FavoriteSortOrder.titleAsc, isMovies ? current : effectiveShowsSort),
+                      _sortTile(context.l10n.titleDescendingSort, FavoriteSortOrder.titleDesc, isMovies ? current : effectiveShowsSort),
+                      _sortTile(context.l10n.yearNewestSort, FavoriteSortOrder.yearNewest, isMovies ? current : effectiveShowsSort),
+                      _sortTile(context.l10n.yearOldestSort, FavoriteSortOrder.yearOldest, isMovies ? current : effectiveShowsSort),
+                      _sortTile(context.l10n.ratingHighestSort, FavoriteSortOrder.ratingHigh, isMovies ? current : effectiveShowsSort),
+                      _sortTile(context.l10n.ratingLowestSort, FavoriteSortOrder.ratingLow, isMovies ? current : effectiveShowsSort),
                     ],
                   ),
                 ),
@@ -424,11 +425,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
         title: Text(
-          'FAVORITES',
+          l10n.favoritesTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 32,
             color: AppTheme.warmCream,
@@ -443,13 +445,13 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             icon: const Icon(Icons.sort_rounded),
             color: AppTheme.warmCream,
             onPressed: _isDeleteMode ? null : _showSortSheet,
-            tooltip: 'Sort',
+            tooltip: l10n.sortByLabel,
           ),
           IconButton(
             icon: Icon(_isDeleteMode ? Icons.close_rounded : Icons.delete_outline_rounded),
             color: AppTheme.warmCream,
             onPressed: _toggleDeleteMode,
-            tooltip: _isDeleteMode ? 'Cancel' : 'Delete',
+            tooltip: _isDeleteMode ? l10n.cancelButton : l10n.deleteLabel,
           ),
         ],
         bottom: TabBar(
@@ -461,9 +463,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             fontSize: 20,
             letterSpacing: 1,
           ),
-          tabs: const [
-            Tab(text: 'MOVIES'),
-            Tab(text: 'SHOWS'),
+          tabs: [
+            Tab(text: l10n.moviesTab.toUpperCase()),
+            Tab(text: l10n.showsTab.toUpperCase()),
           ],
         ),
       ),
@@ -504,7 +506,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'No favorites yet',
+                  context.l10n.noFavoritesYet,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 24,
                     color: AppTheme.warmCream,
@@ -513,7 +515,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Start swiping to like movies!',
+                  context.l10n.startSwipingLikeMovies,
                   style: GoogleFonts.lato(
                     fontSize: 14,
                     color: AppTheme.warmCream.withValues(alpha: 70),
@@ -544,7 +546,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Error loading favorites',
+                  context.l10n.errorLoadingFavorites,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 24,
                     color: AppTheme.warmCream,
@@ -555,7 +557,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 TextButton(
                   onPressed: _loadInitialBatch,
                   child: Text(
-                    'Retry',
+                    context.l10n.retryButton,
                     style: GoogleFonts.lato(
                       fontSize: 14,
                       color: AppTheme.popcornGold,
@@ -579,7 +581,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'No favorites found',
+                  context.l10n.noFavoritesFound,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 24,
                     color: AppTheme.warmCream,
@@ -737,9 +739,10 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   Widget _buildDeleteBar({required bool isMovies}) {
     final count = isMovies ? _selectedMovieIds.length : _selectedShowIds.length;
     final canDelete = count > 0;
+    final l10n = context.l10n;
     final label = canDelete
-        ? 'Delete $count ${count == 1 ? 'item' : 'items'}'
-        : (isMovies ? 'Select Movies to Delete' : 'Select Shows to Delete');
+        ? l10n.deleteItems(count)
+        : (isMovies ? l10n.selectMoviesToDelete : l10n.selectShowsToDelete);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       decoration: BoxDecoration(
@@ -800,7 +803,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Removed $count movie(s) from favorites'),
+            content: Text(context.l10n.removedMoviesFromFavorites(count)),
             backgroundColor: AppTheme.fadedCurtain,
             behavior: SnackBarBehavior.floating,
           ),
@@ -821,7 +824,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Removed $count show(s) from favorites'),
+            content: Text(context.l10n.removedShowsFromFavorites(count)),
             backgroundColor: AppTheme.fadedCurtain,
             behavior: SnackBarBehavior.floating,
           ),
@@ -857,7 +860,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'No favorite shows yet',
+                  context.l10n.noFavoriteShowsYet,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 24,
                     color: AppTheme.warmCream,
@@ -866,7 +869,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Start swiping to like shows!',
+                  context.l10n.startSwipingLikeShows,
                   style: GoogleFonts.lato(
                     fontSize: 14,
                     color: AppTheme.warmCream.withValues(alpha: 70),
@@ -897,7 +900,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'No favorite shows found',
+                  context.l10n.noFavoriteShowsFound,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 24,
                     color: AppTheme.warmCream,
@@ -1001,7 +1004,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                           ],
                         ),
                         child: Text(
-                          isFinished ? 'Finished' : 'Watching',
+                          isFinished ? context.l10n.finishedBadge : context.l10n.watchingBadge,
                           style: GoogleFonts.lato(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,

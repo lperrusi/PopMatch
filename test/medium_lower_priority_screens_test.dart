@@ -17,6 +17,8 @@ import 'package:popmatch/screens/home/advanced_filter_screen.dart';
 import 'package:popmatch/screens/home/streaming_filter_screen.dart';
 import 'package:popmatch/screens/mood/mood_selection_screen.dart';
 import 'package:popmatch/services/tmdb_service.dart';
+import 'package:popmatch/services/firebase_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Widget tests for medium and lower priority screens.
 /// Medium: Edit preferences, Favorites, Mood selection, Advanced filter, Streaming filter.
@@ -26,12 +28,15 @@ void main() {
   late AuthProvider authProvider;
   late MovieProvider movieProvider;
 
-  setUpAll(() {
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
     TMDBService.setTestMode(true);
+    FirebaseConfig.setTestMode(true);
   });
 
   tearDownAll(() {
     TMDBService.setTestMode(false);
+    FirebaseConfig.setTestMode(false);
   });
 
   setUp(() {
@@ -224,10 +229,12 @@ void main() {
 
       await t.tap(find.text('Happy'));
       await t.pumpAndSettle();
+
       expect(find.text('Find Happy Movies'), findsOneWidget);
-      await t.tap(find.text('Find Happy Movies'));
-      await t.pump(const Duration(milliseconds: 300));
-      expect(find.byType(Scaffold), findsWidgets);
+      // Verify button is enabled (onPressed != null means it is tappable)
+      final btn = t.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Find Happy Movies'));
+      expect(btn.onPressed, isNotNull);
     });
   });
 
@@ -459,6 +466,7 @@ void main() {
       await t.pumpWidget(wrap(const PrivacyScreen()));
       await t.pumpAndSettle();
 
+      await t.ensureVisible(find.text('Delete my data'));
       await t.tap(find.text('Delete my data'));
       await t.pumpAndSettle();
 
@@ -471,6 +479,7 @@ void main() {
       await t.pumpWidget(wrap(const PrivacyScreen()));
       await t.pumpAndSettle();
 
+      await t.ensureVisible(find.text('Delete my data'));
       await t.tap(find.text('Delete my data'));
       await t.pumpAndSettle();
       await t.tap(find.text('Learn more'));

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 
 /// Help & Support screen - FAQ, contact, about
 class HelpSupportScreen extends StatefulWidget {
@@ -14,28 +15,15 @@ class HelpSupportScreen extends StatefulWidget {
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
   int? _expandedFaqIndex;
 
-  static const List<Map<String, String>> _faqs = [
-    {
-      'q': 'How does swiping work?',
-      'a':
-          'Swipe right to like a movie or show, left to dislike, up for a match (save to watch later), and down to skip. Your choices help us recommend better content.',
-    },
-    {
-      'q': 'How do I add something to my watchlist?',
-      'a':
-          'Swipe up on a card to open the match screen, then choose to add to watchlist. You can also open the title and tap the watchlist button on the detail screen.',
-    },
-    {
-      'q': 'Can I change my streaming platforms?',
-      'a':
-          'Yes. Go to Profile → Edit Preferences and select your streaming services. We use this to tailor recommendations.',
-    },
-    {
-      'q': 'How do I reset my password?',
-      'a':
-          'On the login screen, tap "Forgot Password?" and enter your email. We\'ll send you a link to reset it.',
-    },
-  ];
+  List<Map<String, String>> _faqs(BuildContext context) {
+    final l10n = context.l10n;
+    return [
+      {'q': l10n.faq1Question, 'a': l10n.faq1Answer},
+      {'q': l10n.faq2Question, 'a': l10n.faq2Answer},
+      {'q': l10n.faq3Question, 'a': l10n.faq3Answer},
+      {'q': l10n.faq4Question, 'a': l10n.faq4Answer},
+    ];
+  }
 
   Future<void> _launchEmail() async {
     final uri = Uri(
@@ -48,9 +36,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Could not open email app. Contact: support@popmatch.app'),
+          SnackBar(
+            content: Text(context.l10n.emailErrorSnackbar),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -60,11 +47,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final faqs = _faqs(context);
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
         title: Text(
-          'HELP & SUPPORT',
+          l10n.helpSupportPageTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 28,
             color: AppTheme.warmCream,
@@ -82,7 +71,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           children: [
             // FAQ
             Text(
-              'Frequently asked questions',
+              l10n.faqSection,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.vintagePaper,
@@ -93,10 +82,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: _faqs.length,
+                itemCount: faqs.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
-                  final faq = _faqs[index];
+                  final faq = faqs[index];
                   final isExpanded = _expandedFaqIndex == index;
                   return InkWell(
                     onTap: () {
@@ -153,7 +142,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             const SizedBox(height: 24),
             // Contact
             Text(
-              'Contact us',
+              l10n.contactSection,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.vintagePaper,
@@ -170,8 +159,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 ),
                 child: ListTile(
                   leading: const Icon(Icons.email_outlined),
-                  title: const Text('Email support'),
-                  subtitle: const Text('support@popmatch.app'),
+                  title: Text(l10n.emailSupportLabel),
+                  subtitle: Text(l10n.emailSupportAddress),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _launchEmail,
                 ),
@@ -180,7 +169,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             const SizedBox(height: 24),
             // About
             Text(
-              'About',
+              l10n.aboutSection,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.vintagePaper,
@@ -194,7 +183,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'PopMatch',
+                      l10n.appTitle,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppTheme.vintagePaper,
@@ -202,14 +191,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Swipe-based movie and show discovery. Find what to watch next.',
+                      l10n.aboutDescription,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppTheme.fadedCurtain.withValues(alpha: 0.9),
                           ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Version 1.0.0',
+                      l10n.aboutVersion,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppTheme.fadedCurtain.withValues(alpha: 0.7),
                           ),

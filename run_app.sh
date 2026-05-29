@@ -28,4 +28,4 @@ echo "Project structure verified ✓"
 DEVICE=${1:-"iPhone 16 Plus"}
 echo "Launching on device: $DEVICE"
 
-flutter run -d "$DEVICE" 
+flutter run -d "$DEVICE" --dart-define-from-file=.env

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../providers/social_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import 'friends_watching_screen.dart';
 
@@ -33,11 +34,12 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
         title: Text(
-          'SOCIAL',
+          l10n.socialPageTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 30,
             color: AppTheme.warmCream,
@@ -56,10 +58,8 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.live_tv_rounded),
-                    title: const Text('What your friends are watching'),
-                    subtitle: const Text(
-                      'Swipe cards based on people you follow',
-                    ),
+                    title: Text(l10n.friendsWatchingCard),
+                    subtitle: Text(l10n.friendsWatchingCardSubtitle),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       Navigator.of(context).push(
@@ -72,7 +72,7 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Find users',
+                  l10n.findUsersSection,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 22,
                     color: AppTheme.filmStripBlack,
@@ -85,8 +85,8 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: 'Search by name or email',
+                        decoration: InputDecoration(
+                          hintText: l10n.socialSearchHint,
                         ),
                       ),
                     ),
@@ -125,7 +125,7 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                                   ? null
                                   : () => social.initialize(),
                               icon: const Icon(Icons.refresh_rounded, size: 18),
-                              label: const Text('Retry'),
+                              label: Text(l10n.retryButton),
                             ),
                           ],
                         ),
@@ -139,10 +139,10 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                   final isFollowActionEnabled =
                       uid.isNotEmpty && followStatus == 'notFollowing';
                   final followActionLabel = switch (followStatus) {
-                    'accepted' => 'Following',
-                    'pending' => 'Pending',
-                    'declined' => 'Follow',
-                    _ => 'Follow',
+                    'accepted' => l10n.followingStatus,
+                    'pending' => l10n.pendingStatus,
+                    'declined' => l10n.followButton,
+                    _ => l10n.followButton,
                   };
                   return Card(
                     child: ListTile(
@@ -163,8 +163,8 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                                 await social.sendFollowRequest(uid);
                                 if (!mounted) return;
                                 messenger.showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Follow request sent'),
+                                  SnackBar(
+                                    content: Text(l10n.followRequestSentSnackbar),
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
@@ -176,7 +176,7 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                 }),
                 const SizedBox(height: 16),
                 Text(
-                  'Follow requests',
+                  l10n.followRequestsSection,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 22,
                     color: AppTheme.filmStripBlack,
@@ -185,7 +185,7 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                 ),
                 const SizedBox(height: 8),
                 if (social.incomingRequests.isEmpty)
-                  const Text('No pending requests.')
+                  Text(l10n.noFollowRequests)
                 else
                   ...social.incomingRequests.map((req) => Card(
                         child: ListTile(
@@ -194,7 +194,7 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                                 ? 'User ${req.followerUid.substring(0, 6)}'
                                 : 'User ${req.followerUid}',
                           ),
-                          subtitle: const Text('wants to follow you'),
+                          subtitle: Text(l10n.wantsToFollowYou),
                           trailing: Wrap(
                             spacing: 8,
                             children: [
@@ -203,14 +203,14 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                                   requesterUid: req.followerUid,
                                   accept: false,
                                 ),
-                                child: const Text('Decline'),
+                                child: Text(l10n.declineButton),
                               ),
                               FilledButton(
                                 onPressed: () => social.respondToFollowRequest(
                                   requesterUid: req.followerUid,
                                   accept: true,
                                 ),
-                                child: const Text('Accept'),
+                                child: Text(l10n.acceptButton),
                               ),
                             ],
                           ),

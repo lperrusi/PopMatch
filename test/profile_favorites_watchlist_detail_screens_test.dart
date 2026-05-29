@@ -16,6 +16,7 @@ import 'package:popmatch/screens/home/watchlist_screen.dart';
 import 'package:popmatch/screens/home/movie_detail_screen.dart';
 import 'package:popmatch/screens/home/show_detail_screen.dart';
 import 'package:popmatch/services/tmdb_service.dart';
+import 'package:popmatch/services/firebase_config.dart';
 
 /// Full round of widget tests for Profile, Favorites, Watchlist, Movie detail, and Show detail screens.
 /// Covers UI and features: app bars, tabs, empty/loading states, actions, navigation.
@@ -27,10 +28,12 @@ void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     TMDBService.setTestMode(true);
+    FirebaseConfig.setTestMode(true);
   });
 
   tearDownAll(() {
     TMDBService.setTestMode(false);
+    FirebaseConfig.setTestMode(false);
   });
 
   setUp(() {

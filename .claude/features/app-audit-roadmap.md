@@ -1,0 +1,78 @@
+# App Audit Roadmap — Path to a Premium Recommendation + Social App
+
+**Date:** 2026-05-29
+**Status:** Roadmap approved; execution not yet started. Update phase checkboxes as items land.
+
+---
+
+## Context
+
+A full audit of all 26 screens, 18 widgets, the services/providers layer, Cloud Functions,
+docs, and the test suite. The app is functionally complete for core flows (auth, swipe,
+detail, watchlist, favorites, profile, search) but carries real bugs, dead code, ephemeral
+data, and stubbed "AI"/monetization features. This roadmap is **balanced and phased**:
+P0 fixes → P1 finish → P2 premium. "Premium" spans four axes the product owner cares about:
+**polished UX/quality, smarter recommendations, deeper social, monetization.**
+
+Verified bug/dead-code details live in `.claude/features/known-issues.md`. The original
+analysis lives at `~/.claude/plans/run-a-full-analyzes-functional-candy.md`.
+
+---
+
+## Phase 0 — Fix (stabilize; no new surface area)
+
+Status: landed 2026-05-29 except UNDO (deferred to its own focused change). Test baseline
+moved **117/124 → 125/120 pass/fail** (`flutter analyze` clean of new issues).
+
+- [ ] Swipe **UNDO** reliability — deferred-removal + data restoration per
+      `docs/DISCOVER_UNDO_PRODUCT_FIX.md`; add an integration test. *(Deferred — separate change.)*
+- [x] Move swipe button colors into `AppTheme.nopeRed`/`AppTheme.likeGreen`; dropped hardcoded hex.
+- [x] `mounted` checks in swipe async callbacks — **verified already guarded**; the audit
+      concern was a false positive, no change needed.
+- [x] **Adaptive-weights persistence** — real `jsonEncode`/`jsonDecode` save/load in
+      `adaptive_weighting_service.dart`; `loadWeights` wired once-per-user in both providers;
+      `recordFeedback` re-attributed to the weight-aligned **dominant strategy** (the prior
+      `recommendationStrategy` labels like `popular`/`genre_match` never matched the weight
+      keys, so the learning loop could never fire). New round-trip test added.
+- [x] Strip emoji debug logging from `login_screen.dart` (was `debugPrint`, not `print`).
+- [x] Delete orphaned `recommendations_screen.dart` + its two test references (CLAUDE.md tab
+      table corrected).
+- [x] `friends_watching_screen.dart` — log + skip failed TMDB fetches, error state with Retry
+      when all fail, paginated resolution (`_pageSize = 20`, next page as deck nears end).
+- [x] Test-suite triage: fixed the `MovieDetailScreen`/`ShowDetailScreen` smoke cluster (missing
+      l10n delegates + `SocialProvider` in the test harness). Onboarding "failures" turned out
+      to be **cross-file test pollution** (they pass in isolation) — a separate test-infra task,
+      not a code bug.
+
+## Phase 1 — Finish (complete half-built features)
+
+- [ ] **Behavior-tracking persistence** (SharedPreferences) so the 10% signal survives restarts.
+- [ ] **Firebase deployment completion**: deploy functions, create `getFriendsFeed` Firestore
+      indexes, set email secrets, enforce verification-code expiry server-side.
+- [ ] OMDb external ratings — wire into scoring behind key-check, or remove the dead path.
+- [ ] Mood-filter persistence on Discover.
+- [ ] Friendly social fallbacks (no raw `uid.substring`), retry on social error states.
+- [ ] Single shared streaming-platform source for onboarding + edit-preferences.
+- [ ] Unit/widget tests for swipe outcomes, detail flows, filter interactions.
+
+## Phase 2 — Improve / premium (the four axes)
+
+- **Polished UX/quality:** refactor the 3.4k-line swipe screen and duplicated detail screens
+  into shared components; consistent shimmer loading; jank pass.
+- **Smarter recommendations:** recommendation **explanations** (flip the existing flag on with
+  real "because you liked…" reasons); persisted collaborative filtering; honest rescoping or
+  real TFLite for `DeepLearningService`; clean **"For You"** surface reusing `RecommendationsWidget`.
+- **Deeper social:** shared/custom watchlists (finish `enhanced_watchlist_screen.dart`),
+  match-with-friends, richer activity feed, social notifications via `flutter_local_notifications`.
+- **Monetization:** turn "Remove Ads" into a real premium tier entry point; gate premium
+  features (custom lists, explanations, ad-free) behind a `FeatureFlags`/entitlement check;
+  add subscription plumbing as a dedicated sub-project.
+
+---
+
+## Verification (per change)
+
+`flutter pub get` → `flutter analyze` (0 new issues) → `flutter test` (no regressions vs
+baseline). Run `integration_test/` separately on a simulator (needs a device + seeded data,
+no network). Round-trip test for adaptive weights; swipe/undo restorability test extending
+`integration_test/swipe_deck_test.dart`. Manual smoke per `docs/TEST_PLAN.md`.

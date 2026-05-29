@@ -12,13 +12,28 @@ class StreamingService {
 
   final TMDBService _tmdb = TMDBService();
   static const Duration _availabilityCacheTtl = Duration(minutes: 10);
-  static const int _platformFilterBatchSize = 6;
   final Map<int, ({DateTime cachedAt, MovieStreamingAvailability? value})>
       _movieAvailabilityCache = {};
   final Map<int, ({DateTime cachedAt, MovieStreamingAvailability? value})>
       _tvAvailabilityCache = {};
 
+  /// ISO 3166-1 alpha-2 country code used for all TMDB watch/providers lookups.
+  /// Set once at startup via [setUserCountry]. Cache is cleared on change.
+  String _userCountry = 'US';
+
   StreamingService._();
+
+  /// Updates the country used for watch/providers lookups and clears the cache
+  /// so stale data from the old country is not served.
+  void setUserCountry(String countryCode) {
+    if (_userCountry == countryCode) return;
+    _userCountry = countryCode;
+    _movieAvailabilityCache.clear();
+    _tvAvailabilityCache.clear();
+    debugPrint('StreamingService: country set to $_userCountry');
+  }
+
+  String get userCountry => _userCountry;
 
   /// TMDB provider_id (from watch/providers API) -> our StreamingPlatform id
   static const Map<int, String> _tmdbProviderIdToPlatformId = {
@@ -28,15 +43,26 @@ class StreamingService {
     337: 'disney_plus',
     350: 'apple_tv',
     384: 'hbo_max',
+    1899: 'hbo_max',        // Max (HBO Max renamed 2023)
     387: 'peacock',
     531: 'paramount_plus',
     43: 'tubi',
     382: 'pluto_tv',
     188: 'youtube_tv',
-    119: 'amazon_prime', // Amazon Prime Video (alternate)
+    119: 'amazon_prime',    // Amazon Prime Video (alternate ID)
+    283: 'crunchyroll',     // Crunchyroll
+    11: 'mubi',             // Mubi (international arthouse)
   };
 
-  /// Gets streaming availability for a movie from TMDB (US region). Returns null if no data.
+  /// Gets streaming availability for a movie from TMDB for the user's country.
+  ///
+  /// Returns:
+  /// - `null` if the TMDB API call failed (network error, bad key) — caller
+  ///   should treat this as "unknown" and not filter the movie out.
+  /// - A [MovieStreamingAvailability] with an **empty** `availablePlatforms`
+  ///   list when the API succeeds but the title has no streaming options in
+  ///   this country — caller should treat this as "confirmed not streaming".
+  /// - A [MovieStreamingAvailability] with populated platforms otherwise.
   Future<MovieStreamingAvailability?> getStreamingAvailability(int movieId) async {
     final cached = _movieAvailabilityCache[movieId];
     if (cached != null &&
@@ -44,8 +70,12 @@ class StreamingService {
       return cached.value;
     }
     try {
-      final providerIds = await _tmdb.getMovieWatchProviderIds(movieId, country: 'US');
-      if (providerIds.isEmpty) return null;
+      final providerIds = await _tmdb.getMovieWatchProviderIds(movieId, country: _userCountry);
+      if (providerIds == null) {
+        // API error — return null so callers know data is unavailable.
+        return null;
+      }
+      // Build the platform list (may be empty when title has no streaming in country).
       final platformIds = <String>{};
       for (final tmdbId in providerIds) {
         final ourId = _tmdbProviderIdToPlatformId[tmdbId];
@@ -53,7 +83,6 @@ class StreamingService {
           platformIds.add(ourId);
         }
       }
-      if (platformIds.isEmpty) return null;
       final availability = MovieStreamingAvailability(
         movieId: movieId,
         availablePlatforms: platformIds.toList()..sort(),
@@ -80,7 +109,10 @@ class StreamingService {
     return result;
   }
 
-  /// Gets streaming availability for a TV series from TMDB (US region). Returns null if no data.
+  /// Gets streaming availability for a TV series from TMDB for the user's country.
+  ///
+  /// Returns `null` on API error, an empty-platform [MovieStreamingAvailability]
+  /// when confirmed not streaming, or a populated one when available.
   Future<MovieStreamingAvailability?> getStreamingAvailabilityForTv(int seriesId) async {
     final cached = _tvAvailabilityCache[seriesId];
     if (cached != null &&
@@ -88,8 +120,11 @@ class StreamingService {
       return cached.value;
     }
     try {
-      final providerIds = await _tmdb.getTvWatchProviderIds(seriesId, country: 'US');
-      if (providerIds.isEmpty) return null;
+      final providerIds = await _tmdb.getTvWatchProviderIds(seriesId, country: _userCountry);
+      if (providerIds == null) {
+        // API error — return null so callers know data is unavailable.
+        return null;
+      }
       final platformIds = <String>{};
       for (final tmdbId in providerIds) {
         final ourId = _tmdbProviderIdToPlatformId[tmdbId];
@@ -97,7 +132,6 @@ class StreamingService {
           platformIds.add(ourId);
         }
       }
-      if (platformIds.isEmpty) return null;
       final availability = MovieStreamingAvailability(
         movieId: seriesId,
         availablePlatforms: platformIds.toList()..sort(),
@@ -136,46 +170,58 @@ class StreamingService {
     return filteredMovies;
   }
 
-  /// Gets movies available on any of the given platforms (uses TMDB data)
+  /// Gets movies available on any of the given platforms (uses TMDB data).
+  ///
+  /// Three-way outcome per movie:
+  /// - API error (`null`) → include (unknown, can't confirm either way)
+  /// - Confirmed not streaming (empty platforms) → exclude
+  /// - On a selected platform → include with availability attached
+  /// - On streaming but not a selected platform → exclude
   Future<List<Movie>> getMoviesOnMultiplePlatforms(List<Movie> movies, List<String> platformIds) async {
-    final List<Movie> filteredMovies = [];
-    for (var i = 0; i < movies.length; i += _platformFilterBatchSize) {
-      final batch = movies.skip(i).take(_platformFilterBatchSize).toList();
-      final availabilities = await Future.wait(
-        batch.map((movie) => getStreamingAvailability(movie.id)),
-      );
-      for (var j = 0; j < batch.length; j++) {
-        final availability = availabilities[j];
-        if (availability != null) {
-          final onAny = platformIds.any((id) => availability.isAvailableOn(id));
-          if (onAny) {
-            filteredMovies
-                .add(batch[j].copyWith(streamingAvailability: availability));
-          }
-        }
+    // All availability checks run in parallel — callers are expected to pre-limit
+    // the input list (e.g., top 80) so this stays fast.
+    final availabilities = await Future.wait(
+      movies.map((movie) => getStreamingAvailability(movie.id)),
+      eagerError: false,
+    );
+    final filteredMovies = <Movie>[];
+    for (var j = 0; j < movies.length; j++) {
+      final availability = availabilities[j];
+      if (availability == null) {
+        // API error — include without tag; _applyFilters will pass it through.
+        filteredMovies.add(movies[j]);
+      } else if (availability.availablePlatforms.isEmpty) {
+        // Confirmed not on streaming in this country — exclude.
+      } else if (platformIds.any((id) => availability.isAvailableOn(id))) {
+        filteredMovies.add(movies[j].copyWith(streamingAvailability: availability));
       }
+      // Else: on streaming but not on any selected platform — exclude.
     }
     return filteredMovies;
   }
 
   /// Gets TV shows available on any of the given platforms (uses TMDB watch providers for TV).
+  ///
+  /// Same three-way logic as [getMoviesOnMultiplePlatforms].
   Future<List<TvShow>> getShowsOnMultiplePlatforms(List<TvShow> shows, List<String> platformIds) async {
-    final List<TvShow> filteredShows = [];
-    for (var i = 0; i < shows.length; i += _platformFilterBatchSize) {
-      final batch = shows.skip(i).take(_platformFilterBatchSize).toList();
-      final availabilities = await Future.wait(
-        batch.map((show) => getStreamingAvailabilityForTv(show.id)),
-      );
-      for (var j = 0; j < batch.length; j++) {
-        final availability = availabilities[j];
-        if (availability != null) {
-          final onAny = platformIds.any((id) => availability.isAvailableOn(id));
-          if (onAny) {
-            filteredShows
-                .add(batch[j].copyWith(streamingAvailability: availability));
-          }
-        }
+    // All availability checks run in parallel — callers are expected to pre-limit
+    // the input list (e.g., top 80) so this stays fast.
+    final availabilities = await Future.wait(
+      shows.map((show) => getStreamingAvailabilityForTv(show.id)),
+      eagerError: false,
+    );
+    final filteredShows = <TvShow>[];
+    for (var j = 0; j < shows.length; j++) {
+      final availability = availabilities[j];
+      if (availability == null) {
+        // API error — include without tag.
+        filteredShows.add(shows[j]);
+      } else if (availability.availablePlatforms.isEmpty) {
+        // Confirmed not on streaming in this country — exclude.
+      } else if (platformIds.any((id) => availability.isAvailableOn(id))) {
+        filteredShows.add(shows[j].copyWith(streamingAvailability: availability));
       }
+      // Else: on streaming but not on any selected platform — exclude.
     }
     return filteredShows;
   }

@@ -10,6 +10,7 @@ import '../../services/tmdb_service.dart';
 import '../../services/feature_flags.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../../widgets/retro_cinema_movie_card.dart';
 import '../../widgets/retro_cinema_show_card.dart';
 import 'movie_detail_screen.dart';
@@ -32,9 +33,20 @@ class _SocialFeedCard {
 }
 
 class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
+  // Resolve TMDB details in pages so a large friend graph doesn't trigger a
+  // burst of requests on open; the next page loads as the deck runs low.
+  static const int _pageSize = 20;
+
   final CardSwiperController _swiperController = CardSwiperController();
   final List<_SocialFeedCard> _cards = [];
+  final List<SocialActivity> _activities = [];
+  final Set<String> _dedupe = {};
+  int _cursor = 0;
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _error = false;
+
+  bool get _hasMoreActivities => _cursor < _activities.length;
 
   @override
   void initState() {
@@ -43,16 +55,44 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
   }
 
   Future<void> _loadFeed() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = false;
+        _cards.clear();
+        _activities.clear();
+        _dedupe.clear();
+        _cursor = 0;
+      });
+    }
+
     final social = context.read<SocialProvider>();
     await social.loadFriendsFeed();
-    final activities = social.friendsFeed;
-    final tmdb = TMDBService();
+    if (!mounted) return;
+    _activities.addAll(social.friendsFeed);
 
-    final dedupe = <String>{};
-    final cards = <_SocialFeedCard>[];
-    for (final activity in activities) {
+    await _resolveNextPage(initial: true);
+  }
+
+  /// Resolves up to [_pageSize] more activities into displayable cards,
+  /// skipping items that fail to fetch. On the initial page, if every item
+  /// failed to resolve (but activities existed), surfaces an error state.
+  Future<void> _resolveNextPage({bool initial = false}) async {
+    if (_loadingMore || !_hasMoreActivities) return;
+    _loadingMore = true;
+
+    final tmdb = TMDBService();
+    final newCards = <_SocialFeedCard>[];
+    int failures = 0;
+    int attempted = 0;
+
+    while (_cursor < _activities.length && newCards.length < _pageSize) {
+      final activity = _activities[_cursor];
+      _cursor++;
+
       final key = '${activity.itemType.name}:${activity.itemId}';
-      if (!dedupe.add(key)) continue;
+      if (!_dedupe.add(key)) continue;
+      attempted++;
 
       final actor = activity.actorDisplayName?.trim().isNotEmpty == true
           ? activity.actorDisplayName!
@@ -62,22 +102,26 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
       try {
         if (activity.itemType == SocialItemType.movie) {
           final movie = await tmdb.getMovieDetails(int.parse(activity.itemId));
-          cards.add(_SocialFeedCard.movie(movie, reason));
+          newCards.add(_SocialFeedCard.movie(movie, reason));
         } else {
           final show = await tmdb.getShowDetails(int.parse(activity.itemId));
-          cards.add(_SocialFeedCard.show(show, reason));
+          newCards.add(_SocialFeedCard.show(show, reason));
         }
-      } catch (_) {
-        // Skip items that fail to resolve.
+      } catch (e) {
+        failures++;
+        debugPrint(
+            'FriendsWatching: failed to resolve ${activity.itemType.name} ${activity.itemId}: $e');
       }
     }
 
+    _loadingMore = false;
     if (!mounted) return;
     setState(() {
-      _cards
-        ..clear()
-        ..addAll(cards);
+      _cards.addAll(newCards);
       _loading = false;
+      // Only flag an error when the very first page produced nothing despite
+      // having attempted some items — i.e. resolution is broken, not "no feed".
+      _error = initial && _cards.isEmpty && attempted > 0 && failures == attempted;
     });
   }
 
@@ -94,7 +138,7 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.cinemaRed,
         title: Text(
-          'FRIENDS WATCHING',
+          context.l10n.friendsWatchingTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 30,
             color: AppTheme.warmCream,
@@ -107,10 +151,34 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
           : !FeatureFlags.friendsFeedEnabled
               ? Center(
                   child: Text(
-                    'Friends feed is currently disabled.',
+                    context.l10n.feedDisabledMessage,
                     style: GoogleFonts.lato(
                       color: AppTheme.warmCream,
                       fontSize: 16,
+                    ),
+                  ),
+                )
+          : _error
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          context.l10n.failedToLoadMovies,
+                          style: GoogleFonts.lato(
+                            color: AppTheme.warmCream,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadFeed,
+                          child: Text(context.l10n.retryButton),
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -119,7 +187,7 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No friend activity yet.\nFollow more people and check back soon.',
+                      context.l10n.friendsEmptyState,
                       style: GoogleFonts.lato(
                         color: AppTheme.warmCream,
                         fontSize: 16,
@@ -132,7 +200,7 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
                   children: [
                     const SizedBox(height: 12),
                     Text(
-                      'What your friends are watching',
+                      context.l10n.friendsFeedTitle,
                       style: GoogleFonts.bebasNeue(
                         color: AppTheme.warmCream,
                         fontSize: 24,
@@ -154,7 +222,15 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
                         child: CardSwiper(
                           controller: _swiperController,
                           cardsCount: _cards.length,
-                          onSwipe: (_, __, ___) => true,
+                          onSwipe: (previousIndex, currentIndex, direction) {
+                            // Resolve the next page as the deck nears its end.
+                            if (currentIndex != null &&
+                                _cards.length - currentIndex <= 5 &&
+                                _hasMoreActivities) {
+                              _resolveNextPage();
+                            }
+                            return true;
+                          },
                           cardBuilder: (context, index, _, __) {
                             final card = _cards[index];
                             if (card.movie != null) {

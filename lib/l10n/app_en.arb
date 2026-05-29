@@ -1,0 +1,662 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "PopMatch",
+
+  "okButton": "OK",
+  "cancelButton": "Cancel",
+  "backButton": "Back",
+  "nextButton": "Next",
+  "saveButton": "Save",
+  "retryButton": "Retry",
+  "viewAll": "View all",
+  "loadingText": "Loading...",
+  "anyOption": "Any",
+
+  "navDiscover": "Discover",
+  "navSearch": "Search",
+  "navWatchlist": "Watchlist",
+  "navFavorites": "Favorites",
+  "navProfile": "Profile",
+
+  "moviesTab": "MOVIES",
+  "showsTab": "SHOWS",
+
+  "signInSubtitle": "Sign in to continue discovering movies",
+  "emailHint": "Email",
+  "emailErrorEmpty": "Please enter your email",
+  "emailErrorInvalid": "Please enter a valid email",
+  "passwordHint": "Password",
+  "passwordErrorEmpty": "Please enter your password",
+  "passwordErrorTooShort": "Password must be at least 6 characters",
+  "signInButton": "Sign In",
+  "orSeparator": "OR",
+  "continueWithGoogleButton": "Continue with Google",
+  "noAccountPrompt": "Don't have an account? ",
+  "signUpLinkText": "Sign Up",
+  "forgotPasswordButton": "Forgot Password?",
+
+  "joinPopMatchTitle": "JOIN POPMATCH",
+  "registerSubtitle": "Create an account to start discovering movies",
+  "displayNameHint": "Display Name",
+  "displayNameErrorEmpty": "Please enter your display name",
+  "displayNameErrorTooShort": "Display name must be at least 2 characters",
+  "confirmPasswordHint": "Confirm Password",
+  "confirmPasswordErrorEmpty": "Please confirm your password",
+  "confirmPasswordErrorMismatch": "Passwords do not match",
+  "createAccountButton": "Create Account",
+  "alreadyHaveAccountPrompt": "Already have an account? ",
+  "signInLinkText": "Sign In",
+
+  "forgotPasswordTitle": "FORGOT PASSWORD?",
+  "checkEmailTitle": "CHECK YOUR EMAIL",
+  "forgotPasswordSubtitle": "No worries! Enter your email and we'll send you reset instructions.",
+  "checkEmailSubtitle": "We've sent a password reset link to {email}",
+  "@checkEmailSubtitle": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "sendResetLinkButton": "Send Reset Link",
+  "resetEmailNotReceivedMessage": "Didn't receive the email? Check your spam folder or try again in a few minutes.",
+  "resendEmailButton": "Resend Email",
+  "backToLoginButton": "Back to Login",
+  "rememberPasswordPrompt": "Remember your password? ",
+
+  "verifyEmailTitle": "Verify Your Email",
+  "verificationCodeDescription": "We've sent a 6-digit verification code to:",
+  "verifyCodeButton": "Verify Code",
+  "resendCodeButton": "Resend Code",
+  "emailVerificationHelper": "Didn't receive the code? Check your spam folder or try resending.",
+  "incompleteCodeError": "Please enter the complete 6-digit code",
+  "codeError": "Please enter a 6-digit code",
+  "invalidCodeError": "Invalid verification code. Please try again.",
+  "emailVerificationSuccess": "Email verified successfully!",
+  "verificationCodeSentMessage": "Verification code sent! Please check your email.",
+  "verificationCodeFallbackMessage": "Email service is currently unavailable. Your code was generated in-app for verification.",
+  "verificationCodeDevMessage": "Code generated in development mode. Check debug logs for the code.",
+  "verificationCodeGeneratedMessage": "Verification code generated. Please try again if needed.",
+
+  "swipeToMatchTitle": "SWIPE TO MATCH",
+  "swipeToMatchDescription": "Swipe right to like, left to pass.\nFind your perfect movie match.",
+  "aiPoweredPicksTitle": "AI Powered Picks",
+  "aiPoweredPicksDescription": "Our AI learns your taste to suggest movies you will love.",
+  "curateWatchlistTitle": "Curate Your Watchlist",
+  "curateWatchlistDescription": "Save your matches and never wonder what to watch again.",
+  "getStartedButton": "Get Started",
+
+  "welcomeTitle": "WELCOME TO POPMATCH!",
+  "welcomeSubtitle": "Let's personalize your movie discovery. Pick what you love and we'll find the best matches.",
+  "swipeFeature": "Swipe to discover movies you'll love",
+  "bookmarkFeature": "Save to your watchlist",
+  "filterFeature": "Filter by genres and preferences",
+  "shareFeature": "Share with friends",
+  "genresTitle": "WHAT GENRES DO YOU LOVE?",
+  "genresSubtitle": "Select your favorite genres for better recommendations.",
+  "platformsTitle": "WHERE DO YOU WATCH MOVIES?",
+  "platformsSubtitle": "Select the streaming services you have access to.",
+  "pageIndicatorOf3": "{current} of 3",
+  "@pageIndicatorOf3": {
+    "placeholders": {
+      "current": {"type": "int"}
+    }
+  },
+  "loadingGenresMessage": "Loading genres...",
+
+  "matchSwipeUpTooltip": "Swipe up — Match",
+  "swipeLiked": "Liked",
+  "swipePassed": "Passed",
+  "swipeWatchlisted": "Watchlisted",
+  "swipeSwiped": "Swiped",
+  "undoButton": "UNDO",
+
+  "matchItsA": "It's a",
+  "matchTitle": "MATCH!",
+  "savedToWatchlist": "Saved to your watchlist",
+  "viewDetailsButton": "View Details",
+  "addToWatchlistButton": "Add to Watchlist",
+
+  "strategyLikedSimilar": "Because you liked similar titles",
+  "strategyGenreMatch": "Matches your genres",
+  "strategyTrending": "Trending now",
+  "strategyTopRated": "Top rated",
+  "strategyPersonalized": "Picked for you",
+  "strategyCurated": "Editor's pick",
+  "strategyActorDiscovery": "From a cast you enjoy",
+  "strategyDirectorDiscovery": "From a director you enjoy",
+
+  "relaxFiltersButton": "Relax Filters",
+  "refreshButton": "Refresh",
+  "applyButton": "Apply",
+  "clearAllButton": "Clear All",
+  "filtersSectionTitle": "Filters",
+  "moodFilterLabel": "Mood",
+  "selectMoodsHint": "Select moods",
+  "selectGenresHint": "Select genres",
+  "platformFilterLabel": "Platform",
+  "selectPlatformsHint": "Select platforms",
+  "selectMoodsTitle": "Select Moods",
+  "selectGenresTitle": "Select Genres",
+  "selectPlatformsTitle": "Select Platforms",
+  "nothingHereLabel": "Nothing here",
+  "noMoviesFoundSwipe": "No movies found",
+  "noShowsFoundSwipe": "No shows found",
+  "tryRefreshingMovies": "Try refreshing to load more movies",
+  "tryRefreshingShows": "Try refreshing to load more shows",
+  "checkBackLaterNewReleases": "Check back later for new releases",
+  "allCaughtUpLabel": "You're all caught up",
+
+  "searchTitle": "Search",
+  "searchHintMoviesShows": "Search movies & shows...",
+  "searchMoviesAndShows": "Search movies and shows",
+  "startTypingFindTitles": "Start typing to find titles instantly",
+  "addedToLikedMovies": "Added {title} to your liked movies!",
+  "@addedToLikedMovies": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "skippedMovie": "Skipped {title}",
+  "@skippedMovie": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "smartFiltersTitle": "Smart Filters",
+  "genresFilterLabel": "Genres",
+  "yearRangeFilterLabel": "Year Range",
+  "fromLabel": "From",
+  "toLabel": "To",
+  "applyFiltersButton": "Apply Filters",
+  "noMoviesFoundType": "No {type} movies found",
+  "@noMoviesFoundType": {
+    "placeholders": {
+      "type": {"type": "String"}
+    }
+  },
+  "tryAdjustingPreferences": "Try adjusting your preferences or filters",
+  "errorLoadingRecommendations": "Error loading recommendations",
+
+  "searchHint": "Search movies, actors, or genres...",
+  "filtersButton": "Filters",
+  "searchButton": "Search",
+  "genreLabel": "Genre",
+  "allGenresOption": "All Genres",
+  "yearLabel": "Year",
+  "allYearsOption": "All Years",
+  "sortByLabel": "Sort By",
+  "relevanceOption": "Relevance",
+  "ratingOption": "Rating",
+  "yearOption": "Year",
+  "titleOption": "Title",
+  "showOnlyAvailableCheckbox": "Show only available on streaming",
+  "streamingPlatformsLabel": "Streaming Platforms",
+  "recentSearchesTitle": "Recent Searches",
+  "noMoviesFound": "No movies found",
+  "tryAdjustingSearchTerms": "Try adjusting your search terms or filters",
+  "searchErrorTitle": "Search Error",
+
+  "overviewTab": "Overview",
+  "seasonsEpisodesTab": "Seasons & Episodes",
+  "snackbarRemovedFromWatchlist": "Removed {title} from watchlist",
+  "@snackbarRemovedFromWatchlist": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "snackbarAddedToWatchlist": "Added {title} to watchlist",
+  "@snackbarAddedToWatchlist": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+
+  "watchlistTitle": "WATCHLIST",
+  "watchlistEmpty": "Your watchlist is empty",
+  "startSwipingAddWatchlist": "Start swiping to add movies and shows to your watchlist!",
+  "removedFromWatchlist": "Removed {title} from watchlist",
+  "@removedFromWatchlist": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "movedToFavorites": "{title} moved to Favorites",
+  "@movedToFavorites": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "markedAsDisliked": "{title} marked as disliked",
+  "@markedAsDisliked": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "likedAction": "Liked",
+  "likedActionSubtitle": "Add to Favorites and remove from watchlist",
+  "dislikedAction": "Disliked",
+  "dislikedActionSubtitle": "Mark as disliked and remove from watchlist",
+  "removeAction": "Remove",
+  "removeActionSubtitle": "Remove from watchlist only",
+  "noMoviesInWatchlist": "No movies in watchlist",
+  "startSwipingMovies": "Start swiping to add movies!",
+  "noShowsInWatchlist": "No shows in watchlist",
+  "startSwipingShows": "Start swiping to add shows!",
+
+  "myWatchlistHeader": "My Watchlist",
+  "moviesInLists": "{movieCount} movies in {listCount} lists",
+  "@moviesInLists": {
+    "placeholders": {
+      "movieCount": {"type": "int"},
+      "listCount": {"type": "int"}
+    }
+  },
+  "advancedFiltersMenuItem": "Advanced Filters",
+  "exportDataMenuItem": "Export Data",
+  "searchMoviesHint": "Search movies...",
+  "allTagsFilter": "All",
+  "listsTab": "Lists",
+  "moviesTabLabel": "Movies",
+  "tagsTab": "Tags",
+  "errorLoadingLists": "Error loading lists",
+  "tryAdjustingSearchOrFilters": "Try adjusting your search or filters",
+  "noMoviesInList": "No movies in this list",
+  "addMoviesToGetStarted": "Add some movies to get started!",
+  "noTagsYet": "No tags yet",
+  "addTagsToOrganize": "Add tags to your movies to organize them better",
+  "createNewListTitle": "Create New List",
+  "listNameLabel": "List Name",
+  "listNameRequired": "Please enter a list name",
+  "listDescriptionLabel": "Description (optional)",
+  "chooseColorLabel": "Choose a color:",
+  "createButton": "Create",
+  "createdList": "Created list: {name}",
+  "@createdList": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "exportSuccessMessage": "Watchlist data export generated locally. Sharing/download will be added in a future update.",
+  "exportFailedMessage": "Failed to export data: {error}",
+  "@exportFailedMessage": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "moviesWithTagCount": "{count} movie(s)",
+  "@moviesWithTagCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "sortTooltip": "Sort",
+  "deleteTooltip": "Delete",
+  "noFavoriteShowsFound": "No favorite shows found",
+
+  "favoritesTitle": "FAVORITES",
+  "sortMoviesBy": "Sort movies by",
+  "sortShowsBy": "Sort shows by",
+  "watchingFirstSort": "Watching first",
+  "finishedFirstSort": "Finished first",
+  "titleAscendingSort": "Title A\u2013Z",
+  "titleDescendingSort": "Title Z\u2013A",
+  "yearNewestSort": "Year (newest first)",
+  "yearOldestSort": "Year (oldest first)",
+  "ratingHighestSort": "Rating (highest first)",
+  "ratingLowestSort": "Rating (lowest first)",
+  "noFavoritesYet": "No favorites yet",
+  "startSwipingLikeMovies": "Start swiping to like movies!",
+  "errorLoadingFavorites": "Error loading favorites",
+  "noFavoritesFound": "No favorites found",
+  "noFavoriteShowsYet": "No favorite shows yet",
+  "startSwipingLikeShows": "Start swiping to like shows!",
+  "selectMoviesToDelete": "Select Movies to Delete",
+  "selectShowsToDelete": "Select Shows to Delete",
+  "deleteLabel": "Delete",
+  "deleteItems": "{count, plural, =1{Delete 1 item} other{Delete {count} items}}",
+  "@deleteItems": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "finishedBadge": "Finished",
+  "watchingBadge": "Watching",
+  "removedMoviesFromFavorites": "{count, plural, =1{Removed 1 movie from favorites} other{Removed {count} movies from favorites}}",
+  "@removedMoviesFromFavorites": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "removedShowsFromFavorites": "{count, plural, =1{Removed 1 show from favorites} other{Removed {count} shows from favorites}}",
+  "@removedShowsFromFavorites": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "profileTitle": "PROFILE",
+  "watchlistStat": "Watchlist",
+  "likedMoviesStat": "Liked Movies",
+  "likedShowsStat": "Liked Shows",
+  "recentlyLikedMoviesTitle": "Recently Liked Movies",
+  "recentlyLikedShowsTitle": "Recently Liked Shows",
+  "accountSettingsTitle": "ACCOUNT SETTINGS",
+  "editPreferencesLabel": "Edit Preferences",
+  "editPreferencesSubtitle": "Genres and streaming platforms",
+  "notificationsLabel": "Notifications",
+  "notificationsSubtitle": "Push, reminders, recommendations",
+  "privacyLabel": "Privacy",
+  "privacySubtitle": "Data usage and your data",
+  "socialLabel": "Social",
+  "socialSubtitle": "Friends and what they are watching",
+  "helpSupportLabel": "Help & Support",
+  "helpSupportSubtitle": "FAQ, contact, about",
+  "removeAdsLabel": "Remove Ads",
+  "removeAdsSubtitle": "Not available yet",
+  "comingSoonTitle": "Coming soon",
+  "comingSoonMessage": "Ad-free mode is not available yet. Stay tuned for updates!",
+  "signOutButton": "Sign Out",
+  "signOutTitle": "Sign Out",
+  "signOutConfirmation": "Are you sure you want to sign out?",
+  "loadingMovie": "Loading Movie...",
+  "loadingShow": "Loading Show...",
+
+  "notificationsPageTitle": "NOTIFICATIONS",
+  "notificationsIntro": "Choose what you want to be notified about.",
+  "followRequestsToggle": "Follow requests",
+  "followRequestsToggleSubtitle": "Review who wants to follow you",
+  "pushNotificationsToggle": "Push notifications",
+  "pushNotificationsToggleSubtitle": "Receive notifications from the app",
+  "matchRemindersToggle": "Match reminders",
+  "matchRemindersToggleSubtitle": "Remind you when you get a match",
+  "newRecommendationsToggle": "New recommendations",
+  "newRecommendationsToggleSubtitle": "Updates when we add new picks for you",
+  "friendRequestsToggle": "Friend requests",
+  "friendRequestsToggleSubtitle": "Notify when someone follows you",
+  "followAcceptedToggle": "Follow accepted",
+  "followAcceptedToggleSubtitle": "Notify when a follow request is accepted",
+
+  "privacyPageTitle": "PRIVACY",
+  "privacyIntro": "Control how your data is used to personalize your experience.",
+  "useDataRecommendations": "Use data for recommendations",
+  "useDataRecommendationsSubtitle": "Allow us to use your likes, watchlist and activity to improve your recommendations.",
+  "socialPrivacySection": "Social privacy",
+  "allowFollowers": "Allow followers",
+  "allowFollowersSubtitle": "Let other users send follow requests",
+  "shareLikes": "Share likes",
+  "shareLikesSubtitle": "Followers can see what you like",
+  "shareWatchlist": "Share watchlist",
+  "shareWatchlistSubtitle": "Followers can see your watchlist activity",
+  "shareWatchingActivity": "Share watching activity",
+  "shareWatchingActivitySubtitle": "Followers can see what you are currently watching",
+  "yourDataSection": "Your data",
+  "whatWeStore": "What we store",
+  "whatWeStoreSubtitle": "We store your email, watchlist, likes and dislikes, and preferences to provide the service.",
+  "deleteMyData": "Delete my data",
+  "deleteMyDataSubtitle": "Request account and data deletion",
+  "deleteDataDialogTitle": "Delete my data",
+  "deleteDataDialogContent": "This will remove your account and all associated data (watchlist, likes, preferences) from our servers. This action cannot be undone.",
+  "deleteDataLearnMore": "Learn more",
+  "deleteDataSnackbar": "To delete your account, please contact support@popmatch.app",
+
+  "helpSupportPageTitle": "HELP & SUPPORT",
+  "faqSection": "Frequently asked questions",
+  "faq1Question": "How does swiping work?",
+  "faq1Answer": "Swipe right to like a movie or show, left to dislike, up for a match (save to watch later), and down to skip. Your choices help us recommend better content.",
+  "faq2Question": "How do I add something to my watchlist?",
+  "faq2Answer": "Swipe up on a card to open the match screen, then choose to add to watchlist. You can also open the title and tap the watchlist button on the detail screen.",
+  "faq3Question": "Can I change my streaming platforms?",
+  "faq3Answer": "Yes. Go to Profile \u2192 Edit Preferences and select your streaming services. We use this to tailor recommendations.",
+  "faq4Question": "How do I reset my password?",
+  "faq4Answer": "On the login screen, tap \"Forgot Password?\" and enter your email. We'll send you a link to reset it.",
+  "contactSection": "Contact us",
+  "emailSupportLabel": "Email support",
+  "emailSupportAddress": "support@popmatch.app",
+  "emailErrorSnackbar": "Could not open email app. Contact: support@popmatch.app",
+  "aboutSection": "About",
+  "aboutDescription": "Swipe-based movie and show discovery. Find what to watch next.",
+  "aboutVersion": "Version 1.0.0",
+
+  "editPreferencesAppBarTitle": "Edit Preferences",
+  "genrePageTitle": "What genres do you love?",
+  "genrePageSubtitle": "Select your favorite movie genres to get better recommendations.",
+  "platformPageTitle": "Where do you watch movies?",
+  "platformPageSubtitle": "Select your streaming platforms to find movies available on your services.",
+  "pageIndicatorOf2": "{page} of 2",
+  "@pageIndicatorOf2": {
+    "placeholders": {
+      "page": {"type": "int"}
+    }
+  },
+  "preferencesSavedSnackbar": "Preferences saved successfully!",
+
+  "socialPageTitle": "SOCIAL",
+  "friendsWatchingCard": "What your friends are watching",
+  "friendsWatchingCardSubtitle": "Swipe cards based on people you follow",
+  "findUsersSection": "Find users",
+  "socialSearchHint": "Search by name or email",
+  "followingStatus": "Following",
+  "pendingStatus": "Pending",
+  "followButton": "Follow",
+  "followRequestSentSnackbar": "Follow request sent",
+  "followRequestsSection": "Follow requests",
+  "noFollowRequests": "No pending requests.",
+  "wantsToFollowYou": "wants to follow you",
+  "declineButton": "Decline",
+  "acceptButton": "Accept",
+
+  "friendsWatchingTitle": "FRIENDS WATCHING",
+  "feedDisabledMessage": "Friends feed is currently disabled.",
+  "friendsEmptyState": "No friend activity yet.\nFollow more people and check back soon.",
+  "friendsFeedTitle": "What your friends are watching",
+
+  "moodAppBarTitle": "How are you feeling?",
+  "moodPageTitle": "What's your mood today?",
+  "moodPageSubtitle": "We'll recommend movies that match your current vibe",
+  "selectMoodButton": "Select Your Mood",
+  "findMoodMoviesButton": "Find {moodName} Movies",
+  "@findMoodMoviesButton": {
+    "placeholders": {
+      "moodName": {"type": "String"}
+    }
+  },
+
+  "advancedFiltersTitle": "Advanced Filters",
+  "resetButton": "Reset",
+  "filtersTab": "Filters",
+  "sortTab": "Sort",
+  "resultsTab": "Results",
+  "sortByTitle": "Sort By",
+  "sortDirectionLabel": "Sort Direction:",
+  "descendingOption": "Descending",
+  "ascendingOption": "Ascending",
+  "noMoviesMatchFilters": "No movies match your filters",
+  "tryAdjustingFilterCriteria": "Try adjusting your filter criteria",
+  "applyFiltersCount": "Apply Filters ({count} movies)",
+  "@applyFiltersCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "resultsCount": "{count} results",
+  "@resultsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "genresFilter": "Genres",
+  "yearRangeFilter": "Year Range",
+  "ratingRangeFilter": "Rating Range",
+  "minRatingLabel": "Min Rating",
+  "maxRatingLabel": "Max Rating",
+  "languagesFilter": "Languages",
+  "contentTypeFilter": "Content Type",
+  "allContentOption": "All Content",
+  "familyFriendlyOption": "Family Friendly",
+  "adultContentOption": "Adult Content",
+  "availabilityFilter": "Availability",
+  "showOnlyAvailableStream": "Show only available to stream",
+  "temporarilyUnavailable": "Temporarily unavailable in this build",
+  "popularitySort": "Popularity",
+  "runtimeSort": "Runtime",
+  "releaseDateSort": "Release Date",
+
+  "streamingFiltersTitle": "Streaming Filters",
+  "clearFiltersTooltip": "Clear filters",
+  "filterByPlatformTitle": "Filter by Streaming Platform",
+  "failedToLoadMovies": "Failed to load movies",
+  "noMoviesFoundFilter": "No movies found",
+  "tryDifferentPlatforms": "Try selecting different streaming platforms",
+  "moviesFoundCount": "{count} movies found",
+  "@moviesFoundCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "filteredByPlatforms": "Filtered by {count} platform(s)",
+  "@filteredByPlatforms": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "searchingText": "Searching...",
+  "noResultsFor": "No results for \"{query}\"",
+  "@noResultsFor": {
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "tryDifferentTitleKeyword": "Try a different title or keyword",
+  "noShowsFound": "No shows found",
+  "recentLabel": "Recent",
+  "clearLabel": "Clear",
+  "searchForMoviesHint": "Search for movies, actors, or genres",
+  "recentSearchesAppearHere": "Your recent searches will appear here",
+  "likedByFriendsLabel": "Liked by friends",
+  "skipLabel": "Skip",
+  "likeLabel": "Like",
+  "synopsisLabel": "Synopsis",
+  "moreLabel": "More",
+  "showLessLabel": "Show less",
+  "castCrewLabel": "Cast & Crew",
+  "trailersVideosLabel": "Trailers & Videos",
+  "moviesLikeThisLabel": "Movies Like This",
+  "failedToLoadSimilarMovies": "Failed to load similar movies",
+  "noSimilarMoviesFound": "No similar movies found",
+  "whereToWatchLabel": "Where to Watch:",
+  "removedFromFavoritesSnackbar": "Removed {title} from favorites",
+  "@removedFromFavoritesSnackbar": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "addedToFavoritesSnackbar": "Added {title} to favorites",
+  "@addedToFavoritesSnackbar": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "removedFromDislikedSnackbar": "Removed {title} from disliked",
+  "@removedFromDislikedSnackbar": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "addedToDislikedSnackbar": "Added {title} to disliked",
+  "@addedToDislikedSnackbar": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "noSeasonsAvailable": "No seasons available",
+  "seasonLabel": "Season {number}",
+  "@seasonLabel": {
+    "placeholders": {
+      "number": {"type": "int"}
+    }
+  },
+  "episodesLabel": "{count} Episodes",
+  "@episodesLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "closeButton": "Close",
+  "minutesLabel": "{count} min",
+  "@minutesLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "advancedFiltersTitle": "Advanced Filters",
+  "resetButton": "Reset",
+  "filtersTab": "Filters",
+  "sortTab": "Sort",
+  "resultsTab": "Results",
+  "sortDirectionLabel": "Sort Direction:",
+  "sortDescending": "Descending",
+  "sortAscending": "Ascending",
+  "noMoviesMatchFilters": "No movies match your filters",
+  "tryAdjustingFilters": "Try adjusting your filter criteria",
+  "applyFiltersCount": "Apply Filters ({count} movies)",
+  "@applyFiltersCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "anyOption": "Any",
+  "ratingRangeLabel": "Rating Range",
+  "minRatingLabel": "Min Rating",
+  "maxRatingLabel": "Max Rating",
+  "languagesLabel": "Languages",
+  "contentTypeLabel": "Content Type",
+  "allContentLabel": "All Content",
+  "familyFriendlyLabel": "Family Friendly",
+  "adultContentLabel": "Adult Content",
+  "availabilityLabel": "Availability",
+  "showOnlyStreamableLabel": "Show only available to stream",
+  "temporarilyUnavailableLabel": "Temporarily unavailable in this build",
+  "popularityOption": "Popularity",
+  "runtimeOption": "Runtime",
+  "releaseDateOption": "Release Date",
+  "upToRatingLabel": "Up to {rating}",
+  "@upToRatingLabel": {
+    "placeholders": {
+      "rating": {"type": "String"}
+    }
+  },
+
+  "myWatchlistTitle": "My Watchlist",
+  "exportDataButton": "Export Data",
+  "searchMoviesHint": "Search movies...",
+  "allTagsFilter": "All",
+  "listsTab": "Lists",
+  "tagsTab": "Tags",
+  "errorLoadingLists": "Error loading lists",
+  "noMoviesMatchFiltersShort": "No movies match your filters",
+  "noMoviesInList": "No movies in this list",
+  "tryAdjustingSearchOrFilters": "Try adjusting your search or filters",
+  "addSomeMovies": "Add some movies to get started!",
+  "noTagsYet": "No tags yet",
+  "addTagsDescription": "Add tags to your movies to organize them better",
+  "createNewListTitle": "Create New List",
+  "listNameLabel": "List Name",
+  "listNameError": "Please enter a list name",
+  "listDescriptionLabel": "Description (optional)",
+  "createButton": "Create",
+  "createdListSnackbar": "Created list: {name}",
+  "@createdListSnackbar": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "exportDataLocalSnackbar": "Watchlist data export generated locally. Sharing/download will be added in a future update.",
+  "failedToExportSnackbar": "Failed to export data: {error}",
+  "@failedToExportSnackbar": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  }
+}

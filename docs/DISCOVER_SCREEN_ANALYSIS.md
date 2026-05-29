@@ -34,7 +34,7 @@ This document describes the **Discover** screen (implemented as **SwipeScreen**)
 - **Loading state:** Spinner + "Loading movies..." when `MovieProvider.isLoading && filteredMovies.isEmpty`.
 - **Empty state:** Icon, "No movies found", "Try refreshing...", Refresh button when `filteredMovies.isEmpty` after load.
 - **Main content:** A column with:
-  - **Undo:** After each swipe, a floating snackbar **“Swipe recorded”** with **UNDO** (~2s). Undo uses `CardSwiperController.undo()` plus `onUndo` to revert likes/dislikes/skips in `AuthProvider` and to dismiss a pending/open match screen when relevant. Movies and shows use **separate** swiper controllers so undo targets the correct stack.
+  - **Undo:** After most swipes (left, right, down), a floating snackbar **“Swipe recorded”** with **UNDO** (~2s). **Not** shown on **up/match** swipes (the match success flow handles that instead) or when swiping the **last card** in the current deck (after removal the snackbar guard no longer passes). Undo uses `CardSwiperController.undo()` plus `onUndo` to revert likes/dislikes in `AuthProvider`, pop the match overlay when undoing a match, and to dismiss snackbars; skip (down) has no persisted like/dislike to revert. Movies and shows use **separate** swiper controllers so undo targets the correct stack.
   - An **expanded** area containing **CardSwiper** (flutter_card_swiper):
     - **Cards count:** `movieProvider.filteredMovies.length`.
     - **Stack:** 3 cards visible (`numberOfCardsDisplayed: 3`), scale 0.92, back offset (0, 8).

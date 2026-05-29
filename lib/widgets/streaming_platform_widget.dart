@@ -1,23 +1,30 @@
 import 'package:flutter/material.dart';
 import '../models/streaming_platform.dart';
 import '../models/movie.dart';
+import '../utils/streaming_url_launcher.dart';
 
-/// Widget to display streaming platform logos
+/// Widget to display a streaming platform logo, optionally tappable.
+///
+/// Pass [onTap] to make the logo open the platform. When used inside
+/// [StreamingAvailabilityWidget] the tap is wired automatically.
 class StreamingPlatformLogo extends StatelessWidget {
   final StreamingPlatform platform;
   final double size;
   final bool showName;
+  /// Called when the user taps the logo. Null means not tappable.
+  final VoidCallback? onTap;
 
   const StreamingPlatformLogo({
     super.key,
     required this.platform,
     this.size = 40,
     this.showName = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final logo = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
@@ -47,6 +54,17 @@ class StreamingPlatformLogo extends StatelessWidget {
           ),
         ],
       ],
+    );
+
+    if (onTap == null) return logo;
+
+    return Tooltip(
+      message: 'Open on ${platform.name}',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: logo,
+      ),
     );
   }
 
@@ -157,7 +175,7 @@ class StreamingAvailabilityWidget extends StatelessWidget {
         ),
         const SizedBox(height: 8),
 
-        // Platform logos
+        // Platform logos — tapping opens the platform app/site
         Wrap(
           spacing: 12,
           runSpacing: 8,
@@ -166,6 +184,11 @@ class StreamingAvailabilityWidget extends StatelessWidget {
               platform: platform,
               size: 50,
               showName: true,
+              onTap: () => launchStreamingSearch(
+                context: context,
+                platform: platform,
+                title: movie.title,
+              ),
             );
           }).toList(),
         ),

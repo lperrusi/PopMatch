@@ -16,7 +16,11 @@ class AppTheme {
   static const Color sepiaBrown = Color(0xFF8B6914); // Accent brown
   static const Color vintagePaper = Color(0xFFF2E8D9); // Light background
   static const Color fadedCurtain = Color(0xFFC4A484); // Medium background
-  
+
+  // Swipe-deck action colors (Discover NOPE / LIKE round buttons)
+  static const Color nopeRed = Color(0xFFEF5350); // Dislike / NOPE
+  static const Color likeGreen = Color(0xFF4CAF50); // Like
+
   // Backward compatibility aliases
   static Color get brickRed => cinemaRed;
   static const Color warmCream = creamyWhite;

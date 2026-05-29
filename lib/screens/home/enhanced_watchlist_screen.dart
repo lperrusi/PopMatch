@@ -9,6 +9,7 @@ import '../../services/watchlist_service.dart';
 import '../../services/tmdb_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/navigation_utils.dart';
+import '../../utils/l10n_extension.dart';
 import '../../services/movie_cache_service.dart';
 import 'movie_detail_screen.dart';
 import 'advanced_filter_screen.dart';
@@ -202,7 +203,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Created list: ${newList.name}'),
+            content: Text(context.l10n.createdListSnackbar(newList.name)),
             backgroundColor: AppTheme.primaryRed,
           ),
         );
@@ -233,8 +234,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
       // In a real app, you would share this data or save it to a file
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Watchlist data export generated locally. Sharing/download will be added in a future update.'),
+        SnackBar(
+          content: Text(context.l10n.exportDataLocalSnackbar),
           backgroundColor: AppTheme.fadedCurtain,
         ),
       );
@@ -242,7 +243,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to export data: $e'),
+          content: Text(context.l10n.failedToExportSnackbar(e.toString())),
           backgroundColor: AppTheme.primaryRed,
         ),
       );
@@ -315,7 +316,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'My Watchlist',
+                  context.l10n.myWatchlistTitle,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -344,23 +345,23 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'filters',
                 child: Row(
                   children: [
-                    Icon(Icons.filter_list),
-                    SizedBox(width: 8),
-                    Text('Advanced Filters'),
+                    const Icon(Icons.filter_list),
+                    const SizedBox(width: 8),
+                    Text(context.l10n.advancedFiltersTitle),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'export',
                 child: Row(
                   children: [
-                    Icon(Icons.download),
-                    SizedBox(width: 8),
-                    Text('Export Data'),
+                    const Icon(Icons.download),
+                    const SizedBox(width: 8),
+                    Text(context.l10n.exportDataButton),
                   ],
                 ),
               ),
@@ -384,7 +385,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
           // Search bar
           TextField(
             decoration: InputDecoration(
-              hintText: 'Search movies...',
+              hintText: context.l10n.searchMoviesHint,
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -408,7 +409,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
               child: Row(
                 children: [
                   FilterChip(
-                    label: const Text('All'),
+                    label: Text(context.l10n.allTagsFilter),
                     selected: _selectedTag.isEmpty,
                     onSelected: (selected) {
                       if (selected) {
@@ -453,10 +454,10 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
         unselectedLabelColor:
             Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         indicatorColor: AppTheme.primaryRed,
-        tabs: const [
-          Tab(text: 'Lists'),
-          Tab(text: 'Movies'),
-          Tab(text: 'Tags'),
+        tabs: [
+          Tab(text: context.l10n.listsTab),
+          Tab(text: context.l10n.moviesTab),
+          Tab(text: context.l10n.tagsTab),
         ],
       ),
     );
@@ -484,7 +485,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'Error loading lists',
+              context.l10n.errorLoadingLists,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -507,7 +508,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                 backgroundColor: AppTheme.primaryRed,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Retry'),
+              child: Text(context.l10n.retryButton),
             ),
           ],
         ),
@@ -605,8 +606,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             const SizedBox(height: 16),
             Text(
               _searchQuery.isNotEmpty || _selectedTag.isNotEmpty
-                  ? 'No movies match your filters'
-                  : 'No movies in this list',
+                  ? context.l10n.noMoviesMatchFiltersShort
+                  : context.l10n.noMoviesInList,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -614,8 +615,8 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             const SizedBox(height: 8),
             Text(
               _searchQuery.isNotEmpty || _selectedTag.isNotEmpty
-                  ? 'Try adjusting your search or filters'
-                  : 'Add some movies to get started!',
+                  ? context.l10n.tryAdjustingSearchOrFilters
+                  : context.l10n.addSomeMovies,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -667,14 +668,14 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'No tags yet',
+              context.l10n.noTagsYet,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Add tags to your movies to organize them better',
+              context.l10n.addTagsDescription,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -937,8 +938,9 @@ class _CreateListDialogState extends State<_CreateListDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('Create New List'),
+      title: Text(l10n.createNewListTitle),
       content: Form(
         key: _formKey,
         child: Column(
@@ -946,13 +948,13 @@ class _CreateListDialogState extends State<_CreateListDialog> {
           children: [
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'List Name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.listNameLabel,
+                border: const OutlineInputBorder(),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter a list name';
+                  return l10n.listNameError;
                 }
                 return null;
               },
@@ -960,9 +962,9 @@ class _CreateListDialogState extends State<_CreateListDialog> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.listDescriptionLabel,
+                border: const OutlineInputBorder(),
               ),
               maxLines: 2,
             ),
@@ -1002,7 +1004,7 @@ class _CreateListDialogState extends State<_CreateListDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancelButton),
         ),
         ElevatedButton(
           onPressed: () {
@@ -1018,7 +1020,7 @@ class _CreateListDialogState extends State<_CreateListDialog> {
             backgroundColor: AppTheme.primaryRed,
             foregroundColor: Colors.white,
           ),
-          child: const Text('Create'),
+          child: Text(l10n.createButton),
         ),
       ],
     );

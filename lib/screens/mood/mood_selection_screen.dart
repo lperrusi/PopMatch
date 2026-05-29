@@ -4,6 +4,7 @@ import '../../models/mood.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../home/home_screen.dart';
 
 /// Mood selection screen for personalized movie recommendations
@@ -21,7 +22,7 @@ class _MoodSelectionScreenState extends State<MoodSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('How are you feeling?'),
+        title: Text(context.l10n.moodAppBarTitle),
         elevation: 0,
       ),
       body: SafeArea(
@@ -32,14 +33,14 @@ class _MoodSelectionScreenState extends State<MoodSelectionScreen> {
             children: [
               // Header
               Text(
-                'What\'s your mood today?',
+                context.l10n.moodPageTitle,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
-                'We\'ll recommend movies that match your current vibe',
+                context.l10n.moodPageSubtitle,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
@@ -140,9 +141,9 @@ class _MoodSelectionScreenState extends State<MoodSelectionScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: Text(
-                    _selectedMood != null 
-                        ? 'Find ${_selectedMood!.name} Movies'
-                        : 'Select Your Mood',
+                    _selectedMood != null
+                        ? context.l10n.findMoodMoviesButton(_selectedMood!.name)
+                        : context.l10n.selectMoodButton,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),

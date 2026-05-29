@@ -95,7 +95,44 @@ class StreamingPlatform {
       websiteUrl: 'https://pluto.tv',
       subscriptionInfo: 'Free with ads',
     ),
+    StreamingPlatform(
+      id: 'crunchyroll',
+      name: 'Crunchyroll',
+      logoPath: 'assets/images/crunchyroll_logo.png',
+      websiteUrl: 'https://www.crunchyroll.com',
+      subscriptionInfo: 'Free with ads, Premium subscription available',
+    ),
+    StreamingPlatform(
+      id: 'mubi',
+      name: 'Mubi',
+      logoPath: 'assets/images/mubi_logo.png',
+      websiteUrl: 'https://mubi.com',
+      subscriptionInfo: 'Subscription required',
+    ),
   ];
+
+  /// Returns a search URL for this platform that links directly into the
+  /// platform's app (via universal links) or falls back to the browser.
+  /// [title] is the movie or TV show title to search for.
+  String searchUrlFor(String title) {
+    final q = Uri.encodeComponent(title);
+    return switch (id) {
+      'netflix'        => 'https://www.netflix.com/search?q=$q',
+      'disney_plus'    => 'https://www.disneyplus.com/search/$q',
+      'amazon_prime'   => 'https://www.primevideo.com/search/?phrase=$q',
+      'hulu'           => 'https://www.hulu.com/search?q=$q',
+      'hbo_max'        => 'https://play.max.com/search?q=$q',
+      'apple_tv'       => 'https://tv.apple.com/search?term=$q',
+      'paramount_plus' => 'https://www.paramountplus.com/search/?q=$q',
+      'peacock'        => 'https://www.peacocktv.com/search?q=$q',
+      'youtube_tv'     => 'https://tv.youtube.com/search/$q',
+      'tubi'           => 'https://tubitv.com/search/$q',
+      'pluto_tv'       => 'https://pluto.tv/search/$q',
+      'crunchyroll'    => 'https://www.crunchyroll.com/search?q=$q',
+      'mubi'           => 'https://mubi.com/search/$q',
+      _                => websiteUrl ?? 'https://www.google.com/search?q=${Uri.encodeComponent("$title streaming")}',
+    };
+  }
 
   /// Gets platform by ID
   static StreamingPlatform? getById(String id) {

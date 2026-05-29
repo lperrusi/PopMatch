@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../models/user.dart';
 import 'tmdb_service.dart';
 
@@ -36,59 +37,54 @@ class UserPreferenceAnalyzer {
     final actorCounts = <String, int>{};
     final directorCounts = <String, int>{};
 
-    // Analyze each liked movie (up to 30 for better preference extraction)
-    int analyzedCount = 0;
-    for (final movieId in user.likedMovies) {
-      try {
-        final movie = await _tmdbService.getMovieDetails(int.parse(movieId));
-        analyzedCount++;
-        
-        // Count genres
-        if (movie.genreIds != null) {
-          for (final genreId in movie.genreIds!) {
-            genreCounts[genreId] = (genreCounts[genreId] ?? 0) + 1;
-          }
-        }
-
-        // Collect ratings
-        if (movie.voteAverage != null) {
-          ratingValues.add(movie.voteAverage!);
-        }
-
-        // Fetch credits to extract actors and directors
+    // Fetch details + credits for up to 30 liked movies in parallel
+    final moviesToAnalyze = user.likedMovies.take(30).toList();
+    final results = await Future.wait(
+      moviesToAnalyze.map((movieIdStr) async {
+        final id = int.tryParse(movieIdStr);
+        if (id == null) return null;
         try {
-          final credits = await _tmdbService.getMovieCredits(movie.id);
-          final cast = credits['cast'] as List;
-          final crew = credits['crew'] as List;
-          
-          // Extract top 10 actors (main cast)
-          for (int i = 0; i < cast.length && i < 10; i++) {
-            final actorName = cast[i]['name'] as String?;
-            if (actorName != null && actorName.isNotEmpty) {
-              actorCounts[actorName] = (actorCounts[actorName] ?? 0) + 1;
-            }
-          }
-          
-          // Extract directors
-          for (final person in crew) {
-            if (person['job'] == 'Director') {
-              final directorName = person['name'] as String?;
-              if (directorName != null && directorName.isNotEmpty) {
-                directorCounts[directorName] = (directorCounts[directorName] ?? 0) + 1;
-              }
-            }
-          }
-        } catch (e) {
-          // Continue without credits if fetch fails
-          continue;
+          final detailsFuture = _tmdbService.getMovieDetails(id);
+          final creditsFuture = _tmdbService.getMovieCredits(id);
+          final pair = await Future.wait([detailsFuture, creditsFuture]);
+          return pair;
+        } catch (_) {
+          return null;
         }
-      } catch (e) {
-        // Continue with next movie
-        continue;
+      }),
+      eagerError: false,
+    );
+
+    for (final pair in results) {
+      if (pair == null) continue;
+      final movie = pair[0] as dynamic;
+      final credits = pair[1] as Map<String, dynamic>;
+
+      if (movie.genreIds != null) {
+        for (final genreId in movie.genreIds as List<int>) {
+          genreCounts[genreId] = (genreCounts[genreId] ?? 0) + 1;
+        }
+      }
+      if (movie.voteAverage != null) {
+        ratingValues.add(movie.voteAverage as double);
       }
 
-      // Limit analysis to first 30 movies for performance
-      if (analyzedCount >= 30) break;
+      final cast = credits['cast'] as List? ?? [];
+      for (int i = 0; i < cast.length && i < 10; i++) {
+        final actorName = cast[i]['name'] as String?;
+        if (actorName != null && actorName.isNotEmpty) {
+          actorCounts[actorName] = (actorCounts[actorName] ?? 0) + 1;
+        }
+      }
+      final crew = credits['crew'] as List? ?? [];
+      for (final person in crew) {
+        if (person['job'] == 'Director') {
+          final directorName = person['name'] as String?;
+          if (directorName != null && directorName.isNotEmpty) {
+            directorCounts[directorName] = (directorCounts[directorName] ?? 0) + 1;
+          }
+        }
+      }
     }
 
     // Extract top genres (top 5)
@@ -146,10 +142,17 @@ class UserPreferenceAnalyzer {
     );
   }
 
-  /// Checks if user has enough data for personalized recommendations
+  /// Checks if user has enough data for personalized recommendations.
+  /// Threshold lowered to 1 so the first like triggers blended personalization.
   bool hasEnoughData(User user) {
-    // Need at least 3 liked movies for meaningful recommendations
-    return user.likedMovies.length >= 3;
+    return user.likedMovies.isNotEmpty;
+  }
+
+  /// Returns a 0.0–1.0 blend weight for mixing curated and personalized results.
+  /// 0.0 = fully curated (no likes), 1.0 = fully personalized (3+ likes).
+  /// Use this to progressively personalize the feed as likes accumulate.
+  double blendWeight(User user) {
+    return (user.likedMovies.length / 3.0).clamp(0.0, 1.0);
   }
 }
 

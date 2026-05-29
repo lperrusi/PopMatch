@@ -4,7 +4,7 @@ import '../../widgets/retro_cinema_bottom_nav.dart';
 import 'swipe_screen.dart';
 import 'watchlist_screen.dart';
 import 'profile_screen.dart';
-import 'recommendations_screen.dart';
+import 'search_screen.dart';
 import 'favorites_screen.dart';
 
 /// Static reference to HomeScreen state for updating tabs from anywhere
@@ -41,12 +41,12 @@ class _HomeScreenState extends State<HomeScreen> {
     // Create screens once to preserve state across tab switches
     // Using IndexedStack keeps all screens alive in memory
     _screens = [
-    const SwipeScreen(),
-    const RecommendationsScreen(),
-    const WatchlistScreen(),
+      const SwipeScreen(),
+      const SearchScreen(),
+      const WatchlistScreen(),
       const FavoritesScreen(),
-    const ProfileScreen(),
-  ];
+      const ProfileScreen(),
+    ];
     
     // Register this instance globally so it can be updated from anywhere
     _homeScreenStateInstance = this;

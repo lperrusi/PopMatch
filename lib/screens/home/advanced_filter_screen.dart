@@ -4,6 +4,7 @@ import '../../models/movie.dart';
 import '../../providers/movie_provider.dart';
 import '../../services/filter_service.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 
 /// Advanced filter screen with comprehensive filtering and sorting options
 class AdvancedFilterScreen extends StatefulWidget {
@@ -108,14 +109,14 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Advanced Filters'),
+        title: Text(context.l10n.advancedFiltersTitle),
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         actions: [
           TextButton(
             onPressed: _resetFilters,
             child: Text(
-              'Reset',
+              context.l10n.resetButton,
               style: TextStyle(color: AppTheme.primaryRed),
             ),
           ),
@@ -210,10 +211,10 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         unselectedLabelColor:
             Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         indicatorColor: AppTheme.primaryRed,
-        tabs: const [
-          Tab(text: 'Filters'),
-          Tab(text: 'Sort'),
-          Tab(text: 'Results'),
+        tabs: [
+          Tab(text: context.l10n.filtersTab),
+          Tab(text: context.l10n.sortTab),
+          Tab(text: context.l10n.resultsTab),
         ],
       ),
     );
@@ -267,7 +268,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Sort By',
+            context.l10n.sortByLabel,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -283,14 +284,14 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
           Row(
             children: [
               Text(
-                'Sort Direction:',
+                context.l10n.sortDirectionLabel,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
               ),
               const SizedBox(width: 16),
               ChoiceChip(
-                label: const Text('Descending'),
+                label: Text(context.l10n.sortDescending),
                 selected: !(_filters['ascending'] as bool),
                 onSelected: (selected) {
                   if (selected) _updateFilter('ascending', false);
@@ -300,7 +301,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
               ),
               const SizedBox(width: 8),
               ChoiceChip(
-                label: const Text('Ascending'),
+                label: Text(context.l10n.sortAscending),
                 selected: _filters['ascending'] as bool,
                 onSelected: (selected) {
                   if (selected) _updateFilter('ascending', true);
@@ -337,14 +338,14 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'No movies match your filters',
+              context.l10n.noMoviesMatchFilters,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Try adjusting your filter criteria',
+              context.l10n.tryAdjustingFilters,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -389,7 +390,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
           child: Text(
-            'Apply Filters (${_filteredMovies.length} movies)',
+            context.l10n.applyFiltersCount(_filteredMovies.length),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
@@ -407,7 +408,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Genres',
+          context.l10n.genresFilterLabel,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -449,7 +450,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Year Range',
+          context.l10n.yearRangeFilterLabel,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -460,14 +461,14 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             Expanded(
               child: DropdownButtonFormField<int>(
                 initialValue: minYear,
-                decoration: const InputDecoration(
-                  labelText: 'From',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.fromLabel,
+                  border: const OutlineInputBorder(),
                 ),
                 items: [
-                  const DropdownMenuItem<int>(
+                  DropdownMenuItem<int>(
                     value: null,
-                    child: Text('Any'),
+                    child: Text(context.l10n.anyOption),
                   ),
                   ...years.map((year) => DropdownMenuItem<int>(
                         value: year,
@@ -481,14 +482,14 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             Expanded(
               child: DropdownButtonFormField<int>(
                 initialValue: maxYear,
-                decoration: const InputDecoration(
-                  labelText: 'To',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.toLabel,
+                  border: const OutlineInputBorder(),
                 ),
                 items: [
-                  const DropdownMenuItem<int>(
+                  DropdownMenuItem<int>(
                     value: null,
-                    child: Text('Any'),
+                    child: Text(context.l10n.anyOption),
                   ),
                   ...years.map((year) => DropdownMenuItem<int>(
                         value: year,
@@ -514,7 +515,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Rating Range',
+          context.l10n.ratingRangeLabel,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -525,14 +526,14 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             Expanded(
               child: DropdownButtonFormField<double>(
                 initialValue: minRating,
-                decoration: const InputDecoration(
-                  labelText: 'Min Rating',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.minRatingLabel,
+                  border: const OutlineInputBorder(),
                 ),
                 items: [
-                  const DropdownMenuItem<double>(
+                  DropdownMenuItem<double>(
                     value: null,
-                    child: Text('Any'),
+                    child: Text(context.l10n.anyOption),
                   ),
                   ...ratings.map((rating) => DropdownMenuItem<double>(
                         value: rating,
@@ -546,18 +547,18 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             Expanded(
               child: DropdownButtonFormField<double>(
                 initialValue: maxRating,
-                decoration: const InputDecoration(
-                  labelText: 'Max Rating',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.maxRatingLabel,
+                  border: const OutlineInputBorder(),
                 ),
                 items: [
-                  const DropdownMenuItem<double>(
+                  DropdownMenuItem<double>(
                     value: null,
-                    child: Text('Any'),
+                    child: Text(context.l10n.anyOption),
                   ),
                   ...ratings.map((rating) => DropdownMenuItem<double>(
                         value: rating,
-                        child: Text('Up to ${rating.toStringAsFixed(1)}'),
+                        child: Text(context.l10n.upToRatingLabel(rating.toStringAsFixed(1))),
                       )),
                 ],
                 onChanged: (value) => _updateFilter('maxRating', value),
@@ -579,7 +580,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Languages',
+          context.l10n.languagesLabel,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -619,7 +620,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Content Type',
+          context.l10n.contentTypeLabel,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -628,7 +629,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
         Row(
           children: [
             ChoiceChip(
-              label: const Text('All Content'),
+              label: Text(context.l10n.allContentLabel),
               selected: includeAdult == null,
               onSelected: (selected) {
                 if (selected) _updateFilter('includeAdult', null);
@@ -638,7 +639,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             ),
             const SizedBox(width: 8),
             ChoiceChip(
-              label: const Text('Family Friendly'),
+              label: Text(context.l10n.familyFriendlyLabel),
               selected: includeAdult == false,
               onSelected: (selected) {
                 if (selected) _updateFilter('includeAdult', false);
@@ -648,7 +649,7 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
             ),
             const SizedBox(width: 8),
             ChoiceChip(
-              label: const Text('Adult Content'),
+              label: Text(context.l10n.adultContentLabel),
               selected: includeAdult == true,
               onSelected: (selected) {
                 if (selected) _updateFilter('includeAdult', true);
@@ -670,16 +671,15 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Availability',
+          context.l10n.availabilityLabel,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
         ),
         const SizedBox(height: 12),
         SwitchListTile(
-          title: const Text('Show only available to stream'),
-          subtitle:
-              const Text('Temporarily unavailable in this build'),
+          title: Text(context.l10n.showOnlyStreamableLabel),
+          subtitle: Text(context.l10n.temporarilyUnavailableLabel),
           value: availableOnly,
           onChanged: null,
           activeThumbColor: AppTheme.primaryRed,
@@ -707,21 +707,22 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
 
   /// Gets display name for sort option
   String _getSortDisplayName(String option) {
+    final l10n = context.l10n;
     switch (option) {
       case 'relevance':
-        return 'Relevance';
+        return l10n.relevanceOption;
       case 'rating':
-        return 'Rating';
+        return l10n.ratingOption;
       case 'year':
-        return 'Year';
+        return l10n.yearOption;
       case 'title':
-        return 'Title';
+        return l10n.titleOption;
       case 'popularity':
-        return 'Popularity';
+        return l10n.popularityOption;
       case 'runtime':
-        return 'Runtime';
+        return l10n.runtimeOption;
       case 'release_date':
-        return 'Release Date';
+        return l10n.releaseDateOption;
       default:
         return option;
     }

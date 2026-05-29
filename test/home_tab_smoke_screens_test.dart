@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:popmatch/l10n/app_localizations.dart';
 import 'package:popmatch/models/movie.dart';
 import 'package:popmatch/models/tv_show.dart';
 import 'package:popmatch/models/user.dart';
@@ -10,9 +11,9 @@ import 'package:popmatch/providers/auth_provider.dart';
 import 'package:popmatch/providers/movie_provider.dart';
 import 'package:popmatch/providers/recommendations_provider.dart';
 import 'package:popmatch/providers/show_provider.dart';
+import 'package:popmatch/providers/social_provider.dart';
 import 'package:popmatch/providers/streaming_provider.dart';
 import 'package:popmatch/screens/home/movie_detail_screen.dart';
-import 'package:popmatch/screens/home/recommendations_screen.dart';
 import 'package:popmatch/screens/home/show_detail_screen.dart';
 import 'package:popmatch/screens/home/watchlist_screen.dart';
 import 'package:popmatch/services/firebase_config.dart';
@@ -56,24 +57,16 @@ void main() {
           ChangeNotifierProvider(create: (_) => ShowProvider()),
           ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
           ChangeNotifierProvider(create: (_) => StreamingProvider()),
+          ChangeNotifierProvider(create: (_) => SocialProvider()),
         ],
         child: MaterialApp(
           theme: AppTheme.retroCinemaTheme,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: child,
         ),
       );
     }
-
-    testWidgets('RecommendationsScreen shows Search chrome and empty state',
-        (tester) async {
-      await tester.pumpWidget(wrap(const RecommendationsScreen()));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(find.text('Search'), findsWidgets);
-      expect(find.text('Search movies and shows'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
 
     testWidgets('WatchlistScreen shows WATCHLIST and empty copy', (tester) async {
       await tester.pumpWidget(wrap(const WatchlistScreen()));

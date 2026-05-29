@@ -30,15 +30,17 @@ class SocialService {
     return firebase_auth.FirebaseAuth.instance.currentUser?.uid;
   }
 
-  /// Ensures Auth has propagated an ID token before Firestore reads (avoids permission-denied races).
+  /// Forces a token refresh so the Firebase SDK has a valid cached token before any
+  /// callable or Firestore request. Using forceRefresh=true prevents stale/expired
+  /// tokens from being sent when the session is restored from persistence at startup.
   Future<void> ensureAuthReadyBeforeFirestore() async {
     if (!FirebaseConfig.isEnabled) return;
     final user = firebase_auth.FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
-      await user.getIdToken();
+      await user.getIdToken(true);
     } catch (_) {
-      // Token fetch failed; Firestore will still run — caller may see permission-denied.
+      // Token refresh failed; Firestore/callables will still run but may get permission errors.
     }
   }
 
@@ -162,12 +164,31 @@ class SocialService {
   Future<List<SocialActivity>> getFriendsFeed({int limit = 40}) async {
     final uid = _currentUid;
     if (!FirebaseConfig.isEnabled || uid == null) return [];
-    final callable = _functions.httpsCallable('getFriendsFeed');
-    final result = await callable.call({'limit': limit});
-    final list = (result.data as List?) ?? [];
-    return list
-        .cast<Map>()
-        .map((m) => SocialActivity.fromJson(Map<String, dynamic>.from(m)))
-        .toList();
+    try {
+      final callable = _functions.httpsCallable('getFriendsFeed');
+      final result = await callable.call({'limit': limit});
+      final list = (result.data as List?) ?? [];
+      return list
+          .cast<Map>()
+          .map((m) => SocialActivity.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'not-found' || e.code == 'unauthenticated') return [];
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getSuggestedUsers({int limit = 10}) async {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null) return [];
+    try {
+      final callable = _functions.httpsCallable('getSuggestedUsers');
+      final result = await callable.call({'limit': limit});
+      final list = (result.data as List?) ?? [];
+      return list.cast<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'not-found' || e.code == 'unauthenticated') return [];
+      rethrow;
+    }
   }
 }

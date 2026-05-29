@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 
 /// Screen for editing user preferences (genres and streaming platforms)
 class EditPreferencesScreen extends StatefulWidget {
@@ -95,8 +96,8 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Preferences saved successfully!'),
+        SnackBar(
+          content: Text(context.l10n.preferencesSavedSnackbar),
           backgroundColor: AppTheme.fadedCurtain,
           behavior: SnackBarBehavior.floating,
         ),
@@ -129,10 +130,11 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.deepMidnightBrown,
       appBar: AppBar(
-        title: const Text('Edit Preferences'),
+        title: Text(l10n.editPreferencesAppBarTitle),
         backgroundColor: AppTheme.deepMidnightBrown,
         foregroundColor: AppTheme.warmCream,
         elevation: 0,
@@ -185,12 +187,12 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                           vertical: 12,
                         ),
                       ),
-                      child: const Text('Back'),
+                      child: Text(l10n.backButton),
                     )
                   else
                     const SizedBox(width: 80),
                   Text(
-                    '${_currentPage + 1} of 2',
+                    l10n.pageIndicatorOf2(_currentPage + 1),
                     style: TextStyle(
                       color: AppTheme.warmCream.withValues(alpha: 0.9),
                       fontSize: 14,
@@ -214,7 +216,7 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                         vertical: 12,
                       ),
                     ),
-                    child: Text(_currentPage == 1 ? 'Save' : 'Next'),
+                    child: Text(_currentPage == 1 ? l10n.saveButton : l10n.nextButton),
                   ),
                 ],
               ),
@@ -235,7 +237,7 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'What genres do you love?',
+                context.l10n.genrePageTitle,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.warmCream,
@@ -243,7 +245,7 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Select your favorite movie genres to get better recommendations.',
+                context.l10n.genrePageSubtitle,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.warmCream.withValues(alpha: 0.9),
                     ),
@@ -308,7 +310,7 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Where do you watch movies?',
+            context.l10n.platformPageTitle,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppTheme.warmCream,
@@ -316,7 +318,7 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Select your streaming platforms to find movies available on your services.',
+            context.l10n.platformPageSubtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppTheme.warmCream.withValues(alpha: 0.9),
                 ),
