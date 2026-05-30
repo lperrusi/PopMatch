@@ -353,28 +353,21 @@ class _SwipeScreenState extends State<SwipeScreen>
 
   // ── Deferred removal helpers ──────────────────────────────────────────────
 
-  /// Commits (removes) or cancels (keeps) the pending movie removal.
-  /// Call with [commit: true] to flush the removal, or [commit: false] to
-  /// cancel the timer without removing (used internally by undo).
-  void _commitPendingMovieRemoval({required bool commit}) {
+  /// Clears the pending-undo banner/timer for movies. Removal is immediate on
+  /// swipe (see the swipe handler), so there is nothing to commit here — this
+  /// just hides the banner and drops the undo reference.
+  void _clearMoviePendingUndo() {
     _movieUndoTimer?.cancel();
-    final movie = _pendingRemovedMovie;
     _pendingRemovedMovie = null;
     _pendingMovieDirection = null;
-    if (commit && movie != null && mounted) {
-      final movieProvider =
-          Provider.of<MovieProvider>(context, listen: false);
-      final authProvider =
-          Provider.of<AuthProvider>(context, listen: false);
-      movieProvider.removeMovie(movie.id, user: authProvider.userData);
-    }
     if (mounted) setState(() => _showMovieUndoBanner = false);
   }
 
-  /// Rolls back the last movie swipe: reverses auth state then remounts the
-  /// CardSwiper at index 0. Because removal is deferred, the swiped card is
-  /// still at index 0 of filteredMovies — resetting the swiper key shows it
-  /// again without relying on the unreliable controller.undo() path.
+  /// Rolls back the last movie swipe: reverses auth state and re-inserts the
+  /// swiped card at the front of the deck. Removal is immediate on swipe (so
+  /// rapid consecutive swipes always advance to the correct next card), so undo
+  /// must restore the card via [MovieProvider.reinsertSwipedMovieAtFront] rather
+  /// than the unreliable `controller.undo()` path.
   void _undoLastMovieSwipe() {
     _movieUndoTimer?.cancel();
     final movie = _pendingRemovedMovie;
@@ -383,6 +376,7 @@ class _SwipeScreenState extends State<SwipeScreen>
     _pendingMovieDirection = null;
 
     if (movie != null && dir != null && mounted) {
+      final movieProvider = Provider.of<MovieProvider>(context, listen: false);
       final authProvider =
           Provider.of<AuthProvider>(context, listen: false);
       if (dir == CardSwiperDirection.right) {
@@ -390,8 +384,7 @@ class _SwipeScreenState extends State<SwipeScreen>
       } else if (dir == CardSwiperDirection.left) {
         unawaited(authProvider.removeDislikedMovie(movie.id.toString()));
       }
-      // Remount the swiper at index 0. The swiped card is still in
-      // filteredMovies (deferred removal), so the rebuilt swiper shows it first.
+      movieProvider.reinsertSwipedMovieAtFront(movie);
       setState(() {
         _showMovieUndoBanner = false;
         _moviesSwiperKey =
@@ -403,23 +396,15 @@ class _SwipeScreenState extends State<SwipeScreen>
     }
   }
 
-  /// Commits (removes) or cancels (keeps) the pending show removal.
-  void _commitPendingShowRemoval({required bool commit}) {
+  /// Show counterpart of [_clearMoviePendingUndo].
+  void _clearShowPendingUndo() {
     _showUndoTimer?.cancel();
-    final show = _pendingRemovedShow;
     _pendingRemovedShow = null;
     _pendingShowDirection = null;
-    if (commit && show != null && mounted) {
-      final showProvider =
-          Provider.of<ShowProvider>(context, listen: false);
-      final authProvider =
-          Provider.of<AuthProvider>(context, listen: false);
-      showProvider.removeShow(show.id, user: authProvider.userData);
-    }
     if (mounted) setState(() => _showShowUndoBanner = false);
   }
 
-  /// Rolls back the last show swipe. Same key-bump approach as movies.
+  /// Rolls back the last show swipe. Mirrors [_undoLastMovieSwipe].
   void _undoLastShowSwipe() {
     _showUndoTimer?.cancel();
     final show = _pendingRemovedShow;
@@ -428,6 +413,7 @@ class _SwipeScreenState extends State<SwipeScreen>
     _pendingShowDirection = null;
 
     if (show != null && dir != null && mounted) {
+      final showProvider = Provider.of<ShowProvider>(context, listen: false);
       final authProvider =
           Provider.of<AuthProvider>(context, listen: false);
       if (dir == CardSwiperDirection.right) {
@@ -435,6 +421,7 @@ class _SwipeScreenState extends State<SwipeScreen>
       } else if (dir == CardSwiperDirection.left) {
         unawaited(authProvider.removeDislikedShow(show.id.toString()));
       }
+      showProvider.reinsertSwipedShowAtFront(show);
       setState(() {
         _showShowUndoBanner = false;
         _showsSwiperKey =
@@ -1100,24 +1087,26 @@ class _SwipeScreenState extends State<SwipeScreen>
     }
 
     if (mounted && swipedMovie != null) {
+      final movieProvider =
+          Provider.of<MovieProvider>(context, listen: false);
+      final authProvider =
+          Provider.of<AuthProvider>(context, listen: false);
       if (direction == CardSwiperDirection.top) {
-        // Match swipe: commit removal immediately (match screen drives UX).
-        final movieProvider =
-            Provider.of<MovieProvider>(context, listen: false);
-        final authProvider =
-            Provider.of<AuthProvider>(context, listen: false);
-        // Flush any previous pending removal first.
-        _commitPendingMovieRemoval(commit: true);
+        // Match swipe: remove immediately (match screen drives UX), drop any
+        // pending undo from a previous swipe.
+        _clearMoviePendingUndo();
         movieProvider.removeMovie(swipedMovie.id, user: authProvider.userData);
       } else {
-        // Flush any previous pending removal, then defer this one.
-        _commitPendingMovieRemoval(commit: true);
+        // Remove immediately so the deck advances correctly even on rapid
+        // consecutive swipes; keep the swiped card for one-tap UNDO. The
+        // keyed CardSwiper remounts onto the new front when the list changes.
+        _movieUndoTimer?.cancel();
+        movieProvider.removeMovie(swipedMovie.id, user: authProvider.userData);
         _pendingRemovedMovie = swipedMovie;
         _pendingMovieDirection = direction;
         setState(() => _showMovieUndoBanner = true);
-        _movieUndoTimer?.cancel();
         _movieUndoTimer = Timer(const Duration(seconds: 4), () {
-          _commitPendingMovieRemoval(commit: true);
+          _clearMoviePendingUndo();
         });
       }
     }
@@ -2157,23 +2146,24 @@ class _SwipeScreenState extends State<SwipeScreen>
     }
 
     if (mounted && swipedShow != null) {
+      final showProvider =
+          Provider.of<ShowProvider>(context, listen: false);
+      final authProvider =
+          Provider.of<AuthProvider>(context, listen: false);
       if (direction == CardSwiperDirection.top) {
-        // Match swipe: commit removal immediately (match screen drives UX).
-        final showProvider =
-            Provider.of<ShowProvider>(context, listen: false);
-        final authProvider =
-            Provider.of<AuthProvider>(context, listen: false);
-        _commitPendingShowRemoval(commit: true);
+        // Match swipe: remove immediately (match screen drives UX).
+        _clearShowPendingUndo();
         showProvider.removeShow(swipedShow.id, user: authProvider.userData);
       } else {
-        // Flush any previous pending removal, then defer this one.
-        _commitPendingShowRemoval(commit: true);
+        // Remove immediately so the deck advances correctly even on rapid
+        // consecutive swipes; keep the swiped card for one-tap UNDO.
+        _showUndoTimer?.cancel();
+        showProvider.removeShow(swipedShow.id, user: authProvider.userData);
         _pendingRemovedShow = swipedShow;
         _pendingShowDirection = direction;
         setState(() => _showShowUndoBanner = true);
-        _showUndoTimer?.cancel();
         _showUndoTimer = Timer(const Duration(seconds: 4), () {
-          _commitPendingShowRemoval(commit: true);
+          _clearShowPendingUndo();
         });
       }
     }

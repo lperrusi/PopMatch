@@ -56,7 +56,7 @@ There is no custom backend database. All persistent state lives in:
 `SwipeScreen` implements the Discover tab. Key non-obvious behaviours:
 - **Curated vs personalized:** `UserPreferenceAnalyzer.hasEnoughData(user)` decides which path loads — requires **3+ liked movies**. Below that threshold, `loadCuratedStarterMovies()` runs; at or above, `loadPersonalizedRecommendations()` runs.
 - **Buffer maintenance:** A timer fires every 3 seconds calling `checkAndPreload(user)`. Preload also triggers on swipe when remaining cards ≤ 25 (`hasMorePages` must be true). New movies are staged in `_pendingMovies` and flushed only when the visible stack is low, reducing mid-swipe pop-in.
-- **Known open issue — UNDO unreliable:** `CardSwiper` is remounted on each swipe (key changes), clearing its internal undo history, so the "Swipe recorded / UNDO" SnackBar often cannot restore the previous card. Three fix approaches are documented in `docs/DISCOVER_UNDO_PRODUCT_FIX.md`.
+- **UNDO (fixed 2026-05-30):** a swipe removes the card from the deck **immediately** (`removeMovie`/`removeShow`), so the keyed `CardSwiper` remounts onto the correct next card even on rapid consecutive swipes. The custom `DiscoverSwipeFeedback` banner offers a 4s one-tap UNDO that rolls back the auth like/dislike and re-inserts the card at the front via `MovieProvider.reinsertSwipedMovieAtFront` / `ShowProvider.reinsertSwipedShowAtFront` (not the unreliable `controller.undo()`). Covered by `test/discover_undo_flow_test.dart`. Background: `docs/DISCOVER_UNDO_PRODUCT_FIX.md`.
 - Movies and shows use **separate** `CardSwiperController`s so undo targets the correct deck.
 
 ### Theme

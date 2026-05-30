@@ -2289,6 +2289,20 @@ class MovieProvider with ChangeNotifier {
     );
   }
 
+  /// Restores a just-swiped movie to the front of the deck (for UNDO).
+  ///
+  /// Inserts directly at the front of both `_movies` and `_filteredMovies`,
+  /// deliberately bypassing the like/dislike filter — the caller rolls back the
+  /// auth like/dislike asynchronously, so re-running [refreshFilters] here could
+  /// race and drop the movie again. Skips re-insert if it's somehow still present.
+  void reinsertSwipedMovieAtFront(Movie movie) {
+    _movies.removeWhere((m) => m.id == movie.id);
+    _movies.insert(0, movie);
+    _filteredMovies.removeWhere((m) => m.id == movie.id);
+    _filteredMovies.insert(0, movie);
+    notifyListeners();
+  }
+
   void removeMovie(int movieId, {User? user}) {
     final beforeCount = _movies.length;
     _movies.removeWhere((movie) => movie.id == movieId);

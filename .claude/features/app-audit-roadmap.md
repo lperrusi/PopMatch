@@ -21,11 +21,12 @@ analysis lives at `~/.claude/plans/run-a-full-analyzes-functional-candy.md`.
 
 ## Phase 0 — Fix (stabilize; no new surface area)
 
-Status: landed 2026-05-29 except UNDO (deferred to its own focused change). Test baseline
-moved **117/124 → 125/120 pass/fail** (`flutter analyze` clean of new issues).
+Status: **all landed** (Phase 0 fixes 2026-05-29; UNDO fix 2026-05-30). Host test baseline
+moved **117/124 → 129/120 pass/fail** (`flutter analyze` clean of new issues).
 
-- [ ] Swipe **UNDO** reliability — deferred-removal + data restoration per
-      `docs/DISCOVER_UNDO_PRODUCT_FIX.md`; add an integration test. *(Deferred — separate change.)*
+- [x] Swipe **UNDO** reliability (2026-05-30) — switched to immediate removal + re-insert on
+      undo (Direction A); rapid consecutive swipes now advance correctly. Tests:
+      `test/discover_undo_flow_test.dart`.
 - [x] Move swipe button colors into `AppTheme.nopeRed`/`AppTheme.likeGreen`; dropped hardcoded hex.
 - [x] `mounted` checks in swipe async callbacks — **verified already guarded**; the audit
       concern was a false positive, no change needed.

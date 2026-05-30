@@ -8,12 +8,14 @@ future sessions don't trust stale assumptions.
 
 ## Bugs
 
-### 1. Swipe UNDO is unreliable
-`lib/screens/home/swipe_screen.dart` remounts `CardSwiper` on every swipe (key bump, ~`:1676`),
-which clears the library's internal undo history. The "Swipe recorded / UNDO" SnackBar often
-cannot visually restore the previous card even when provider state is reverted. No undo is
-available on the last card in a deck. Fix approaches: `docs/DISCOVER_UNDO_PRODUCT_FIX.md`
-(recommended: Direction C deferred-removal + Direction A data restoration).
+### 1. Swipe UNDO is unreliable — FIXED (2026-05-30)
+~~Deferred removal + remount-to-index-0 made rapid consecutive swipes resurface the
+just-swiped card.~~ Switched to **immediate removal + re-insert on undo** (Direction A):
+a swipe calls `removeMovie`/`removeShow` right away (keyed `CardSwiper` remounts onto the
+correct next card), and the 4s `DiscoverSwipeFeedback` banner restores the card via
+`reinsertSwipedMovieAtFront`/`reinsertSwipedShowAtFront` plus an auth rollback. Verified by
+`test/discover_undo_flow_test.dart` (single undo, 4s auto-commit, rapid double-swipe, auth
+rollback). Note: undo on the *last* card in a deck is still intentionally suppressed.
 
 ### 2. Adaptive weights never persist — FIXED (2026-05-29)
 ~~`_saveWeights` wrote `Map.toString()` and `loadWeights` was an empty stub.~~ Now uses
@@ -95,5 +97,9 @@ The audit flagged possible missing `mounted` checks after `Future.delayed`/await
 - `swipe_screen.dart` is ~3,445 lines with near-duplicate movie/show handlers.
 - `movie_detail_screen.dart` and `show_detail_screen.dart` are near-duplicate implementations.
 - Possibly unused deps: `cloud_firestore` (social only), `crypto`, `intl`, `http` vs `dio` overlap.
-- Test baseline: **117 pass / 124 pre-existing fail** — failures concentrated in onboarding
-  persistence and `ShowDetailScreen` widget lookup.
+- Test baseline (host `flutter test`): **129 pass / 120 pre-existing fail** as of 2026-05-30.
+- `integration_test/swipe_deck_test.dart`'s harness `MaterialApp` lacks
+  `localizationsDelegates`/`supportedLocales`, so `SwipeScreen` throws on `context.l10n` and the
+  deck never renders — those device tests currently fail for that reason. The host equivalent
+  `test/discover_undo_flow_test.dart` adds the delegates and works. `flutter test integration_test/...`
+  also targets an attached device if one is connected (slower Xcode build); prefer the host test.

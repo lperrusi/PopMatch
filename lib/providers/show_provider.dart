@@ -1127,6 +1127,17 @@ class ShowProvider with ChangeNotifier {
     );
   }
 
+  /// Restores a just-swiped show to the front of the deck (for UNDO).
+  /// Mirrors [MovieProvider.reinsertSwipedMovieAtFront]; bypasses like/dislike
+  /// filtering so it doesn't race the asynchronous auth rollback.
+  void reinsertSwipedShowAtFront(TvShow show) {
+    _shows.removeWhere((s) => s.id == show.id);
+    _shows.insert(0, show);
+    _filteredShows.removeWhere((s) => s.id == show.id);
+    _filteredShows.insert(0, show);
+    notifyListeners();
+  }
+
   void removeShow(int showId, {User? user}) {
     final beforeCount = _shows.length;
     _shows.removeWhere((show) => show.id == showId);
