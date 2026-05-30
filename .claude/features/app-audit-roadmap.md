@@ -73,8 +73,17 @@ Status: code items landed 2026-05-30 on `phase1-finish`. Host baseline 129 → *
 
 ## Phase 2 — Improve / premium (the four axes)
 
+Status: started 2026-05-30 on `phase2-ux-detail` with the Polished-UX axis (detail screens).
+
 - **Polished UX/quality:** refactor the 3.4k-line swipe screen and duplicated detail screens
   into shared components; consistent shimmer loading; jank pass.
+  - [x] **Detail-screen de-dup (batch 1):** extracted `DetailVideosSection`/`RetroVideoCard`,
+    `DetailCastCrewSection`/`DetailCastCrewCard`, and `DetailInlineStreamingAvailability` into
+    `lib/widgets/detail/`. movie_detail 1964→1504, show_detail 1543→1097 (~430 net lines removed);
+    behavior-preserving, smoke tests green, suite 140/120.
+  - [ ] *Follow-up:* shared poster color-extraction mixin + action-button row (touch each screen's
+    `State`/`Consumer` — left for a focused pass), then the swipe-screen decomposition, then a
+    consistent-shimmer/jank pass.
 - **Smarter recommendations:** recommendation **explanations** (flip the existing flag on with
   real "because you liked…" reasons); persisted collaborative filtering; honest rescoping or
   real TFLite for `DeepLearningService`; clean **"For You"** surface reusing `RecommendationsWidget`.

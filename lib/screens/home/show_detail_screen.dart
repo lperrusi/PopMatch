@@ -9,17 +9,14 @@ import '../../models/tv_show.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
-import '../../widgets/video_player_widget.dart';
-import '../../providers/streaming_provider.dart';
-import '../../models/streaming_platform.dart';
-import '../../models/video.dart';
+import '../../widgets/detail/detail_videos_section.dart';
+import '../../widgets/detail/detail_cast_crew_section.dart';
+import '../../widgets/detail/detail_inline_streaming.dart';
 import '../../models/movie.dart'; // For CastMember, CrewMember
-import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
 import '../../services/tmdb_service.dart';
 import '../../widgets/transparent_button_image.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/l10n_extension.dart';
-import '../../utils/streaming_url_launcher.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
 
 /// Retro Cinema styled TV show detail screen
@@ -557,7 +554,11 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
           ),
                           const SizedBox(height: 16),
                           // Where to Watch section inline
-                          _InlineStreamingAvailability(show: _displayShow, textColor: _textColor),
+                          DetailInlineStreamingAvailability(
+                              itemId: _displayShow.id,
+                              title: _displayShow.name,
+                              isShow: true,
+                              textColor: _textColor),
                         ],
                       ),
                     ),
@@ -679,13 +680,26 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(
-                    child: _VideosSection(show: _displayShow),
+                    child: DetailVideosSection(
+                      initialVideos: _displayShow.videos,
+                      fetchVideos: () =>
+                          TMDBService().getShowVideos(_displayShow.id),
+                    ),
                   ),
                   if (_displayShow.crew != null || _displayShow.cast != null)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _CastCrewSection(show: _displayShow),
+                        child: DetailCastCrewSection(
+                          crew: _displayShow.crew
+                                  ?.where((m) =>
+                                      m.job?.toLowerCase() == 'creator' ||
+                                      m.job?.toLowerCase() ==
+                                          'executive producer')
+                                  .toList() ??
+                              const [],
+                          cast: _displayShow.cast ?? const [],
+                        ),
                       ),
                     ),
                 ],
@@ -1081,463 +1095,3 @@ class _EpisodeDetailDialog extends StatelessWidget {
   }
 }
 
-// Videos Section
-class _VideosSection extends StatefulWidget {
-  final TvShow show;
-
-  const _VideosSection({required this.show});
-
-  @override
-  State<_VideosSection> createState() => _VideosSectionState();
-}
-
-class _VideosSectionState extends State<_VideosSection> {
-  List<Video> _videos = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.show.videos != null && widget.show.videos!.isNotEmpty) {
-      _videos = widget.show.videos!;
-      _isLoading = false;
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-    _loadVideos();
-        }
-      });
-    }
-  }
-
-  Future<void> _loadVideos() async {
-    try {
-      if (!mounted) return;
-      
-      setState(() {
-        _isLoading = true;
-      });
-
-      final tmdbService = TMDBService();
-      final videos = await tmdbService.getShowVideos(widget.show.id);
-
-      if (!mounted) return;
-
-      setState(() {
-        _videos = videos;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading || _videos.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-              Text(
-            context.l10n.trailersVideosLabel,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 28,
-              color: AppTheme.filmStripBlack,
-              letterSpacing: 1,
-            ),
-                    ),
-          const SizedBox(height: 20),
-                SizedBox(
-            height: 200,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _videos.length,
-                    itemBuilder: (context, index) {
-                return _RetroVideoCard(video: _videos[index]);
-                    },
-                  ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RetroVideoCard extends StatelessWidget {
-  final Video video;
-
-  const _RetroVideoCard({required this.video});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 300,
-      margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.cinemaRed,
-          width: 1.5,
-            ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-        child: VideoPlayerWidget(video: video),
-      ),
-    );
-  }
-}
-
-// Cast & Crew Section
-class _CastCrewSection extends StatelessWidget {
-  final TvShow show;
-
-  const _CastCrewSection({required this.show});
-
-  @override
-  Widget build(BuildContext context) {
-    // Get creators from crew (TV shows have creators instead of directors)
-    final creators = show.crew
-            ?.where((member) => member.job?.toLowerCase() == 'creator' || 
-                               member.job?.toLowerCase() == 'executive producer')
-            .toList() ??
-        [];
-    
-    // Get top 10 actors from cast
-    final topActors = show.cast?.take(10).toList() ?? [];
-
-    final List<dynamic> allPeople = [];
-    
-    // Add creators first
-    for (var creator in creators) {
-      allPeople.add({
-        'type': 'creator',
-        'person': creator,
-      });
-    }
-    
-    // Add actors
-    for (var actor in topActors) {
-      allPeople.add({
-        'type': 'actor',
-        'person': actor,
-      });
-    }
-
-    if (allPeople.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-          context.l10n.castCrewLabel,
-          style: GoogleFonts.bebasNeue(
-            fontSize: 24,
-            color: AppTheme.filmStripBlack,
-            letterSpacing: 1,
-                        ),
-                      ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: allPeople.length,
-            itemBuilder: (context, index) {
-              final item = allPeople[index];
-              final isCreator = item['type'] == 'creator';
-              final person = item['person'];
-              
-              String? profileUrl;
-              String name;
-              String? info;
-              
-              if (isCreator) {
-                final creator = person as CrewMember;
-                profileUrl = creator.profileUrl;
-                name = creator.name;
-                info = creator.job;
-              } else {
-                final actor = person as CastMember;
-                profileUrl = actor.profileUrl;
-                name = actor.name;
-                info = actor.character != null ? 'as ${actor.character!}' : null;
-              }
-              
-              return _CastCrewCard(
-                profileUrl: profileUrl,
-                name: name,
-                info: info,
-                isCreator: isCreator,
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Individual cast/crew card
-class _CastCrewCard extends StatelessWidget {
-  final String? profileUrl;
-  final String name;
-  final String? info;
-  final bool isCreator;
-
-  const _CastCrewCard({
-    required this.profileUrl,
-    required this.name,
-    this.info,
-    required this.isCreator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-          fit: StackFit.expand,
-                    children: [
-            profileUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: profileUrl!,
-                          fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.brickRed,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                              child: Icon(
-                        Icons.person,
-                        color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                        size: 48,
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                    child: Icon(
-                      Icons.person,
-                      color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                      size: 48,
-                    ),
-                        ),
-                      
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 80,
-                          decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      AppTheme.filmStripBlack.withValues(alpha: 0.85),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-            Text(
-                      name,
-                      style: GoogleFonts.lato(
-                        color: AppTheme.warmCream,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-                    if (info != null) ...[
-            const SizedBox(height: 2),
-            Text(
-                        info!,
-                        style: GoogleFonts.lato(
-                          color: AppTheme.warmCream.withValues(alpha: 85),
-                          fontSize: 11,
-                          fontStyle: isCreator ? FontStyle.normal : FontStyle.italic,
-                          letterSpacing: 0.1,
-              ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-            ),
-                    ],
-          ],
-        ),
-      ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Streaming Availability Section (inline)
-class _InlineStreamingAvailability extends StatefulWidget {
-  final TvShow show;
-  final Color textColor;
-
-  const _InlineStreamingAvailability({
-    required this.show,
-    this.textColor = AppTheme.warmCream,
-  });
-
-  @override
-  State<_InlineStreamingAvailability> createState() => _InlineStreamingAvailabilityState();
-}
-
-class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailability> {
-  MovieStreamingAvailability? _availability;
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStreamingAvailability();
-  }
-
-  Future<void> _loadStreamingAvailability() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      final streamingProvider = Provider.of<StreamingProvider>(context, listen: false);
-      final availability = await streamingProvider.getStreamingAvailabilityForTv(widget.show.id);
-
-      if (mounted) {
-        setState(() {
-          _availability = availability;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const SizedBox.shrink();
-    }
-
-    if (_error != null || _availability == null || _availability!.availablePlatforms.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final platforms = _availability!.platforms.toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.tv_rounded,
-              color: widget.textColor.withValues(alpha: 80),
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.whereToWatchLabel,
-              style: GoogleFonts.lato(
-                color: widget.textColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-          ),
-        ],
-      ),
-          const SizedBox(height: 8),
-        SizedBox(
-          height: 32,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: platforms.length,
-            itemBuilder: (context, index) {
-              final platform = platforms[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => launchStreamingSearch(
-                    context: context,
-                    platform: platform,
-                    title: widget.show.name,
-                  ),
-                  child: Tooltip(
-                    message: 'Open on ${platform.name}',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.sepiaBrown,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          platform.name,
-                          style: GoogleFonts.lato(
-                            color: widget.textColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
