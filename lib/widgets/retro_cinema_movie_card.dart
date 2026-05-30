@@ -261,33 +261,21 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            // Movie poster as full background.
-            // Shared-element source: morphs into the detail screen header.
+            // Movie poster as full background
             Positioned.fill(
-              child: Hero(
-                tag: 'poster-movie-${widget.movie.id}',
-                child: widget.movie.posterUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: widget.movie.posterUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: AppTheme.deepMidnightBrown,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: AppTheme.brickRed,
-                            ),
+              child: widget.movie.posterUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: widget.movie.posterUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppTheme.deepMidnightBrown,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppTheme.brickRed,
                           ),
                         ),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppTheme.deepMidnightBrown,
-                          child: Icon(
-                            Icons.movie_outlined,
-                            size: 64,
-                            color: AppTheme.warmCream.withValues(alpha: 50),
-                          ),
-                        ),
-                      )
-                    : Container(
+                      ),
+                      errorWidget: (context, url, error) => Container(
                         color: AppTheme.deepMidnightBrown,
                         child: Icon(
                           Icons.movie_outlined,
@@ -295,7 +283,15 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                           color: AppTheme.warmCream.withValues(alpha: 50),
                         ),
                       ),
-              ),
+                    )
+                  : Container(
+                      color: AppTheme.deepMidnightBrown,
+                      child: Icon(
+                        Icons.movie_outlined,
+                        size: 64,
+                        color: AppTheme.warmCream.withValues(alpha: 50),
+                      ),
+                    ),
             ),
 
             // Gradient overlay at bottom for text readability

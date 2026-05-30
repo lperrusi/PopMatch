@@ -248,32 +248,20 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            // Shared-element source: morphs into the detail screen header.
             Positioned.fill(
-              child: Hero(
-                tag: 'poster-show-${widget.show.id}',
-                child: widget.show.posterUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: widget.show.posterUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: AppTheme.deepMidnightBrown,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: AppTheme.brickRed,
-                            ),
+              child: widget.show.posterUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: widget.show.posterUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppTheme.deepMidnightBrown,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppTheme.brickRed,
                           ),
                         ),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppTheme.deepMidnightBrown,
-                          child: Icon(
-                            Icons.tv_outlined,
-                            size: 64,
-                            color: AppTheme.warmCream.withValues(alpha: 50),
-                          ),
-                        ),
-                      )
-                    : Container(
+                      ),
+                      errorWidget: (context, url, error) => Container(
                         color: AppTheme.deepMidnightBrown,
                         child: Icon(
                           Icons.tv_outlined,
@@ -281,7 +269,15 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
                           color: AppTheme.warmCream.withValues(alpha: 50),
                         ),
                       ),
-              ),
+                    )
+                  : Container(
+                      color: AppTheme.deepMidnightBrown,
+                      child: Icon(
+                        Icons.tv_outlined,
+                        size: 64,
+                        color: AppTheme.warmCream.withValues(alpha: 50),
+                      ),
+                    ),
             ),
 
             // Gradient overlay

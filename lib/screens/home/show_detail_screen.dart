@@ -235,37 +235,33 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                 fit: StackFit.expand,
                 children: [
                   // Show backdrop
-                  // Shared-element destination for the Discover card poster.
                   Positioned.fill(
-                    child: Hero(
-                      tag: 'poster-show-${widget.show.id}',
-                      child: (_displayShow.backdropUrl != null || _displayShow.posterUrl != null)
-                          ? CachedNetworkImage(
-                              imageUrl: _displayShow.backdropUrl ?? _displayShow.posterUrl ?? '',
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: AppTheme.vintagePaper,
-                              ),
-                              errorWidget: (context, url, error) {
-                                return Container(
-                                  color: AppTheme.vintagePaper,
-                                  child: Icon(
-                                    Icons.tv_outlined,
-                                  size: 64,
-                                    color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                                ),
-                                );
-                              },
-                            )
-                          : Container(
+                    child: (_displayShow.backdropUrl != null || _displayShow.posterUrl != null)
+                        ? CachedNetworkImage(
+                            imageUrl: _displayShow.backdropUrl ?? _displayShow.posterUrl ?? '',
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
                               color: AppTheme.vintagePaper,
-                              child: Icon(
-                                Icons.tv_outlined,
-                                size: 64,
-                                color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                              ),
                             ),
-                    ),
+                            errorWidget: (context, url, error) {
+                              return Container(
+                                color: AppTheme.vintagePaper,
+                                child: Icon(
+                                  Icons.tv_outlined,
+                                size: 64,
+                                  color: AppTheme.filmStripBlack.withValues(alpha: 50),
+                              ),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: AppTheme.vintagePaper,
+                            child: Icon(
+                              Icons.tv_outlined,
+                              size: 64,
+                              color: AppTheme.filmStripBlack.withValues(alpha: 50),
+                            ),
+                          ),
                   ),
                   
                   // Gradient overlay at bottom for text readability

@@ -1165,12 +1165,13 @@ class _SwipeScreenState extends State<SwipeScreen>
 
   void _onMovieTap(Movie movie) {
     // Kick off detail preload in the background so the detail screen can use
-    // cached data, but navigate immediately — the artificial pre-delay made the
-    // open feel sluggish and the Hero poster morph reads better with no gap.
+    // cached data, but navigate immediately. The premium shared-axis (scaled)
+    // transition zooms/fades the detail in with no pre-delay and leaves it
+    // scrollable as soon as it settles.
     MovieCacheService.instance.preloadMovieDetails(movie.id);
 
     Navigator.of(context).push(
-      NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
+      NavigationUtils.premiumScaleRoute(MovieDetailScreen(movie: movie)),
     );
   }
 
@@ -2173,10 +2174,10 @@ class _SwipeScreenState extends State<SwipeScreen>
 
   /// Handles show card tap
   void _onShowTap(TvShow show) {
-    // Navigate to show detail screen immediately (no show cache service exists,
-    // so there is nothing to preload — the Hero poster morph carries the open).
+    // Navigate to show detail screen immediately with the premium shared-axis
+    // (scaled) transition (no show cache service exists, so nothing to preload).
     Navigator.of(context).push(
-      NavigationUtils.fastSlideRoute(ShowDetailScreen(show: show)),
+      NavigationUtils.premiumScaleRoute(ShowDetailScreen(show: show)),
     );
   }
 

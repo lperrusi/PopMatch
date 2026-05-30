@@ -256,45 +256,41 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Movie backdrop (use posterUrl as fallback if backdropUrl is null).
-                    // Shared-element destination for the Discover card poster.
+                    // Movie backdrop (use posterUrl as fallback if backdropUrl is null)
                     Positioned.fill(
-                      child: Hero(
-                        tag: 'poster-movie-${widget.movie.id}',
-                        child: (_displayMovie.backdropUrl != null ||
-                                _displayMovie.posterUrl != null)
-                            ? CachedNetworkImage(
-                                imageUrl: _displayMovie.backdropUrl ??
-                                    _displayMovie.posterUrl ??
-                                    '',
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: AppTheme.vintagePaper,
-                                ),
-                                errorWidget: (context, url, error) {
-                                  debugPrint(
-                                      'Image load error: $error for URL: ${_displayMovie.backdropUrl ?? _displayMovie.posterUrl}');
-                                  return Container(
-                                    color: AppTheme.vintagePaper,
-                                    child: Icon(
-                                      Icons.movie_outlined,
-                                      size: 64,
-                                      color: AppTheme.filmStripBlack
-                                          .withValues(alpha: 50),
-                                    ),
-                                  );
-                                },
-                              )
-                            : Container(
+                      child: (_displayMovie.backdropUrl != null ||
+                              _displayMovie.posterUrl != null)
+                          ? CachedNetworkImage(
+                              imageUrl: _displayMovie.backdropUrl ??
+                                  _displayMovie.posterUrl ??
+                                  '',
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
                                 color: AppTheme.vintagePaper,
-                                child: Icon(
-                                  Icons.movie_outlined,
-                                  size: 64,
-                                  color: AppTheme.filmStripBlack
-                                      .withValues(alpha: 50),
-                                ),
                               ),
-                      ),
+                              errorWidget: (context, url, error) {
+                                debugPrint(
+                                    'Image load error: $error for URL: ${_displayMovie.backdropUrl ?? _displayMovie.posterUrl}');
+                                return Container(
+                                  color: AppTheme.vintagePaper,
+                                  child: Icon(
+                                    Icons.movie_outlined,
+                                    size: 64,
+                                    color: AppTheme.filmStripBlack
+                                        .withValues(alpha: 50),
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: AppTheme.vintagePaper,
+                              child: Icon(
+                                Icons.movie_outlined,
+                                size: 64,
+                                color: AppTheme.filmStripBlack
+                                    .withValues(alpha: 50),
+                              ),
+                            ),
                     ),
 
                     // Gradient overlay at bottom for text readability
