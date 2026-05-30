@@ -11,6 +11,7 @@ import 'providers/streaming_provider.dart';
 import 'providers/social_provider.dart';
 import 'utils/theme.dart';
 import 'screens/splash_screen.dart';
+import 'services/behavior_tracking_service.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_config.dart';
 import 'services/omdb_service.dart';
@@ -63,6 +64,13 @@ void main() async {
   // This ensures watch/providers data is fetched for the user's country, not 'US'.
   final countryCode = LocaleUtils.detectCountryCode();
   StreamingService.instance.setUserCountry(countryCode);
+
+  // Restore persisted behavior signals + age the skip-resurface counters.
+  try {
+    await BehaviorTrackingService().initialize();
+  } catch (e) {
+    debugPrint('Error initializing BehaviorTrackingService: $e');
+  }
 
   // Run app even if services fail to initialize
   runApp(const PopMatchApp());

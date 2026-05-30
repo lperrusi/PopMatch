@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/streaming_platform.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
@@ -17,23 +18,9 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // Selected preferences (loaded from user data)
+  // Selected preferences (loaded from user data). Platforms are canonical ids.
   late Set<int> _selectedGenres;
   late Set<String> _selectedPlatforms;
-
-  // Available options
-  final List<String> _streamingPlatforms = [
-    'Netflix',
-    'Amazon Prime',
-    'Disney+',
-    'Hulu',
-    'HBO Max',
-    'Apple TV+',
-    'Peacock',
-    'Paramount+',
-    'Crunchyroll',
-    'YouTube Premium',
-  ];
 
   @override
   void initState() {
@@ -59,11 +46,15 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
           ? Set<int>.from(savedGenres.map((g) => g as int))
           : <int>{};
 
-      // Load platforms
+      // Load platforms, normalizing any legacy display-name values to canonical
+      // ids so the checked-state matches StreamingPlatform.availablePlatforms.
       final savedPlatforms =
           user.preferences['selectedPlatforms'] as List<dynamic>?;
       _selectedPlatforms = savedPlatforms != null
-          ? Set<String>.from(savedPlatforms.map((p) => p as String))
+          ? savedPlatforms
+              .map((p) => StreamingPlatform.idFromNameOrId(p.toString()))
+              .whereType<String>()
+              .toSet()
           : <String>{};
     } else {
       _selectedGenres = <int>{};
@@ -326,10 +317,10 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
           const SizedBox(height: 24),
           Expanded(
             child: ListView.builder(
-              itemCount: _streamingPlatforms.length,
+              itemCount: StreamingPlatform.availablePlatforms.length,
               itemBuilder: (context, index) {
-                final platform = _streamingPlatforms[index];
-                final isSelected = _selectedPlatforms.contains(platform);
+                final platform = StreamingPlatform.availablePlatforms[index];
+                final isSelected = _selectedPlatforms.contains(platform.id);
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -355,12 +346,12 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                           : AppTheme.warmCream.withValues(alpha: 0.7),
                     ),
                     title: Text(
-                      platform,
+                      platform.name,
                       style: const TextStyle(
                         color: AppTheme.warmCream,
                       ),
                     ),
-                    onTap: () => _togglePlatform(platform),
+                    onTap: () => _togglePlatform(platform.id),
                   ),
                 );
               },

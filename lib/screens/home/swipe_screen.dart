@@ -173,13 +173,19 @@ class _SwipeScreenState extends State<SwipeScreen>
         }
       }
     });
-    // Defer movie loading until after screen renders to prevent freezing
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _loadMovies();
-        // INFINITE SWIPE: Start periodic buffer check to maintain seamless experience
-        _startBufferMaintenance();
-      }
+    // Defer movie loading until after screen renders to prevent freezing.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      // Restore persisted Discover filters before the first deck load so the
+      // initial recommendations respect saved moods/genres/platforms.
+      final movieProvider = Provider.of<MovieProvider>(context, listen: false);
+      final showProvider = Provider.of<ShowProvider>(context, listen: false);
+      await movieProvider.loadPersistedSwipeFilters();
+      await showProvider.loadPersistedSwipeFilters();
+      if (!mounted) return;
+      _loadMovies();
+      // INFINITE SWIPE: Start periodic buffer check to maintain seamless experience
+      _startBufferMaintenance();
     });
   }
 

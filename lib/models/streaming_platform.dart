@@ -143,6 +143,18 @@ class StreamingPlatform {
     }
   }
 
+  /// Normalizes a stored value (canonical id, or a display name from a legacy
+  /// preference) to a canonical platform id. Returns null if unrecognized.
+  static String? idFromNameOrId(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return null;
+    if (getById(v) != null) return v;
+    for (final p in availablePlatforms) {
+      if (p.name.toLowerCase() == v.toLowerCase()) return p.id;
+    }
+    return null;
+  }
+
   /// Gets all available platforms
   static List<StreamingPlatform> getAvailablePlatforms() {
     return availablePlatforms.where((platform) => platform.isAvailable).toList();

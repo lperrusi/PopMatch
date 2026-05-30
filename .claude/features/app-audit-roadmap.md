@@ -47,14 +47,29 @@ moved **117/124 → 129/120 pass/fail** (`flutter analyze` clean of new issues).
 
 ## Phase 1 — Finish (complete half-built features)
 
-- [ ] **Behavior-tracking persistence** (SharedPreferences) so the 10% signal survives restarts.
-- [ ] **Firebase deployment completion**: deploy functions, create `getFriendsFeed` Firestore
-      indexes, set email secrets, enforce verification-code expiry server-side.
-- [ ] OMDb external ratings — wire into scoring behind key-check, or remove the dead path.
-- [ ] Mood-filter persistence on Discover.
-- [ ] Friendly social fallbacks (no raw `uid.substring`), retry on social error states.
-- [ ] Single shared streaming-platform source for onboarding + edit-preferences.
-- [ ] Unit/widget tests for swipe outcomes, detail flows, filter interactions.
+Status: code items landed 2026-05-30 on `phase1-finish`. Host baseline 129 → **140 pass / 120 fail**.
+
+- [x] **Behavior-tracking persistence** — persists learning signals (sequences, interest,
+      revisits, detail counts) + a **skip resurface counter** (`kSkipResurfaceLaunches = 3`):
+      a skipped title is hidden for 3 launches then resurfaces. `initialize()` runs in
+      `main.dart`. Tests: `test/behavior_tracking_service_test.dart`.
+- [ ] **Firebase deployment completion** — *deferred (operational/user-side):* deploy functions,
+      create `getFriendsFeed` Firestore indexes, set email secrets. Steps in the `firebase-setup`
+      skill. (Verification-code expiry is already enforced **client-side**; true server-side
+      enforcement is an architecture change — also deferred.)
+- [x] OMDb external ratings — **wired into the feed** (bounded top-25, session-cached,
+      key-guarded `enrichTopDeckWithExternalRatings`) + a small external-quality fold-in to the
+      scoring quality term. Tests: `test/streaming_and_external_ratings_test.dart`.
+- [x] Mood/genre/platform filter persistence on Discover (restored before first deck load).
+      Tests: `test/discover_filter_persistence_test.dart`.
+- [~] Social fallbacks — friends-feed + user-search already show names; `friends_watching` retry +
+      pagination done in Phase 0. *Follow-request display name deferred* (`FollowEdge` has only
+      `followerUid`; needs a profile fetch / CF + live backend).
+- [x] Single shared streaming-platform source — both onboarding & edit-prefs use
+      `StreamingPlatform.availablePlatforms` (+ `idFromNameOrId` normalizer); fixes the
+      `YouTube Premium`→no-id bug and edit-prefs passing names to `setSwipePlatforms`.
+- [x] Tests for filter persistence, behavior persistence, streaming source, OMDb fold-in (swipe
+      outcomes covered by `test/discover_undo_flow_test.dart` from the UNDO fix).
 
 ## Phase 2 — Improve / premium (the four axes)
 
