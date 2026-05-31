@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../models/tv_show.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/show_provider.dart';
@@ -38,6 +39,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
     with DetailColorExtractionMixin {
   TvShow? _loadedShow;
   bool _isSynopsisExpanded = false;
+  bool _detailsLoading = true;
   Timer? _showDetailsTimer;
   Timer? _colorExtractionTimer;
 
@@ -50,9 +52,11 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
     // Defer ALL heavy operations until after the screen fully renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Wait for multiple frames to ensure screen is fully rendered and interactive
-      _showDetailsTimer = Timer(const Duration(milliseconds: 600), () {
+      // Load eagerly (no artificial delay) so the seasons/episodes counts —
+      // which only come from getShowDetails — arrive with the rest of the header
+      // instead of popping in late. Still cancellable on quick back-navigation.
+      _showDetailsTimer = Timer(Duration.zero, () {
         if (mounted && !isDisposed) {
-          // Load additional show details (cast/crew) in background
           _loadShowDetails();
         }
       });
@@ -77,12 +81,13 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
   /// Loads full show details including cast and crew
   Future<void> _loadShowDetails() async {
     // Only load if we don't already have full details with cast/crew
-    if (_loadedShow != null && 
-        _loadedShow!.cast != null && 
+    if (_loadedShow != null &&
+        _loadedShow!.cast != null &&
         _loadedShow!.cast!.isNotEmpty) {
+      if (mounted && !isDisposed) setState(() => _detailsLoading = false);
       return; // Already have full details
     }
-    
+
     try {
       final tmdbService = TMDBService();
       
@@ -110,17 +115,43 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
           if (mounted && !isDisposed) {
             setState(() {
               _loadedShow = loadedShow;
+              _detailsLoading = false;
             });
           }
         });
       }
     } catch (e) {
       debugPrint('Error loading show details: $e');
+      if (mounted && !isDisposed) setState(() => _detailsLoading = false);
     }
   }
 
   /// Gets the show to display (loaded show with cast/crew, or fallback to original)
   TvShow get _displayShow => _loadedShow ?? widget.show;
+
+  /// Shimmer placeholder for the seasons/episodes counts while show details load,
+  /// so the header reserves the slot instead of growing when the counts arrive.
+  Widget _buildSeasonsEpisodesPlaceholder() {
+    Widget bar(double width) => Container(
+          width: width,
+          height: 13,
+          decoration: BoxDecoration(
+            color: textColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    return Shimmer.fromColors(
+      baseColor: textColor.withValues(alpha: 0.20),
+      highlightColor: textColor.withValues(alpha: 0.45),
+      child: Row(
+        children: [
+          bar(84),
+          const SizedBox(width: 16),
+          bar(96),
+        ],
+      ),
+    );
+  }
 
 
   /// Loads "Shows Like This": merges TMDB similar + recommended shows, de-dupes
@@ -382,6 +413,11 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
                                 ],
                               ],
                             ),
+                          ] else if (_detailsLoading) ...[
+                            // Reserve the seasons/episodes slot while details load
+                            // so the row fills in instead of popping in late.
+                            const SizedBox(height: 8),
+                            _buildSeasonsEpisodesPlaceholder(),
                           ],
                           const SizedBox(height: 16),
 
