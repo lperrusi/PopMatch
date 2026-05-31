@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tv_show.dart';
 import '../models/mood.dart';
 import '../models/user.dart';
@@ -1228,6 +1230,7 @@ class ShowProvider with ChangeNotifier {
     _swipeMoods = moods;
     _applyFilters(user: user);
     notifyListeners();
+    unawaited(_persistSwipeFilters());
   }
 
   /// Sets swipe genres filter
@@ -1235,6 +1238,7 @@ class ShowProvider with ChangeNotifier {
     _swipeSelectedGenres = genres;
     _applyFilters(user: user);
     notifyListeners();
+    unawaited(_persistSwipeFilters());
   }
 
   /// Sets swipe platforms filter
@@ -1242,6 +1246,7 @@ class ShowProvider with ChangeNotifier {
     _swipeSelectedPlatforms = platforms;
     _applyFilters(user: user);
     notifyListeners();
+    unawaited(_persistSwipeFilters());
   }
 
   /// Clears all swipe filters
@@ -1251,6 +1256,54 @@ class ShowProvider with ChangeNotifier {
     _swipeSelectedPlatforms = [];
     _applyFilters(user: user);
     notifyListeners();
+    unawaited(_persistSwipeFilters());
+  }
+
+  // ── Discover filter persistence (device-global; survives app restarts) ──────
+  static const _kSwipeMoodsKey = 'swipe_moods_shows';
+  static const _kSwipeGenresKey = 'swipe_genres_shows';
+  static const _kSwipePlatformsKey = 'swipe_platforms_shows';
+
+  Future<void> _persistSwipeFilters() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _kSwipeMoodsKey, jsonEncode(_swipeMoods.map((m) => m.id).toList()));
+      await prefs.setString(_kSwipeGenresKey, jsonEncode(_swipeSelectedGenres));
+      await prefs.setString(
+          _kSwipePlatformsKey, jsonEncode(_swipeSelectedPlatforms));
+    } catch (_) {
+      // Non-fatal.
+    }
+  }
+
+  /// Restores persisted Discover (shows) filters. Call before the first load.
+  Future<void> loadPersistedSwipeFilters() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final moodsStr = prefs.getString(_kSwipeMoodsKey);
+      if (moodsStr != null) {
+        _swipeMoods = (jsonDecode(moodsStr) as List)
+            .map((e) => Mood.getById(e.toString()))
+            .whereType<Mood>()
+            .toList();
+      }
+      final genresStr = prefs.getString(_kSwipeGenresKey);
+      if (genresStr != null) {
+        _swipeSelectedGenres = (jsonDecode(genresStr) as List)
+            .map((e) => e is int ? e : int.tryParse(e.toString()))
+            .whereType<int>()
+            .toList();
+      }
+      final platformsStr = prefs.getString(_kSwipePlatformsKey);
+      if (platformsStr != null) {
+        _swipeSelectedPlatforms = (jsonDecode(platformsStr) as List)
+            .map((e) => e.toString())
+            .toList();
+      }
+    } catch (_) {
+      // Keep defaults if malformed.
+    }
   }
 
   /// ENHANCED: Fetches external ratings (IMDb, Rotten Tomatoes) for shows

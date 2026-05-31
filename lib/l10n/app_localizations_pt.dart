@@ -1306,6 +1306,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get moviesLikeThisLabel => 'Filmes similares';
 
   @override
+  String get showsLikeThisLabel => 'Séries similares';
+
+  @override
+  String get failedToLoadSimilarShows => 'Erro ao carregar séries similares';
+
+  @override
+  String get noSimilarShowsFound => 'Nenhuma série similar encontrada';
+
+  @override
   String get failedToLoadSimilarMovies => 'Erro ao carregar filmes similares';
 
   @override

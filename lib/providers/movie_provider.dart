@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie.dart';
 import '../models/mood.dart';
 import '../models/user.dart';
@@ -51,6 +53,8 @@ class MovieProvider with ChangeNotifier {
   final Map<int, String> _itemDominantStrategy = {};
   // Guards loadWeights so persisted adaptive weights load once per user/session.
   String? _weightsLoadedForUserId;
+  // Movie ids already enriched with OMDb ratings this session (bounded fetch).
+  final Set<int> _omdbEnrichedIds = {};
 
   List<Movie> _movies = [];
   List<Movie> _filteredMovies = [];
@@ -1395,6 +1399,10 @@ class MovieProvider with ChangeNotifier {
       swTotal.stop();
       _logPerf('loadPersonalizedRecommendations total', swTotal);
 
+      // Background: enrich the upcoming cards with OMDb ratings (bounded,
+      // session-cached, no-op without an OMDb key). Refines quality on re-score.
+      unawaited(enrichTopDeckWithExternalRatings());
+
       // Persist deck so next cold open can show cards instantly (skip on background preloads)
       if (!backgroundLoad && refresh) {
         unawaited(DiscoverMovieListCache.instance.save(
@@ -1589,19 +1597,36 @@ class MovieProvider with ChangeNotifier {
   }
 
   /// ENHANCED: Fetches external ratings (IMDb, Rotten Tomatoes) for movies
-  /// This is done in background to enhance movie quality scores
-  // ignore: unused_element
-  Future<void> _enhanceMoviesWithExternalRatings(List<Movie> movies) async {
-    // Load OMDb API key if not already loaded
-    await _omdbService.loadApiKey();
-    
-    // Process movies in batches to avoid overwhelming the API
-    for (final movie in movies) {
-      // Skip if we already have external ratings
+  /// Normalized 0-1 external-quality score from OMDb ratings if present on the
+  /// [movie], else null. Blends IMDb (0-10) and Rotten Tomatoes Tomatometer
+  /// (0-100); used as a small refinement of the quality term in scoring.
+  double? _externalQualityScore(Movie movie) {
+    final parts = <double>[];
+    if (movie.imdbRating != null) {
+      parts.add((movie.imdbRating! / 10.0).clamp(0.0, 1.0));
+    }
+    if (movie.rottenTomatoesTomatometer != null) {
+      parts.add((movie.rottenTomatoesTomatometer! / 100.0).clamp(0.0, 1.0));
+    }
+    if (parts.isEmpty) return null;
+    return parts.reduce((a, b) => a + b) / parts.length;
+  }
+
+  /// Enriches the **top slice** of the current deck with OMDb ratings, once per
+  /// movie per session, only when an OMDb key is configured. Bounded + cached so
+  /// it never batches the full candidate pool (OMDb free tier is ~1000/day).
+  /// Runs in the background after a load; updates [Movie] objects in place.
+  Future<void> enrichTopDeckWithExternalRatings({int limit = 25}) async {
+    if (!_omdbService.hasApiKey) return;
+
+    final slice = _movies.take(limit).toList();
+    for (final movie in slice) {
+      if (_omdbEnrichedIds.contains(movie.id)) continue;
+      _omdbEnrichedIds.add(movie.id);
       if (movie.imdbRating != null || movie.rottenTomatoesTomatometer != null) {
         continue;
       }
-      
+
       // Skip if no IMDb ID available (we need it to fetch from OMDb)
       if (movie.imdbId == null || movie.imdbId!.isEmpty) {
         // Try to fetch IMDb ID from TMDB
@@ -1905,7 +1930,14 @@ class MovieProvider with ChangeNotifier {
       } else if (movie.voteAverage != null) {
         qualityScore = (movie.voteAverage! / 10.0).clamp(0.0, 1.0);
       }
-      
+
+      // OMDb external ratings (IMDb / Rotten Tomatoes), when present from the
+      // session's background enrichment, refine the quality term (30% blend).
+      final externalQuality = _externalQualityScore(movie);
+      if (externalQuality != null) {
+        qualityScore = (qualityScore * 0.7) + (externalQuality * 0.3);
+      }
+
       // Note: Rotten Tomatoes and IMDb scores are not directly available from TMDB API
       // TMDB provides voteAverage which is their own user rating system (similar to IMDb)
       // To get actual IMDb/Rotten Tomatoes scores, we would need OMDb API integration
@@ -2236,18 +2268,21 @@ class MovieProvider with ChangeNotifier {
   void setSwipeMoods(List<Mood> moods) {
     _swipeMoods = moods;
     _applyFilters();
+    unawaited(_persistSwipeFilters());
   }
 
   /// Sets swipe screen genre filters
   void setSwipeGenres(List<int> genres) {
     _swipeSelectedGenres = genres;
     _applyFilters();
+    unawaited(_persistSwipeFilters());
   }
 
   /// Sets swipe screen platform filters
   void setSwipePlatforms(List<String> platforms) {
     _swipeSelectedPlatforms = platforms;
     _applyFilters();
+    unawaited(_persistSwipeFilters());
   }
 
   /// Clears all swipe screen filters
@@ -2256,6 +2291,62 @@ class MovieProvider with ChangeNotifier {
     _swipeSelectedGenres = [];
     _swipeSelectedPlatforms = [];
     _applyFilters();
+    unawaited(_persistSwipeFilters());
+  }
+
+  // ── Discover filter persistence (device-global; survives app restarts) ──────
+  static const _kSwipeMoodsKey = 'swipe_moods_movies';
+  static const _kSwipeGenresKey = 'swipe_genres_movies';
+  static const _kSwipePlatformsKey = 'swipe_platforms_movies';
+
+  Future<void> _persistSwipeFilters() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _kSwipeMoodsKey, jsonEncode(_swipeMoods.map((m) => m.id).toList()));
+      await prefs.setString(_kSwipeGenresKey, jsonEncode(_swipeSelectedGenres));
+      await prefs.setString(
+          _kSwipePlatformsKey, jsonEncode(_swipeSelectedPlatforms));
+    } catch (_) {
+      // Non-fatal: filters just won't persist this time.
+    }
+  }
+
+  @visibleForTesting
+  Future<void> persistSwipeFiltersForTest() => _persistSwipeFilters();
+
+  @visibleForTesting
+  double? externalQualityScoreForTest(Movie movie) =>
+      _externalQualityScore(movie);
+
+  /// Restores persisted Discover filters. Call before the first deck load so the
+  /// initial recommendations respect saved moods/genres/platforms.
+  Future<void> loadPersistedSwipeFilters() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final moodsStr = prefs.getString(_kSwipeMoodsKey);
+      if (moodsStr != null) {
+        _swipeMoods = (jsonDecode(moodsStr) as List)
+            .map((e) => Mood.getById(e.toString()))
+            .whereType<Mood>()
+            .toList();
+      }
+      final genresStr = prefs.getString(_kSwipeGenresKey);
+      if (genresStr != null) {
+        _swipeSelectedGenres = (jsonDecode(genresStr) as List)
+            .map((e) => e is int ? e : int.tryParse(e.toString()))
+            .whereType<int>()
+            .toList();
+      }
+      final platformsStr = prefs.getString(_kSwipePlatformsKey);
+      if (platformsStr != null) {
+        _swipeSelectedPlatforms = (jsonDecode(platformsStr) as List)
+            .map((e) => e.toString())
+            .toList();
+      }
+    } catch (_) {
+      // Keep defaults (no filters) if anything is malformed.
+    }
   }
 
   /// Immediately removes a movie from swipe/deck lists after interaction.

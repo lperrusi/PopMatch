@@ -4,15 +4,17 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:palette_generator/palette_generator.dart';
 import '../../models/movie.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
-import '../../widgets/video_player_widget.dart';
+import '../../widgets/detail/detail_videos_section.dart';
+import '../../widgets/detail/detail_cast_crew_section.dart';
+import '../../widgets/detail/detail_inline_streaming.dart';
+import '../../widgets/detail/detail_similar_section.dart';
+import '../../widgets/detail/detail_color_extraction.dart';
 import '../../providers/streaming_provider.dart';
 import '../../models/streaming_platform.dart';
-import '../../models/video.dart';
 import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
 import '../../services/tmdb_service.dart';
 import '../../services/movie_cache_service.dart';
@@ -38,13 +40,10 @@ class MovieDetailScreen extends StatefulWidget {
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
 }
 
-class _MovieDetailScreenState extends State<MovieDetailScreen> {
-  bool _isLightBackground = false;
-  bool _isLoadingColor = true;
+class _MovieDetailScreenState extends State<MovieDetailScreen>
+    with DetailColorExtractionMixin {
   Movie? _loadedMovie;
   bool _isSynopsisExpanded = false;
-  bool _isDisposed =
-      false; // Track if widget is disposed to prevent setState calls
   Timer? _movieDetailsTimer;
   Timer? _colorExtractionTimer;
 
@@ -67,7 +66,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Wait for multiple frames to ensure screen is fully rendered and interactive
       _movieDetailsTimer = Timer(const Duration(milliseconds: 600), () {
-        if (mounted && !_isDisposed && cachedMovie == null) {
+        if (mounted && !isDisposed && cachedMovie == null) {
           // Load additional movie details (cast/crew) in background
           // This will enhance the existing data, not block the screen
           _loadMovieDetails();
@@ -77,14 +76,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       // Color extraction - delay significantly to not block UI
       // This is non-critical and can happen much later
       _colorExtractionTimer = Timer(const Duration(milliseconds: 1500), () {
-        if (mounted && !_isDisposed) {
+        if (mounted && !isDisposed) {
           if (widget.movie.backdropUrl != null ||
               widget.movie.posterUrl != null) {
-            _extractColorFromImage();
+            extractColorFromImageUrl(
+                _displayMovie.backdropUrl ?? _displayMovie.posterUrl);
           } else {
             setState(() {
-              _isLoadingColor = false;
-              _isLightBackground = false;
+              isLoadingColor = false;
+              isLightBackground = false;
             });
           }
         }
@@ -107,9 +107,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       final loadedMovie = await cacheService.getMovieDetails(widget.movie.id);
 
       // Schedule setState on next frame to avoid blocking
-      if (mounted && !_isDisposed) {
+      if (mounted && !isDisposed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_isDisposed) {
+          if (mounted && !isDisposed) {
             setState(() {
               _loadedMovie = loadedMovie;
             });
@@ -133,7 +133,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     if (imdbId == null || imdbId.isEmpty) return;
     try {
       final ratings = await OMDbService.instance.getRatingsByImdbId(imdbId);
-      if (ratings == null || !mounted || _isDisposed) return;
+      if (ratings == null || !mounted || isDisposed) return;
       setState(() {
         _loadedMovie = (_loadedMovie ?? movie).copyWith(
           imdbRating: ratings.imdbRating ?? movie.imdbRating,
@@ -150,66 +150,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   /// Gets the movie to display (loaded movie with cast/crew, or fallback to original)
   Movie get _displayMovie => _loadedMovie ?? widget.movie;
 
-  /// Extracts dominant color from poster/backdrop image and determines if background is light
-  Future<void> _extractColorFromImage() async {
-    try {
-      final movie = _displayMovie;
-      final imageUrl = movie.backdropUrl ?? movie.posterUrl;
-      if (imageUrl == null) {
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-
-      final imageProvider = CachedNetworkImageProvider(imageUrl);
-      // Add timeout to prevent blocking for too long
-      PaletteGenerator paletteGenerator;
-      try {
-        paletteGenerator =
-            await PaletteGenerator.fromImageProvider(imageProvider)
-                .timeout(const Duration(seconds: 2));
-      } on TimeoutException {
-        // Use default color if timeout
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-
-      if (mounted && !_isDisposed) {
-        final dominantColor =
-            paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
-        final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
-        final isLight = brightness == Brightness.light;
-
-        setState(() {
-          _isLightBackground = isLight;
-          _isLoadingColor = false;
-        });
-      }
-    } catch (e) {
-      if (mounted && !_isDisposed) {
-        setState(() {
-          _isLightBackground = false;
-          _isLoadingColor = false;
-        });
-      }
-    }
-  }
-
-  /// Gets the appropriate text color based on background brightness
-  Color get _textColor {
-    if (_isLoadingColor) return AppTheme.warmCream;
-    return _isLightBackground ? AppTheme.filmStripBlack : AppTheme.warmCream;
-  }
-
   String _formatRuntime(int minutes) {
     final h = minutes ~/ 60;
     final m = minutes % 60;
@@ -218,13 +158,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     return '${h}h ${m}m';
   }
 
-  /// Gets the appropriate overlay color for better text readability
-  Color get _overlayColor {
-    if (_isLightBackground) {
-      return Colors.white.withValues(alpha: 0.85);
-    }
-    return AppTheme.filmStripBlack.withValues(alpha: 0.75);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +166,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           // Mark as disposed immediately to stop all async operations
-          _isDisposed = true;
+          isDisposed = true;
           // Cancel any timers
           _movieDetailsTimer?.cancel();
           _colorExtractionTimer?.cancel();
@@ -306,7 +239,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              _overlayColor,
+                              overlayColor,
                             ],
                           ),
                         ),
@@ -329,7 +262,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               _displayMovie.title,
                               style: GoogleFonts.bebasNeue(
                                 fontSize: 36,
-                                color: _textColor,
+                                color: textColor,
                                 letterSpacing: 1.5,
                                 height: 1.1,
                               ),
@@ -354,7 +287,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                       color: AppTheme.brickRed,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: _textColor.withValues(alpha: 30),
+                                        color: textColor.withValues(alpha: 30),
                                         width: 1,
                                       ),
                                     ),
@@ -373,7 +306,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                   Text(
                                     _formatRuntime(_displayMovie.runtime!),
                                     style: GoogleFonts.lato(
-                                      color: _textColor.withValues(alpha: 0.85),
+                                      color: textColor.withValues(alpha: 0.85),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -390,7 +323,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                     Text(
                                       _displayMovie.formattedRating,
                                       style: GoogleFonts.lato(
-                                        color: _textColor,
+                                        color: textColor,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -400,7 +333,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                       Text(
                                         '(${_displayMovie.voteCount})',
                                         style: GoogleFonts.lato(
-                                          color: _textColor.withValues(alpha: 0.6),
+                                          color: textColor.withValues(alpha: 0.6),
                                           fontSize: 12,
                                         ),
                                       ),
@@ -420,7 +353,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                   Text(
                                     '🍅 ${_displayMovie.rottenTomatoesTomatometer}%',
                                     style: GoogleFonts.lato(
-                                      color: _textColor,
+                                      color: textColor,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -449,7 +382,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                           isInWatchlist
                                               ? Icons.bookmark
                                               : Icons.bookmark_border,
-                                          color: _textColor,
+                                          color: textColor,
                                           size: 24,
                                         ),
                                       ),
@@ -503,7 +436,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                     return IconButton(
                                       icon: Icon(
                                         isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                                        color: isLiked ? AppTheme.vintagePaper : _textColor,
+                                        color: isLiked ? AppTheme.vintagePaper : textColor,
                                         size: 24,
                                       ),
                                       onPressed: () async {
@@ -550,7 +483,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                     return IconButton(
                                       icon: Icon(
                                         isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
-                                        color: isDisliked ? AppTheme.vintagePaper : _textColor.withValues(alpha: 0.8),
+                                        color: isDisliked ? AppTheme.vintagePaper : textColor.withValues(alpha: 0.8),
                                         size: 24,
                                       ),
                                       onPressed: () async {
@@ -593,7 +526,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 IconButton(
                                   icon: Icon(
                                     Icons.share_rounded,
-                                    color: _textColor,
+                                    color: textColor,
                                     size: 24,
                                   ),
                                   onPressed: () => _shareMovie(context),
@@ -602,8 +535,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             ),
                             const SizedBox(height: 16),
                             // Where to Watch section inline with horizontal scroll
-                            _InlineStreamingAvailability(
-                                movie: _displayMovie, textColor: _textColor),
+                            DetailInlineStreamingAvailability(
+                                itemId: _displayMovie.id,
+                                title: _displayMovie.title,
+                                isShow: false,
+                                textColor: textColor),
                           ],
                         ),
                       ),
@@ -618,7 +554,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   child: InkWell(
                     onTap: () {
                       // Cancel all ongoing operations immediately
-                      _isDisposed = true;
+                      isDisposed = true;
                       _movieDetailsTimer?.cancel();
                       _colorExtractionTimer?.cancel();
 
@@ -763,7 +699,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
             // Videos Section (between Synopsis and Cast & Crew)
             SliverToBoxAdapter(
-              child: _VideosSection(movie: _displayMovie),
+              child: DetailVideosSection(
+                initialVideos: _displayMovie.videos,
+                fetchVideos: () => TMDBService().getMovieVideos(_displayMovie.id),
+              ),
             ),
 
             // Director and Actors section
@@ -771,7 +710,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: _DirectorActorsSection(movie: _displayMovie),
+                  child: DetailCastCrewSection(
+                    crew: _displayMovie.crew
+                            ?.where((m) =>
+                                m.job?.toLowerCase() == 'director')
+                            .toList() ??
+                        const [],
+                    cast: _displayMovie.cast ?? const [],
+                  ),
                 ),
               ),
 
@@ -800,7 +746,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   /// Handles navigation tap from bottom navigation
   void _handleNavigationTap(int index) {
     // Cancel all ongoing operations immediately
-    _isDisposed = true;
+    isDisposed = true;
     _movieDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
 
@@ -814,7 +760,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   @override
   void dispose() {
-    _isDisposed = true;
+    isDisposed = true;
     // Cancel any ongoing timers to prevent operations after disposal
     _movieDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
@@ -842,676 +788,84 @@ Check out this movie on PopMatch!
 
 // Keep existing section widgets but update their styling
 // Similar Movies Section
-class _SimilarMoviesSection extends StatefulWidget {
+class _SimilarMoviesSection extends StatelessWidget {
   final Movie movie;
 
   const _SimilarMoviesSection({required this.movie});
 
-  @override
-  State<_SimilarMoviesSection> createState() => _SimilarMoviesSectionState();
-}
+  Future<List<DetailSimilarItem>> _loadItems(BuildContext context) async {
+    final tmdbService = TMDBService();
+    final embeddingService = MovieEmbeddingService();
 
-class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
-  List<Movie> _similarMovies = [];
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    // Defer similar movies loading until after screen renders
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _loadSimilarMovies();
-      }
-    });
-  }
-
-  Future<void> _loadSimilarMovies() async {
+    List<Movie> similarMovies = [];
+    List<Movie> recommendedMovies = [];
     try {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      final tmdbService = TMDBService();
-      final embeddingService = MovieEmbeddingService();
-
-      // Get similar movies from TMDB API
-      List<Movie> similarMovies = [];
-      List<Movie> recommendedMovies = [];
-
-      try {
-        similarMovies = await tmdbService.getSimilarMovies(widget.movie.id);
-        debugPrint(
-            'Loaded ${similarMovies.length} similar movies for movie ${widget.movie.id}');
-      } catch (e) {
-        debugPrint('Error loading similar movies: $e');
-        similarMovies = [];
-      }
-
-      try {
-        recommendedMovies =
-            await tmdbService.getMovieRecommendations(widget.movie.id);
-        debugPrint(
-            'Loaded ${recommendedMovies.length} recommended movies for movie ${widget.movie.id}');
-      } catch (e) {
-        debugPrint('Error loading recommended movies: $e');
-        recommendedMovies = [];
-      }
-
-      // Combine both lists
-      final allMovies = <Movie>[];
-      final seenIds = <int>{};
-
-      // Add similar movies first (they're more directly related)
-      for (final movie in similarMovies) {
-        if (!seenIds.contains(movie.id) && movie.id != widget.movie.id) {
-          allMovies.add(movie);
-          seenIds.add(movie.id);
-        }
-      }
-
-      // Add recommended movies (TMDB's algorithm-based recommendations)
-      for (final movie in recommendedMovies) {
-        if (!seenIds.contains(movie.id) && movie.id != widget.movie.id) {
-          allMovies.add(movie);
-          seenIds.add(movie.id);
-        }
-      }
-
-      debugPrint('Total combined movies before ranking: ${allMovies.length}');
-
-      // If we have movies, use embedding-based similarity to rank them
-      if (allMovies.isNotEmpty) {
-        // Use embedding service to find most similar movies
-        final rankedMovies = embeddingService.findSimilarMovies(
-          widget.movie,
-          allMovies,
-          limit: 6, // Show top 6 most similar for better accuracy
-        );
-
-        debugPrint('Ranked movies count: ${rankedMovies.length}');
-
-        if (!mounted) return;
-
-        setState(() {
-          _similarMovies = rankedMovies;
-          _isLoading = false;
-        });
-      } else {
-        // Fallback: try to get movies from same genres
-        if (widget.movie.genreIds != null &&
-            widget.movie.genreIds!.isNotEmpty) {
-          final genreMovies = await tmdbService.getMoviesByGenre(
-            widget.movie.genreIds!.first,
-            page: 1,
-          );
-
-          // Filter out the current movie and limit to 6
-          final filtered = genreMovies
-              .where((m) => m.id != widget.movie.id)
-              .take(6)
-              .toList();
-
-          if (!mounted) return;
-
-          setState(() {
-            _similarMovies = filtered;
-            _isLoading = false;
-          });
-        } else {
-          if (!mounted) return;
-
-          setState(() {
-            _similarMovies = [];
-            _isLoading = false;
-          });
-        }
-      }
+      similarMovies = await tmdbService.getSimilarMovies(movie.id);
     } catch (e) {
-      if (!mounted) return;
-
       debugPrint('Error loading similar movies: $e');
-      setState(() {
-        // Prefer empty-state UI over hard error card for transient data issues.
-        _error = null;
-        _similarMovies = [];
-        _isLoading = false;
-      });
     }
+    try {
+      recommendedMovies = await tmdbService.getMovieRecommendations(movie.id);
+    } catch (e) {
+      debugPrint('Error loading recommended movies: $e');
+    }
+
+    // Combine (similar first), de-dupe, exclude the current movie.
+    final allMovies = <Movie>[];
+    final seenIds = <int>{};
+    for (final m in [...similarMovies, ...recommendedMovies]) {
+      if (m.id != movie.id && seenIds.add(m.id)) {
+        allMovies.add(m);
+      }
+    }
+
+    List<Movie> ranked;
+    if (allMovies.isNotEmpty) {
+      // Embedding-based ranking for the most relevant 6.
+      ranked = embeddingService.findSimilarMovies(movie, allMovies, limit: 6);
+    } else if (movie.genreIds != null && movie.genreIds!.isNotEmpty) {
+      // Fallback: same-genre titles.
+      final genreMovies =
+          await tmdbService.getMoviesByGenre(movie.genreIds!.first, page: 1);
+      ranked = genreMovies.where((m) => m.id != movie.id).take(6).toList();
+    } else {
+      ranked = const [];
+    }
+
+    return ranked
+        .map((m) => DetailSimilarItem(
+              posterUrl: m.posterUrl,
+              title: m.title,
+              year: m.year,
+              rating: m.voteAverage != null ? m.formattedRating : null,
+              onTap: () async {
+                MovieCacheService.instance.preloadMovieDetails(m.id);
+                await Future.delayed(const Duration(milliseconds: 50));
+                if (context.mounted) {
+                  Navigator.of(context).push(
+                    NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: m)),
+                  );
+                }
+              },
+            ))
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            context.l10n.moviesLikeThisLabel,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 28,
-              color: AppTheme.filmStripBlack,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 20),
-          if (_isLoading)
-            const Center(
-              child: SizedBox.shrink(),
-            )
-          else if (_error != null)
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.error_outline_rounded,
-                    color: AppTheme.brickRed,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    context.l10n.failedToLoadSimilarMovies,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 70),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadSimilarMovies,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.brickRed,
-                      foregroundColor: AppTheme.warmCream,
-                    ),
-                    child: Text(context.l10n.retryButton),
-                  ),
-                ],
-              ),
-            )
-          else if (_similarMovies.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.movie_outlined,
-                    color: AppTheme.filmStripBlack.withValues(alpha: 30),
-                    size: 48,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    context.l10n.noSimilarMoviesFound,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 60),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            SizedBox(
-              height: 220,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _similarMovies.length,
-                itemBuilder: (context, index) {
-                  return _RetroSimilarMovieCard(movie: _similarMovies[index]);
-                },
-              ),
-            ),
-        ],
-      ),
+    return DetailSimilarSection(
+      title: context.l10n.moviesLikeThisLabel,
+      errorLabel: context.l10n.failedToLoadSimilarMovies,
+      emptyLabel: context.l10n.noSimilarMoviesFound,
+      loadItems: () => _loadItems(context),
     );
   }
 }
 
-/// Retro Cinema styled similar movie card
-class _RetroSimilarMovieCard extends StatelessWidget {
-  final Movie movie;
-
-  const _RetroSimilarMovieCard({required this.movie});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        // Preload movie details in background before navigation
-        MovieCacheService.instance.preloadMovieDetails(movie.id);
-
-        // Small delay to allow preload to start
-        await Future.delayed(const Duration(milliseconds: 50));
-
-        if (context.mounted) {
-          Navigator.of(context).push(
-            NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
-          );
-        }
-      },
-      child: Container(
-        width: 130,
-        margin: const EdgeInsets.only(right: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: movie.posterUrl ?? '',
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppTheme.vintagePaper,
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppTheme.vintagePaper,
-                      child: Icon(
-                        Icons.movie_outlined,
-                        color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              movie.title,
-              style: GoogleFonts.lato(
-                color: AppTheme.filmStripBlack,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                if (movie.year != null) ...[
-                  Text(
-                    movie.year!,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 60),
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                if (movie.voteAverage != null) ...[
-                  Icon(
-                    Icons.star_rounded,
-                    color: AppTheme.brickRed,
-                    size: 12,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    movie.formattedRating,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 80),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // Import and keep existing section widgets - they will be updated separately
 // For now, we'll keep the existing implementations but they should be styled later
 // Videos Section
-class _VideosSection extends StatefulWidget {
-  final Movie movie;
-
-  const _VideosSection({required this.movie});
-
-  @override
-  State<_VideosSection> createState() => _VideosSectionState();
-}
-
-class _VideosSectionState extends State<_VideosSection> {
-  List<Video> _videos = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    // First check if videos are already in the movie object (from cached data)
-    if (widget.movie.videos != null && widget.movie.videos!.isNotEmpty) {
-      // Use videos from movie object - no API call needed!
-      _videos = widget.movie.videos!;
-      _isLoading = false;
-    } else {
-      // Defer video loading until after screen renders
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _loadVideos();
-        }
-      });
-    }
-  }
-
-  Future<void> _loadVideos() async {
-    try {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = true;
-      });
-
-      final tmdbService = TMDBService();
-      final videos = await tmdbService.getMovieVideos(widget.movie.id);
-
-      if (!mounted) return;
-
-      setState(() {
-        _videos = videos; // Already List<Video>, no need to convert
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading || _videos.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            context.l10n.trailersVideosLabel,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 28,
-              color: AppTheme.filmStripBlack,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _videos.length,
-              itemBuilder: (context, index) {
-                return _RetroVideoCard(video: _videos[index]);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RetroVideoCard extends StatelessWidget {
-  final Video video;
-
-  const _RetroVideoCard({required this.video});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 300,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.cinemaRed,
-          width: 1.5,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: VideoPlayerWidget(video: video),
-      ),
-    );
-  }
-}
-
-// Director and Actors Section (horizontal scrollable with overlay text)
-class _DirectorActorsSection extends StatelessWidget {
-  final Movie movie;
-
-  const _DirectorActorsSection({required this.movie});
-
-  @override
-  Widget build(BuildContext context) {
-    // Get director from crew
-    final directors = movie.crew
-            ?.where((member) => member.job?.toLowerCase() == 'director')
-            .toList() ??
-        [];
-
-    // Get top 10 actors from cast
-    final topActors = movie.cast?.take(10).toList() ?? [];
-
-    // Combine director and actors, with director first
-    final List<dynamic> allPeople = [];
-
-    // Add directors first
-    for (var director in directors) {
-      allPeople.add({
-        'type': 'director',
-        'person': director,
-      });
-    }
-
-    // Add actors
-    for (var actor in topActors) {
-      allPeople.add({
-        'type': 'actor',
-        'person': actor,
-      });
-    }
-
-    if (allPeople.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          context.l10n.castCrewLabel,
-          style: GoogleFonts.bebasNeue(
-            fontSize: 24,
-            color: AppTheme.filmStripBlack,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 200, // Fixed height for horizontal scroll
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: allPeople.length,
-            itemBuilder: (context, index) {
-              final item = allPeople[index];
-              final isDirector = item['type'] == 'director';
-              final person = item['person'];
-
-              String? profileUrl;
-              String name;
-              String? info;
-
-              if (isDirector) {
-                final director = person as CrewMember;
-                profileUrl = director.profileUrl;
-                name = director.name;
-                info = director.job;
-              } else {
-                final actor = person as CastMember;
-                profileUrl = actor.profileUrl;
-                name = actor.name;
-                info =
-                    actor.character != null ? 'as ${actor.character!}' : null;
-              }
-
-              return _CastCrewCard(
-                profileUrl: profileUrl,
-                name: name,
-                info: info,
-                isDirector: isDirector,
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Individual cast/crew card with overlay text
-class _CastCrewCard extends StatelessWidget {
-  final String? profileUrl;
-  final String name;
-  final String? info;
-  final bool isDirector;
-
-  const _CastCrewCard({
-    required this.profileUrl,
-    required this.name,
-    this.info,
-    required this.isDirector,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Profile image
-            profileUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: profileUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.brickRed,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                      child: Icon(
-                        Icons.person,
-                        color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                        size: 48,
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                    child: Icon(
-                      Icons.person,
-                      color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                      size: 48,
-                    ),
-                  ),
-
-            // Gradient overlay at bottom for text readability
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 80,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      AppTheme.filmStripBlack.withValues(alpha: 0.85),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Name and info overlay at bottom
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.lato(
-                        color: AppTheme.warmCream,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (info != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        info!,
-                        style: GoogleFonts.lato(
-                          color: AppTheme.warmCream.withValues(alpha: 85),
-                          fontSize: 11,
-                          fontStyle:
-                              isDirector ? FontStyle.normal : FontStyle.italic,
-                          letterSpacing: 0.1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // Streaming Availability Section
 class _StreamingAvailabilitySection extends StatefulWidget {
   final Movie movie;
@@ -1826,139 +1180,3 @@ class _StreamingAvailabilitySectionState
   }
 }
 
-/// Inline streaming availability widget for movie overlay
-class _InlineStreamingAvailability extends StatefulWidget {
-  final Movie movie;
-  final Color textColor;
-
-  const _InlineStreamingAvailability({
-    required this.movie,
-    this.textColor = AppTheme.warmCream,
-  });
-
-  @override
-  State<_InlineStreamingAvailability> createState() =>
-      _InlineStreamingAvailabilityState();
-}
-
-class _InlineStreamingAvailabilityState
-    extends State<_InlineStreamingAvailability> {
-  MovieStreamingAvailability? _availability;
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStreamingAvailability();
-  }
-
-  Future<void> _loadStreamingAvailability() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      final streamingProvider =
-          Provider.of<StreamingProvider>(context, listen: false);
-      final availability =
-          await streamingProvider.getStreamingAvailability(widget.movie.id);
-
-      if (mounted) {
-        setState(() {
-          _availability = availability;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const SizedBox.shrink();
-    }
-
-    if (_error != null ||
-        _availability == null ||
-        _availability!.availablePlatforms.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final platforms = _availability!.platforms.toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.tv_rounded,
-              color: widget.textColor.withValues(alpha: 80),
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.whereToWatchLabel,
-              style: GoogleFonts.lato(
-                color: widget.textColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 32,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: platforms.length,
-            itemBuilder: (context, index) {
-              final platform = platforms[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => launchStreamingSearch(
-                    context: context,
-                    platform: platform,
-                    title: widget.movie.title,
-                  ),
-                  child: Tooltip(
-                    message: 'Open on ${platform.name}',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.sepiaBrown,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          platform.name,
-                          style: GoogleFonts.lato(
-                            color: widget.textColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}

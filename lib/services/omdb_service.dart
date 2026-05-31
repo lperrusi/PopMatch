@@ -121,6 +121,10 @@ class OMDbService {
     final prefs = await SharedPreferences.getInstance();
     _apiKey = prefs.getString('omdb_api_key');
   }
+
+  /// True when an OMDb API key is configured in memory (call [loadApiKey] first
+  /// if it may only be in storage).
+  bool get hasApiKey => _apiKey != null && _apiKey!.isNotEmpty;
   
   /// Fetches external ratings for a movie/show by IMDb ID
   /// Returns null if API key is not set or if ratings are not available

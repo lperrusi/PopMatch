@@ -4,22 +4,22 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../models/tv_show.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
-import '../../widgets/video_player_widget.dart';
-import '../../providers/streaming_provider.dart';
-import '../../models/streaming_platform.dart';
-import '../../models/video.dart';
+import '../../widgets/detail/detail_videos_section.dart';
+import '../../widgets/detail/detail_cast_crew_section.dart';
+import '../../widgets/detail/detail_inline_streaming.dart';
+import '../../widgets/detail/detail_similar_section.dart';
+import '../../widgets/detail/detail_color_extraction.dart';
 import '../../models/movie.dart'; // For CastMember, CrewMember
-import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
+import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
 import '../../widgets/transparent_button_image.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/l10n_extension.dart';
-import '../../utils/streaming_url_launcher.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
 
 /// Retro Cinema styled TV show detail screen
@@ -35,12 +35,11 @@ class ShowDetailScreen extends StatefulWidget {
   State<ShowDetailScreen> createState() => _ShowDetailScreenState();
 }
 
-class _ShowDetailScreenState extends State<ShowDetailScreen> {
-  bool _isLightBackground = false;
-  bool _isLoadingColor = true;
+class _ShowDetailScreenState extends State<ShowDetailScreen>
+    with DetailColorExtractionMixin {
   TvShow? _loadedShow;
   bool _isSynopsisExpanded = false;
-  bool _isDisposed = false;
+  bool _detailsLoading = true;
   Timer? _showDetailsTimer;
   Timer? _colorExtractionTimer;
 
@@ -53,22 +52,25 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
     // Defer ALL heavy operations until after the screen fully renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Wait for multiple frames to ensure screen is fully rendered and interactive
-      _showDetailsTimer = Timer(const Duration(milliseconds: 600), () {
-        if (mounted && !_isDisposed) {
-          // Load additional show details (cast/crew) in background
+      // Load eagerly (no artificial delay) so the seasons/episodes counts —
+      // which only come from getShowDetails — arrive with the rest of the header
+      // instead of popping in late. Still cancellable on quick back-navigation.
+      _showDetailsTimer = Timer(Duration.zero, () {
+        if (mounted && !isDisposed) {
           _loadShowDetails();
         }
       });
       
       // Color extraction - delay significantly to not block UI
       _colorExtractionTimer = Timer(const Duration(milliseconds: 1500), () {
-        if (mounted && !_isDisposed) {
+        if (mounted && !isDisposed) {
           if (widget.show.backdropUrl != null || widget.show.posterUrl != null) {
-            _extractColorFromImage();
+            extractColorFromImageUrl(
+                _displayShow.backdropUrl ?? _displayShow.posterUrl);
           } else {
             setState(() {
-              _isLoadingColor = false;
-              _isLightBackground = false;
+              isLoadingColor = false;
+              isLightBackground = false;
             });
           }
         }
@@ -79,12 +81,13 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
   /// Loads full show details including cast and crew
   Future<void> _loadShowDetails() async {
     // Only load if we don't already have full details with cast/crew
-    if (_loadedShow != null && 
-        _loadedShow!.cast != null && 
+    if (_loadedShow != null &&
+        _loadedShow!.cast != null &&
         _loadedShow!.cast!.isNotEmpty) {
+      if (mounted && !isDisposed) setState(() => _detailsLoading = false);
       return; // Already have full details
     }
-    
+
     try {
       final tmdbService = TMDBService();
       
@@ -107,85 +110,92 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
       );
       
       // Schedule setState on next frame to avoid blocking
-      if (mounted && !_isDisposed) {
+      if (mounted && !isDisposed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_isDisposed) {
+          if (mounted && !isDisposed) {
             setState(() {
               _loadedShow = loadedShow;
+              _detailsLoading = false;
             });
           }
         });
       }
     } catch (e) {
       debugPrint('Error loading show details: $e');
+      if (mounted && !isDisposed) setState(() => _detailsLoading = false);
     }
   }
 
   /// Gets the show to display (loaded show with cast/crew, or fallback to original)
   TvShow get _displayShow => _loadedShow ?? widget.show;
 
-  /// Extracts dominant color from poster/backdrop image
-  Future<void> _extractColorFromImage() async {
+  /// Shimmer placeholder for the seasons/episodes counts while show details load,
+  /// so the header reserves the slot instead of growing when the counts arrive.
+  Widget _buildSeasonsEpisodesPlaceholder() {
+    Widget bar(double width) => Container(
+          width: width,
+          height: 13,
+          decoration: BoxDecoration(
+            color: textColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    return Shimmer.fromColors(
+      baseColor: textColor.withValues(alpha: 0.20),
+      highlightColor: textColor.withValues(alpha: 0.45),
+      child: Row(
+        children: [
+          bar(84),
+          const SizedBox(width: 16),
+          bar(96),
+        ],
+      ),
+    );
+  }
+
+
+  /// Loads "Shows Like This": merges TMDB similar + recommended shows, de-dupes
+  /// (excluding the current show), and maps the top 6 to [DetailSimilarItem]s.
+  Future<List<DetailSimilarItem>> _loadSimilarShowItems(
+      BuildContext context) async {
+    final tmdb = TMDBService();
+    List<TvShow> similar = [];
+    List<TvShow> recommended = [];
     try {
-      final show = _displayShow;
-      final imageUrl = show.backdropUrl ?? show.posterUrl;
-      if (imageUrl == null) {
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-
-      final imageProvider = CachedNetworkImageProvider(imageUrl);
-      PaletteGenerator paletteGenerator;
-      try {
-        paletteGenerator = await PaletteGenerator.fromImageProvider(imageProvider)
-            .timeout(const Duration(seconds: 2));
-      } on TimeoutException {
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-      
-      if (mounted && !_isDisposed) {
-        final dominantColor = paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
-        final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
-        final isLight = brightness == Brightness.light;
-        
-        setState(() {
-          _isLightBackground = isLight;
-          _isLoadingColor = false;
-        });
-      }
+      similar = await tmdb.getSimilarShows(_displayShow.id);
     } catch (e) {
-      if (mounted && !_isDisposed) {
-        setState(() {
-          _isLightBackground = false;
-          _isLoadingColor = false;
-        });
+      debugPrint('Error loading similar shows: $e');
+    }
+    try {
+      recommended = await tmdb.getShowRecommendations(_displayShow.id);
+    } catch (e) {
+      debugPrint('Error loading recommended shows: $e');
+    }
+
+    final all = <TvShow>[];
+    final seen = <int>{};
+    for (final s in [...similar, ...recommended]) {
+      if (s.id != _displayShow.id && seen.add(s.id)) {
+        all.add(s);
       }
     }
-  }
 
-  /// Gets the appropriate text color based on background brightness
-  Color get _textColor {
-    if (_isLoadingColor) return AppTheme.warmCream;
-    return _isLightBackground ? AppTheme.filmStripBlack : AppTheme.warmCream;
-  }
-
-  /// Gets the appropriate overlay color for better text readability
-  Color get _overlayColor {
-    if (_isLightBackground) {
-      return Colors.white.withValues(alpha: 0.85);
-    }
-    return AppTheme.filmStripBlack.withValues(alpha: 0.75);
+    return all
+        .take(6)
+        .map((s) => DetailSimilarItem(
+              posterUrl: s.posterUrl,
+              title: s.name,
+              year: s.year,
+              rating: s.voteAverage != null ? s.formattedRating : null,
+              onTap: () {
+                if (context.mounted) {
+                  Navigator.of(context).push(
+                    NavigationUtils.fastSlideRoute(ShowDetailScreen(show: s)),
+                  );
+                }
+              },
+            ))
+        .toList();
   }
 
   @override
@@ -194,7 +204,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
-          _isDisposed = true;
+          isDisposed = true;
           _showDetailsTimer?.cancel();
           _colorExtractionTimer?.cancel();
         }
@@ -277,7 +287,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            _overlayColor,
+                            overlayColor,
                           ],
                         ),
                       ),
@@ -300,7 +310,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                             _displayShow.name,
                             style: GoogleFonts.bebasNeue(
                               fontSize: 36,
-                              color: _textColor,
+                              color: textColor,
                               letterSpacing: 1.5,
                               height: 1.1,
                             ),
@@ -322,7 +332,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                     color: AppTheme.brickRed,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: _textColor.withValues(alpha: 30),
+                                      color: textColor.withValues(alpha: 30),
                                       width: 1,
                                     ),
                                   ),
@@ -347,7 +357,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                               Text(
                                 _displayShow.formattedRating,
                                 style: GoogleFonts.lato(
-                                  color: _textColor,
+                                  color: textColor,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -357,7 +367,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                 Text(
                                   '(${_displayShow.voteCount} votes)',
                                   style: GoogleFonts.lato(
-                                    color: _textColor.withValues(alpha: 70),
+                                    color: textColor.withValues(alpha: 70),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -371,14 +381,14 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                 if (_displayShow.numberOfSeasons != null) ...[
                                   Icon(
                                     Icons.layers_rounded,
-                                    color: _textColor.withValues(alpha: 80),
+                                    color: textColor.withValues(alpha: 80),
                                     size: 16,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     '${_displayShow.numberOfSeasons} ${_displayShow.numberOfSeasons == 1 ? 'Season' : 'Seasons'}',
                                     style: GoogleFonts.lato(
-                                      color: _textColor.withValues(alpha: 80),
+                                      color: textColor.withValues(alpha: 80),
                                       fontSize: 13,
                                     ),
                                   ),
@@ -389,20 +399,25 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                 if (_displayShow.numberOfEpisodes != null) ...[
                                   Icon(
                                     Icons.play_circle_outline_rounded,
-                                    color: _textColor.withValues(alpha: 80),
+                                    color: textColor.withValues(alpha: 80),
                                     size: 16,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     context.l10n.episodesLabel(_displayShow.numberOfEpisodes!),
                                     style: GoogleFonts.lato(
-                                      color: _textColor.withValues(alpha: 80),
+                                      color: textColor.withValues(alpha: 80),
                                       fontSize: 13,
                                     ),
                                   ),
                                 ],
                               ],
                             ),
+                          ] else if (_detailsLoading) ...[
+                            // Reserve the seasons/episodes slot while details load
+                            // so the row fills in instead of popping in late.
+                            const SizedBox(height: 8),
+                            _buildSeasonsEpisodesPlaceholder(),
                           ],
                           const SizedBox(height: 16),
 
@@ -421,7 +436,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                       fit: BoxFit.contain,
                                       errorWidget: Icon(
                                         isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
-                                        color: _textColor,
+                                        color: textColor,
                                         size: 24,
                                       ),
                                     ),
@@ -464,7 +479,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                   return IconButton(
                                     icon: Icon(
                                       isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                                      color: isLiked ? AppTheme.vintagePaper : _textColor,
+                                      color: isLiked ? AppTheme.vintagePaper : textColor,
                                       size: 24,
                                     ),
                                     onPressed: () async {
@@ -508,7 +523,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                   return IconButton(
                                     icon: Icon(
                                       isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
-                                      color: isDisliked ? AppTheme.vintagePaper : _textColor.withValues(alpha: 0.8),
+                                      color: isDisliked ? AppTheme.vintagePaper : textColor.withValues(alpha: 0.8),
                                       size: 24,
                                     ),
                                     onPressed: () async {
@@ -548,7 +563,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                               IconButton(
                                 icon: Icon(
                                   Icons.share_rounded,
-                                  color: _textColor,
+                                  color: textColor,
                                   size: 24,
                                 ),
                 onPressed: () => _shareShow(context),
@@ -557,7 +572,11 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
           ),
                           const SizedBox(height: 16),
                           // Where to Watch section inline
-                          _InlineStreamingAvailability(show: _displayShow, textColor: _textColor),
+                          DetailInlineStreamingAvailability(
+                              itemId: _displayShow.id,
+                              title: _displayShow.name,
+                              isShow: true,
+                              textColor: textColor),
                         ],
                       ),
                     ),
@@ -571,7 +590,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
-                    _isDisposed = true;
+                    isDisposed = true;
                     _showDetailsTimer?.cancel();
                     _colorExtractionTimer?.cancel();
                     Navigator.of(context).pop();
@@ -679,15 +698,36 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(
-                    child: _VideosSection(show: _displayShow),
+                    child: DetailVideosSection(
+                      initialVideos: _displayShow.videos,
+                      fetchVideos: () =>
+                          TMDBService().getShowVideos(_displayShow.id),
+                    ),
                   ),
                   if (_displayShow.crew != null || _displayShow.cast != null)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _CastCrewSection(show: _displayShow),
+                        child: DetailCastCrewSection(
+                          crew: _displayShow.crew
+                                  ?.where((m) =>
+                                      m.job?.toLowerCase() == 'creator' ||
+                                      m.job?.toLowerCase() ==
+                                          'executive producer')
+                                  .toList() ??
+                              const [],
+                          cast: _displayShow.cast ?? const [],
+                        ),
                       ),
                     ),
+                  SliverToBoxAdapter(
+                    child: DetailSimilarSection(
+                      title: context.l10n.showsLikeThisLabel,
+                      errorLabel: context.l10n.failedToLoadSimilarShows,
+                      emptyLabel: context.l10n.noSimilarShowsFound,
+                      loadItems: () => _loadSimilarShowItems(context),
+                    ),
+                  ),
                 ],
               ),
               _SeasonsEpisodesTab(show: _displayShow),
@@ -710,7 +750,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
   }
 
   void _handleNavigationTap(int index) {
-    _isDisposed = true;
+    isDisposed = true;
     _showDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
     Navigator.of(context).pop();
@@ -719,7 +759,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
 
   @override
   void dispose() {
-    _isDisposed = true;
+    isDisposed = true;
     _showDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
     super.dispose();
@@ -1081,463 +1121,3 @@ class _EpisodeDetailDialog extends StatelessWidget {
   }
 }
 
-// Videos Section
-class _VideosSection extends StatefulWidget {
-  final TvShow show;
-
-  const _VideosSection({required this.show});
-
-  @override
-  State<_VideosSection> createState() => _VideosSectionState();
-}
-
-class _VideosSectionState extends State<_VideosSection> {
-  List<Video> _videos = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.show.videos != null && widget.show.videos!.isNotEmpty) {
-      _videos = widget.show.videos!;
-      _isLoading = false;
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-    _loadVideos();
-        }
-      });
-    }
-  }
-
-  Future<void> _loadVideos() async {
-    try {
-      if (!mounted) return;
-      
-      setState(() {
-        _isLoading = true;
-      });
-
-      final tmdbService = TMDBService();
-      final videos = await tmdbService.getShowVideos(widget.show.id);
-
-      if (!mounted) return;
-
-      setState(() {
-        _videos = videos;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading || _videos.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-              Text(
-            context.l10n.trailersVideosLabel,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 28,
-              color: AppTheme.filmStripBlack,
-              letterSpacing: 1,
-            ),
-                    ),
-          const SizedBox(height: 20),
-                SizedBox(
-            height: 200,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _videos.length,
-                    itemBuilder: (context, index) {
-                return _RetroVideoCard(video: _videos[index]);
-                    },
-                  ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RetroVideoCard extends StatelessWidget {
-  final Video video;
-
-  const _RetroVideoCard({required this.video});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 300,
-      margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.cinemaRed,
-          width: 1.5,
-            ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-        child: VideoPlayerWidget(video: video),
-      ),
-    );
-  }
-}
-
-// Cast & Crew Section
-class _CastCrewSection extends StatelessWidget {
-  final TvShow show;
-
-  const _CastCrewSection({required this.show});
-
-  @override
-  Widget build(BuildContext context) {
-    // Get creators from crew (TV shows have creators instead of directors)
-    final creators = show.crew
-            ?.where((member) => member.job?.toLowerCase() == 'creator' || 
-                               member.job?.toLowerCase() == 'executive producer')
-            .toList() ??
-        [];
-    
-    // Get top 10 actors from cast
-    final topActors = show.cast?.take(10).toList() ?? [];
-
-    final List<dynamic> allPeople = [];
-    
-    // Add creators first
-    for (var creator in creators) {
-      allPeople.add({
-        'type': 'creator',
-        'person': creator,
-      });
-    }
-    
-    // Add actors
-    for (var actor in topActors) {
-      allPeople.add({
-        'type': 'actor',
-        'person': actor,
-      });
-    }
-
-    if (allPeople.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-          context.l10n.castCrewLabel,
-          style: GoogleFonts.bebasNeue(
-            fontSize: 24,
-            color: AppTheme.filmStripBlack,
-            letterSpacing: 1,
-                        ),
-                      ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: allPeople.length,
-            itemBuilder: (context, index) {
-              final item = allPeople[index];
-              final isCreator = item['type'] == 'creator';
-              final person = item['person'];
-              
-              String? profileUrl;
-              String name;
-              String? info;
-              
-              if (isCreator) {
-                final creator = person as CrewMember;
-                profileUrl = creator.profileUrl;
-                name = creator.name;
-                info = creator.job;
-              } else {
-                final actor = person as CastMember;
-                profileUrl = actor.profileUrl;
-                name = actor.name;
-                info = actor.character != null ? 'as ${actor.character!}' : null;
-              }
-              
-              return _CastCrewCard(
-                profileUrl: profileUrl,
-                name: name,
-                info: info,
-                isCreator: isCreator,
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Individual cast/crew card
-class _CastCrewCard extends StatelessWidget {
-  final String? profileUrl;
-  final String name;
-  final String? info;
-  final bool isCreator;
-
-  const _CastCrewCard({
-    required this.profileUrl,
-    required this.name,
-    this.info,
-    required this.isCreator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-          fit: StackFit.expand,
-                    children: [
-            profileUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: profileUrl!,
-                          fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.brickRed,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                              child: Icon(
-                        Icons.person,
-                        color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                        size: 48,
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: AppTheme.filmStripBlack.withValues(alpha: 20),
-                    child: Icon(
-                      Icons.person,
-                      color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                      size: 48,
-                    ),
-                        ),
-                      
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 80,
-                          decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      AppTheme.filmStripBlack.withValues(alpha: 0.85),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-            Text(
-                      name,
-                      style: GoogleFonts.lato(
-                        color: AppTheme.warmCream,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-                    if (info != null) ...[
-            const SizedBox(height: 2),
-            Text(
-                        info!,
-                        style: GoogleFonts.lato(
-                          color: AppTheme.warmCream.withValues(alpha: 85),
-                          fontSize: 11,
-                          fontStyle: isCreator ? FontStyle.normal : FontStyle.italic,
-                          letterSpacing: 0.1,
-              ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-            ),
-                    ],
-          ],
-        ),
-      ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Streaming Availability Section (inline)
-class _InlineStreamingAvailability extends StatefulWidget {
-  final TvShow show;
-  final Color textColor;
-
-  const _InlineStreamingAvailability({
-    required this.show,
-    this.textColor = AppTheme.warmCream,
-  });
-
-  @override
-  State<_InlineStreamingAvailability> createState() => _InlineStreamingAvailabilityState();
-}
-
-class _InlineStreamingAvailabilityState extends State<_InlineStreamingAvailability> {
-  MovieStreamingAvailability? _availability;
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStreamingAvailability();
-  }
-
-  Future<void> _loadStreamingAvailability() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      final streamingProvider = Provider.of<StreamingProvider>(context, listen: false);
-      final availability = await streamingProvider.getStreamingAvailabilityForTv(widget.show.id);
-
-      if (mounted) {
-        setState(() {
-          _availability = availability;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const SizedBox.shrink();
-    }
-
-    if (_error != null || _availability == null || _availability!.availablePlatforms.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final platforms = _availability!.platforms.toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.tv_rounded,
-              color: widget.textColor.withValues(alpha: 80),
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.whereToWatchLabel,
-              style: GoogleFonts.lato(
-                color: widget.textColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-          ),
-        ],
-      ),
-          const SizedBox(height: 8),
-        SizedBox(
-          height: 32,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: platforms.length,
-            itemBuilder: (context, index) {
-              final platform = platforms[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => launchStreamingSearch(
-                    context: context,
-                    platform: platform,
-                    title: widget.show.name,
-                  ),
-                  child: Tooltip(
-                    message: 'Open on ${platform.name}',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.sepiaBrown,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          platform.name,
-                          style: GoogleFonts.lato(
-                            color: widget.textColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}

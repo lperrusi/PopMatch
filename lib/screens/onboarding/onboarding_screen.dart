@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
+import '../../models/streaming_platform.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/l10n_extension.dart';
@@ -19,20 +20,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   final Set<int> _selectedGenres = {};
+  // Canonical platform ids (see StreamingPlatform.availablePlatforms).
   final Set<String> _selectedPlatforms = {};
-
-  final List<String> _streamingPlatforms = [
-    'Netflix',
-    'Amazon Prime',
-    'Disney+',
-    'Hulu',
-    'HBO Max',
-    'Apple TV+',
-    'Peacock',
-    'Paramount+',
-    'Crunchyroll',
-    'YouTube TV',
-  ];
 
   @override
   void dispose() {
@@ -354,14 +343,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 GoogleFonts.lato(color: AppTheme.authCreamMuted, fontSize: 14),
           ),
           const SizedBox(height: 24),
-          ..._streamingPlatforms.map((platform) {
-            final isSelected = _selectedPlatforms.contains(platform);
+          ...StreamingPlatform.availablePlatforms.map((platform) {
+            final isSelected = _selectedPlatforms.contains(platform.id);
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () => _togglePlatform(platform),
+                  onTap: () => _togglePlatform(platform.id),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -390,7 +379,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         const SizedBox(width: 16),
                         Text(
-                          platform,
+                          platform.name,
                           style: GoogleFonts.lato(
                             color: isSelected
                                 ? AppTheme.authCream

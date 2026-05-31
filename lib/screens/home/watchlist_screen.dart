@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
+import '../../widgets/poster_grid_skeleton.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../services/movie_cache_service.dart';
@@ -586,9 +587,7 @@ class _WatchlistContentState extends State<_WatchlistContent> {
     required bool isLoading,
   }) {
     if (isLoading && allMovies.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.cinemaRed),
-      );
+      return const PosterGridSkeleton();
     }
     if (allMovies.isEmpty) {
       return Center(
@@ -649,9 +648,7 @@ class _WatchlistContentState extends State<_WatchlistContent> {
     required bool isLoading,
   }) {
     if (isLoading && allShows.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.cinemaRed),
-      );
+      return const PosterGridSkeleton();
     }
     if (allShows.isEmpty) {
       return Center(

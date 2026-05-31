@@ -6,6 +6,7 @@ import '../../models/tv_show.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/tmdb_service.dart';
 import '../../utils/theme.dart';
+import '../../widgets/poster_grid_skeleton.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
 import '../../services/movie_cache_service.dart';
@@ -527,11 +528,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         }
 
         if (_isLoading && _favoriteMovies.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: AppTheme.cinemaRed,
-            ),
-          );
+          return const PosterGridSkeleton();
         }
 
         if (_error != null && _favoriteMovies.isEmpty) {
@@ -881,11 +878,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         }
 
         if (_isLoadingShows && _favoriteShows.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: AppTheme.cinemaRed,
-            ),
-          );
+          return const PosterGridSkeleton();
         }
 
         if (_favoriteShows.isEmpty && !_isLoadingShows) {
