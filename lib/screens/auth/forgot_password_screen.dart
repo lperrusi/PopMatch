@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/auth_error_handler.dart';
+import '../../utils/l10n_extension.dart';
 import 'login_screen.dart';
 
 /// Forgot password screen (Figma): back, popcorn, title, email input, Send Reset Link / success state
@@ -67,6 +68,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       body: Stack(
         children: [
@@ -109,8 +111,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           const SizedBox(height: 24),
                           Text(
                             _emailSent
-                                ? 'CHECK YOUR EMAIL'
-                                : 'FORGOT PASSWORD?',
+                                ? l10n.checkEmailTitle
+                                : l10n.forgotPasswordTitle,
                             style: GoogleFonts.bebasNeue(
                               fontSize: 36,
                               color: AppTheme.authCream,
@@ -121,8 +123,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _emailSent
-                                ? "We've sent a password reset link to ${_emailController.text.trim()}"
-                                : "No worries! Enter your email and we'll send you reset instructions.",
+                                ? l10n.checkEmailSubtitle(_emailController.text.trim())
+                                : l10n.forgotPasswordSubtitle,
                             style: GoogleFonts.lato(
                                 color: AppTheme.authCreamMuted, fontSize: 16),
                             textAlign: TextAlign.center,
@@ -141,7 +143,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 style:
                                     GoogleFonts.lato(color: AppTheme.authCream),
                                 decoration: InputDecoration(
-                                  hintText: 'Email',
+                                  hintText: l10n.emailHint,
                                   hintStyle: GoogleFonts.lato(
                                       color: AppTheme.authCream
                                           .withValues(alpha: 0.4)),
@@ -155,12 +157,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                                 validator: (v) {
                                   if (v == null || v.isEmpty) {
-                                    return 'Please enter your email';
+                                    return l10n.emailErrorEmpty;
                                   }
                                   if (!RegExp(
                                           r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
                                       .hasMatch(v)) {
-                                    return 'Please enter a valid email';
+                                    return l10n.emailErrorInvalid;
                                   }
                                   return null;
                                 },
@@ -191,7 +193,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                                 AlwaysStoppedAnimation<Color>(
                                                     AppTheme.authCream)),
                                       )
-                                    : Text('Send Reset Link',
+                                    : Text(l10n.sendResetLinkButton,
                                         style: GoogleFonts.bebasNeue(
                                             fontSize: 18, letterSpacing: 0.05)),
                               ),
@@ -207,7 +209,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                         .withValues(alpha: 0.4)),
                               ),
                               child: Text(
-                                "Didn't receive the email? Check your spam folder or try again in a few minutes.",
+                                l10n.resetEmailNotReceivedMessage,
                                 style: GoogleFonts.lato(
                                     color: AppTheme.authCream, fontSize: 14),
                                 textAlign: TextAlign.center,
@@ -227,7 +229,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12)),
                                 ),
-                                child: Text('Resend Email',
+                                child: Text(l10n.resendEmailButton,
                                     style: GoogleFonts.bebasNeue(
                                         fontSize: 18, letterSpacing: 0.05)),
                               ),
@@ -235,7 +237,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             const SizedBox(height: 24),
                             TextButton(
                               onPressed: _navigateToLogin,
-                              child: Text('Back to Login',
+                              child: Text(l10n.backToLoginButton,
                                   style: GoogleFonts.lato(
                                       color: AppTheme.authRed)),
                             ),
@@ -247,12 +249,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('Remember your password? ',
+                                  Text(l10n.rememberPasswordPrompt,
                                       style: GoogleFonts.lato(
                                           color: AppTheme.authCream
                                               .withValues(alpha: 0.6),
                                           fontSize: 14)),
-                                  Text('Sign In',
+                                  Text(l10n.signInLinkText,
                                       style: GoogleFonts.lato(
                                           color: AppTheme.authRed,
                                           fontWeight: FontWeight.w600,

@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../services/movie_cache_service.dart';
 import '../../services/tmdb_service.dart';
@@ -21,7 +22,7 @@ void _removeFromWatchlist(BuildContext context, Movie movie) {
   authProvider.removeFromWatchlist(movie.id.toString());
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text('Removed ${movie.title} from watchlist'),
+      content: Text(context.l10n.removedFromWatchlist(movie.title)),
       backgroundColor: AppTheme.fadedCurtain,
       behavior: SnackBarBehavior.floating,
     ),
@@ -62,14 +63,14 @@ void _showMovieWatchlistActionSheet(BuildContext context, Movie movie) {
               ListTile(
                 leading: Icon(Icons.thumb_up_rounded, color: AppTheme.brickRed),
                 title: Text(
-                  'Liked',
+                  context.l10n.likedAction,
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.filmStripBlack,
                   ),
                 ),
                 subtitle: Text(
-                  'Add to Favorites and remove from watchlist',
+                  context.l10n.likedActionSubtitle,
                   style: GoogleFonts.lato(
                     fontSize: 12,
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
@@ -82,7 +83,7 @@ void _showMovieWatchlistActionSheet(BuildContext context, Movie movie) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${movie.title} moved to Favorites'),
+                        content: Text(context.l10n.movedToFavorites(movie.title)),
                         backgroundColor: AppTheme.fadedCurtain,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -93,14 +94,14 @@ void _showMovieWatchlistActionSheet(BuildContext context, Movie movie) {
               ListTile(
                 leading: Icon(Icons.thumb_down_rounded, color: AppTheme.filmStripBlack.withValues(alpha: 0.8)),
                 title: Text(
-                  'Disliked',
+                  context.l10n.dislikedAction,
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.filmStripBlack,
                   ),
                 ),
                 subtitle: Text(
-                  'Mark as disliked and remove from watchlist',
+                  context.l10n.dislikedActionSubtitle,
                   style: GoogleFonts.lato(
                     fontSize: 12,
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
@@ -113,7 +114,7 @@ void _showMovieWatchlistActionSheet(BuildContext context, Movie movie) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${movie.title} marked as disliked'),
+                        content: Text(context.l10n.markedAsDisliked(movie.title)),
                         backgroundColor: AppTheme.fadedCurtain,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -124,14 +125,14 @@ void _showMovieWatchlistActionSheet(BuildContext context, Movie movie) {
               ListTile(
                 leading: Icon(Icons.remove_circle_outline, color: AppTheme.filmStripBlack.withValues(alpha: 0.8)),
                 title: Text(
-                  'Remove',
+                  context.l10n.removeAction,
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.filmStripBlack,
                   ),
                 ),
                 subtitle: Text(
-                  'Remove from watchlist only',
+                  context.l10n.removeActionSubtitle,
                   style: GoogleFonts.lato(
                     fontSize: 12,
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
@@ -143,7 +144,7 @@ void _showMovieWatchlistActionSheet(BuildContext context, Movie movie) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Removed ${movie.title} from watchlist'),
+                        content: Text(context.l10n.removedFromWatchlist(movie.title)),
                         backgroundColor: AppTheme.fadedCurtain,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -164,7 +165,7 @@ void _removeFromWatchlistShow(BuildContext context, TvShow show) {
   authProvider.removeFromWatchlistShow(show.id.toString());
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text('Removed ${show.name} from watchlist'),
+      content: Text(context.l10n.removedFromWatchlist(show.name)),
       backgroundColor: AppTheme.fadedCurtain,
       behavior: SnackBarBehavior.floating,
     ),
@@ -205,14 +206,14 @@ void _showShowWatchlistActionSheet(BuildContext context, TvShow show) {
               ListTile(
                 leading: Icon(Icons.thumb_up_rounded, color: AppTheme.brickRed),
                 title: Text(
-                  'Liked',
+                  context.l10n.likedAction,
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.filmStripBlack,
                   ),
                 ),
                 subtitle: Text(
-                  'Add to Favorites and remove from watchlist',
+                  context.l10n.likedActionSubtitle,
                   style: GoogleFonts.lato(
                     fontSize: 12,
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
@@ -225,7 +226,7 @@ void _showShowWatchlistActionSheet(BuildContext context, TvShow show) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${show.name} moved to Favorites'),
+                        content: Text(context.l10n.movedToFavorites(show.name)),
                         backgroundColor: AppTheme.fadedCurtain,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -236,14 +237,14 @@ void _showShowWatchlistActionSheet(BuildContext context, TvShow show) {
               ListTile(
                 leading: Icon(Icons.thumb_down_rounded, color: AppTheme.filmStripBlack.withValues(alpha: 0.8)),
                 title: Text(
-                  'Disliked',
+                  context.l10n.dislikedAction,
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.filmStripBlack,
                   ),
                 ),
                 subtitle: Text(
-                  'Mark as disliked and remove from watchlist',
+                  context.l10n.dislikedActionSubtitle,
                   style: GoogleFonts.lato(
                     fontSize: 12,
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
@@ -256,7 +257,7 @@ void _showShowWatchlistActionSheet(BuildContext context, TvShow show) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${show.name} marked as disliked'),
+                        content: Text(context.l10n.markedAsDisliked(show.name)),
                         backgroundColor: AppTheme.fadedCurtain,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -267,14 +268,14 @@ void _showShowWatchlistActionSheet(BuildContext context, TvShow show) {
               ListTile(
                 leading: Icon(Icons.remove_circle_outline, color: AppTheme.filmStripBlack.withValues(alpha: 0.8)),
                 title: Text(
-                  'Remove',
+                  context.l10n.removeAction,
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.filmStripBlack,
                   ),
                 ),
                 subtitle: Text(
-                  'Remove from watchlist only',
+                  context.l10n.removeActionSubtitle,
                   style: GoogleFonts.lato(
                     fontSize: 12,
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
@@ -286,7 +287,7 @@ void _showShowWatchlistActionSheet(BuildContext context, TvShow show) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Removed ${show.name} from watchlist'),
+                        content: Text(context.l10n.removedFromWatchlist(show.name)),
                         backgroundColor: AppTheme.fadedCurtain,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -331,12 +332,13 @@ class WatchlistScreen extends StatelessWidget {
 class _WatchlistScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final tabController = DefaultTabController.of(context);
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
         title: Text(
-          'WATCHLIST',
+          l10n.watchlistTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 32,
             color: AppTheme.warmCream,
@@ -355,9 +357,9 @@ class _WatchlistScaffold extends StatelessWidget {
             fontSize: 20,
             letterSpacing: 1,
           ),
-          tabs: const [
-            Tab(text: 'MOVIES'),
-            Tab(text: 'SHOWS'),
+          tabs: [
+            Tab(text: l10n.moviesTab.toUpperCase()),
+            Tab(text: l10n.showsTab.toUpperCase()),
           ],
         ),
       ),
@@ -385,14 +387,14 @@ class _WatchlistScaffold extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Your watchlist is empty',
+                    context.l10n.watchlistEmpty,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: AppTheme.sepiaBrown,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Start swiping to add movies and shows to your watchlist!',
+                    context.l10n.startSwipingAddWatchlist,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.sepiaBrown.withValues(alpha: 0.8),
                     ),
@@ -600,7 +602,7 @@ class _WatchlistContentState extends State<_WatchlistContent> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No movies in watchlist',
+              context.l10n.noMoviesInWatchlist,
               style: GoogleFonts.bebasNeue(
                 fontSize: 24,
                 color: AppTheme.sepiaBrown,
@@ -609,7 +611,7 @@ class _WatchlistContentState extends State<_WatchlistContent> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start swiping to add movies!',
+              context.l10n.startSwipingMovies,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppTheme.sepiaBrown.withValues(alpha: 0.8),
               ),
@@ -663,7 +665,7 @@ class _WatchlistContentState extends State<_WatchlistContent> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No shows in watchlist',
+              context.l10n.noShowsInWatchlist,
               style: GoogleFonts.bebasNeue(
                 fontSize: 24,
                 color: AppTheme.sepiaBrown,
@@ -672,7 +674,7 @@ class _WatchlistContentState extends State<_WatchlistContent> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start swiping to add shows!',
+              context.l10n.startSwipingShows,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppTheme.sepiaBrown.withValues(alpha: 0.8),
               ),

@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/social_service.dart';
 import '../../models/social_privacy_settings.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 
 /// Privacy settings screen - data usage and account options
 class PrivacyScreen extends StatefulWidget {
@@ -72,32 +73,30 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
   }
 
   void _showDeleteDataDialog() {
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete my data'),
-        content: const Text(
-          'This will remove your account and all associated data (watchlist, likes, preferences) from our servers. This action cannot be undone.',
-        ),
+        title: Text(l10n.deleteDataDialogTitle),
+        content: Text(l10n.deleteDataDialogContent),
         actions: [
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppTheme.vintagePaper),
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancelButton),
           ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppTheme.vintagePaper),
             onPressed: () {
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Account deletion currently requires support. Please use Help & Support > Contact Us.'),
+                SnackBar(
+                  content: Text(l10n.deleteDataSnackbar),
                   behavior: SnackBarBehavior.floating,
                 ),
               );
             },
-            child: const Text('Contact support'),
+            child: Text(l10n.deleteDataLearnMore),
           ),
         ],
       ),
@@ -106,11 +105,12 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
         title: Text(
-          'PRIVACY',
+          l10n.privacyPageTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 28,
             color: AppTheme.warmCream,
@@ -127,7 +127,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Control how your data is used to personalize your experience.',
+              l10n.privacyIntro,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.8),
                   ),
@@ -137,10 +137,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               child: Column(
                 children: [
                   SwitchListTile(
-                    title: const Text('Use data for recommendations'),
-                    subtitle: const Text(
-                      'Allow us to use your likes, watchlist and activity to improve your recommendations.',
-                    ),
+                    title: Text(l10n.useDataRecommendations),
+                    subtitle: Text(l10n.useDataRecommendationsSubtitle),
                     value: _usageDataEnabled,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) {
@@ -153,7 +151,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Social privacy',
+              l10n.socialPrivacySection,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.filmStripBlack,
@@ -164,8 +162,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               child: Column(
                 children: [
                   SwitchListTile(
-                    title: const Text('Allow followers'),
-                    subtitle: const Text('Let other users send follow requests'),
+                    title: Text(l10n.allowFollowers),
+                    subtitle: Text(l10n.allowFollowersSubtitle),
                     value: _allowFollowers,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) async {
@@ -175,8 +173,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
-                    title: const Text('Share likes'),
-                    subtitle: const Text('Followers can see what you like'),
+                    title: Text(l10n.shareLikes),
+                    subtitle: Text(l10n.shareLikesSubtitle),
                     value: _shareLikes,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) async {
@@ -186,8 +184,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
-                    title: const Text('Share watchlist'),
-                    subtitle: const Text('Followers can see your watchlist activity'),
+                    title: Text(l10n.shareWatchlist),
+                    subtitle: Text(l10n.shareWatchlistSubtitle),
                     value: _shareWatchlist,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) async {
@@ -197,8 +195,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
-                    title: const Text('Share watching activity'),
-                    subtitle: const Text('Followers can see what you are currently watching'),
+                    title: Text(l10n.shareWatchingActivity),
+                    subtitle: Text(l10n.shareWatchingActivitySubtitle),
                     value: _shareWatching,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) async {
@@ -211,7 +209,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Your data',
+              l10n.yourDataSection,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.filmStripBlack,
@@ -221,19 +219,17 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
             Card(
               child: Column(
                 children: [
-                  const ListTile(
-                    leading: Icon(Icons.info_outline),
-                    title: Text('What we store'),
-                    subtitle: Text(
-                      'We store your email, watchlist, likes and dislikes, and preferences to provide the service.',
-                    ),
+                  ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: Text(l10n.whatWeStore),
+                    subtitle: Text(l10n.whatWeStoreSubtitle),
                     isThreeLine: true,
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.delete_outline),
-                    title: const Text('Delete my data'),
-                    subtitle: const Text('Request account and data deletion'),
+                    title: Text(l10n.deleteMyData),
+                    subtitle: Text(l10n.deleteMyDataSubtitle),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _showDeleteDataDialog,
                   ),

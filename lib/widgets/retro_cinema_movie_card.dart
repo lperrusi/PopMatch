@@ -3,25 +3,37 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../models/movie.dart';
+import '../models/streaming_platform.dart';
 import '../utils/theme.dart';
+import '../utils/l10n_extension.dart';
+import '../utils/streaming_url_launcher.dart';
 import '../services/movie_cache_service.dart';
+import '../services/streaming_service.dart';
 
 /// Retro Cinema styled movie card for swipe interface
 class RetroCinemaMovieCard extends StatefulWidget {
   @visibleForTesting
   static bool disableAsyncColorExtraction = false;
 
+  // Survives remounts — caches the computed isLight value per movie ID so
+  // colour is restored instantly on CardSwiper key-change remounts.
+  static final Map<int, bool> _colorCache = {};
+
   final Movie movie;
   final VoidCallback? onTap;
+  final VoidCallback? onInfoTap;
   final VoidCallback? onLike;
   final VoidCallback? onDislike;
+  final String? friendLikedLabel;
 
   const RetroCinemaMovieCard({
     super.key,
     required this.movie,
     this.onTap,
+    this.onInfoTap,
     this.onLike,
     this.onDislike,
+    this.friendLikedLabel,
   });
 
   @override
@@ -31,72 +43,143 @@ class RetroCinemaMovieCard extends StatefulWidget {
 class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
   bool _isLightBackground = false;
   bool _isLoadingColor = true;
+  Movie? _enrichedMovie;
+
+  Movie get _movie => _enrichedMovie ?? widget.movie;
+
+  String? _strategyLabel(BuildContext context, String? strategy) {
+    if (strategy == null) return null;
+    final l10n = context.l10n;
+    return switch (strategy) {
+      'similar_to_liked' => l10n.strategyLikedSimilar,
+      'genre_match'      => l10n.strategyGenreMatch,
+      'trending'         => l10n.strategyTrending,
+      'top_rated'        => l10n.strategyTopRated,
+      'personalized'     => l10n.strategyPersonalized,
+      'curated'          => l10n.strategyCurated,
+      'actor_discovery'  => l10n.strategyActorDiscovery,
+      'director_discovery' => l10n.strategyDirectorDiscovery,
+      _ => null,
+    };
+  }
 
   @override
   void initState() {
     super.initState();
-    // Preload movie details in background when card is created
-    MovieCacheService.instance.preloadMovieDetails(widget.movie.id);
-
-    // Defer color extraction to avoid blocking UI - only extract after card is visible
-    // This significantly improves performance, especially on physical devices
-    if (!RetroCinemaMovieCard.disableAsyncColorExtraction &&
-        widget.movie.posterUrl != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Delay color extraction to not block initial render
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            _extractColorFromImage();
-          }
-        });
-      });
-    } else {
+    // Synchronously apply cached enrichment + colour — prevents any visible
+    // flash when CardSwiper remounts (e.g. when undo banner appears/hides).
+    final cached = MovieCacheService.instance.getCachedMovie(widget.movie.id);
+    if (cached != null) {
+      _enrichedMovie = cached.copyWith(
+        recommendationStrategy:
+            cached.recommendationStrategy ?? widget.movie.recommendationStrategy,
+        streamingAvailability:
+            cached.streamingAvailability ?? widget.movie.streamingAvailability,
+      );
+    }
+    final cachedColor = RetroCinemaMovieCard._colorCache[widget.movie.id];
+    if (cachedColor != null) {
+      _isLightBackground = cachedColor;
+      _isLoadingColor = false;
+    } else if (RetroCinemaMovieCard.disableAsyncColorExtraction ||
+        widget.movie.posterUrl == null) {
       _isLoadingColor = false;
       _isLightBackground = false;
     }
+    // Single deferred operation: enrichment + colour in one setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) _enrichCard();
+      });
+    });
   }
 
-  /// Extracts dominant color from poster image and determines if background is light
-  /// OPTIMIZED: Only extracts if card is still mounted and visible
-  Future<void> _extractColorFromImage() async {
-    if (!mounted) return;
+  @override
+  void didUpdateWidget(RetroCinemaMovieCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.movie.id != widget.movie.id) {
+      final cached = MovieCacheService.instance.getCachedMovie(widget.movie.id);
+      final cachedColor = RetroCinemaMovieCard._colorCache[widget.movie.id];
+      setState(() {
+        _enrichedMovie = cached?.copyWith(
+          recommendationStrategy:
+              cached.recommendationStrategy ?? widget.movie.recommendationStrategy,
+          streamingAvailability:
+              cached.streamingAvailability ?? widget.movie.streamingAvailability,
+        );
+        _isLightBackground = cachedColor ?? false;
+        _isLoadingColor = cachedColor == null &&
+            widget.movie.posterUrl != null &&
+            !RetroCinemaMovieCard.disableAsyncColorExtraction;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _enrichCard();
+        });
+      });
+    }
+  }
 
+  /// Computes whether the poster background is light-coloured.
+  /// Returns a plain bool so callers can batch it with other state updates.
+  Future<bool> _computeIsLight(String posterUrl) async {
     try {
-      final imageProvider = CachedNetworkImageProvider(widget.movie.posterUrl!);
-      // Use a smaller sample size for faster processing on mobile devices
-      final paletteGenerator = await PaletteGenerator.fromImageProvider(
-        imageProvider,
-        maximumColorCount: 5, // Reduced from default for better performance
+      final palette = await PaletteGenerator.fromImageProvider(
+        CachedNetworkImageProvider(posterUrl),
+        maximumColorCount: 5,
       );
+      final dominant = palette.dominantColor?.color ?? AppTheme.filmStripBlack;
+      return ThemeData.estimateBrightnessForColor(dominant) == Brightness.light;
+    } catch (_) {
+      return false;
+    }
+  }
 
-      if (mounted) {
-        final dominantColor =
-            paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
-        final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
-        final isLight = brightness == Brightness.light;
+  /// Fetches enrichment data and poster colour in parallel, then applies
+  /// everything in a single setState — exactly one rebuild per card.
+  Future<void> _enrichCard() async {
+    final targetId = widget.movie.id;
+    final posterUrl = widget.movie.posterUrl;
+    try {
+      final dataFuture = Future.wait([
+        MovieCacheService.instance.getMovieDetails(targetId),
+        StreamingService.instance.getStreamingAvailability(targetId),
+      ]);
+      final colorFuture =
+          (!RetroCinemaMovieCard.disableAsyncColorExtraction && posterUrl != null)
+              ? _computeIsLight(posterUrl)
+              : Future.value(false);
 
-        setState(() {
-          _isLightBackground = isLight;
-          _isLoadingColor = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLightBackground = false;
-          _isLoadingColor = false;
-        });
+      final dataResults = await dataFuture;
+      final isLight = await colorFuture;
+
+      if (!mounted || widget.movie.id != targetId) return;
+      final detailed = dataResults[0] as Movie;
+      final streaming = dataResults[1] as MovieStreamingAvailability?;
+      RetroCinemaMovieCard._colorCache[targetId] = isLight;
+      setState(() {
+        _enrichedMovie = detailed.copyWith(
+          recommendationStrategy: detailed.recommendationStrategy ??
+              widget.movie.recommendationStrategy,
+          streamingAvailability: streaming ??
+              detailed.streamingAvailability ??
+              widget.movie.streamingAvailability,
+        );
+        _isLightBackground = isLight;
+        _isLoadingColor = false;
+      });
+    } catch (_) {
+      if (mounted && widget.movie.id == targetId) {
+        setState(() => _isLoadingColor = false);
       }
     }
   }
 
-  /// Gets the appropriate text color based on background brightness
   Color get _textColor {
     if (_isLoadingColor) return AppTheme.warmCream;
     return _isLightBackground ? AppTheme.filmStripBlack : AppTheme.warmCream;
   }
 
-  /// Gets the appropriate overlay color for better text readability
   Color get _overlayColor {
     if (_isLightBackground) {
       return Colors.white.withValues(alpha: 0.85);
@@ -104,8 +187,74 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
     return AppTheme.filmStripBlack.withValues(alpha: 0.75);
   }
 
+  String _formatRuntime(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    if (h == 0) return '${m}m';
+    if (m == 0) return '${h}h';
+    return '${h}h ${m}m';
+  }
+
+  Widget _buildPlatformBadges(
+      BuildContext context, MovieStreamingAvailability availability) {
+    final platforms = availability.platforms.take(3).toList();
+    final overflow = availability.availablePlatforms.length - 3;
+    return Row(
+      children: [
+        ...platforms.map((p) => Padding(
+              padding: const EdgeInsets.only(right: 6),
+              // GestureDetector absorbs the tap so it doesn't reach the
+              // CardSwiper, which only handles drag/fling gestures anyway.
+              child: GestureDetector(
+                onTap: () => launchStreamingSearch(
+                  context: context,
+                  platform: p,
+                  title: _movie.title,
+                ),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.filmStripBlack.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: AppTheme.popcornGold.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    p.name,
+                    style: const TextStyle(
+                      color: AppTheme.warmCream,
+                      fontSize: 10,
+                      fontFamily: 'Lato',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            )),
+        if (overflow > 0)
+          Text(
+            '+$overflow',
+            style: TextStyle(
+              color: _textColor.withValues(alpha: 0.7),
+              fontSize: 11,
+              fontFamily: 'Lato',
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final strategy = _movie.recommendationStrategy;
+    final strategyLabel = _strategyLabel(context, strategy);
+    final availability = _movie.streamingAvailability;
+    final hasPlatforms =
+        availability != null && availability.availablePlatforms.isNotEmpty;
+
     return GestureDetector(
       onTap: widget.onTap,
       child: ClipRRect(
@@ -176,9 +325,34 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Title with Retro Cinema style
+                    // Recommendation strategy label
+                    if (strategyLabel != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.popcornGold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppTheme.popcornGold.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          strategyLabel,
+                          style: const TextStyle(
+                            color: AppTheme.popcornGold,
+                            fontSize: 11,
+                            fontFamily: 'Lato',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+
+                    // Title
                     Text(
-                      widget.movie.title,
+                      _movie.title,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 32,
                         color: _textColor,
@@ -188,13 +362,12 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
 
-                    // Year and Rating row
+                    // Year, Runtime, Rating row
                     Row(
                       children: [
-                        // Year badge
-                        if (widget.movie.year != null)
+                        if (_movie.year != null)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -209,7 +382,7 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                               ),
                             ),
                             child: Text(
-                              widget.movie.year!,
+                              _movie.year!,
                               style: GoogleFonts.lato(
                                 color: AppTheme.warmCream,
                                 fontSize: 12,
@@ -218,11 +391,25 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                               ),
                             ),
                           ),
-                        if (widget.movie.year != null)
-                          const SizedBox(width: 12),
+                        if (_movie.year != null)
+                          const SizedBox(width: 8),
 
-                        // Rating
-                        if (widget.movie.voteAverage != null) ...[
+                        // Runtime
+                        if (_movie.runtime != null &&
+                            _movie.runtime! > 0) ...[
+                          Text(
+                            _formatRuntime(_movie.runtime!),
+                            style: GoogleFonts.lato(
+                              color: _textColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+
+                        // TMDB Rating
+                        if (_movie.voteAverage != null) ...[
                           Icon(
                             Icons.star_rounded,
                             color: AppTheme.brickRed,
@@ -230,7 +417,7 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            widget.movie.formattedRating,
+                            _movie.formattedRating,
                             style: GoogleFonts.lato(
                               color: _textColor,
                               fontSize: 16,
@@ -238,34 +425,60 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                             ),
                           ),
                         ],
+
+                        // IMDb rating
+                        if (_movie.imdbRating != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            'IMDb ${_movie.imdbRating!.toStringAsFixed(1)}',
+                            style: GoogleFonts.lato(
+                              color: AppTheme.popcornGold,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+
+                        // RT Tomatometer
+                        if (_movie.rottenTomatoesTomatometer != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '🍅 ${_movie.rottenTomatoesTomatometer}%',
+                            style: GoogleFonts.lato(
+                              color: _textColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
 
                     // Genres
-                    if (widget.movie.genres != null &&
-                        widget.movie.genres!.isNotEmpty)
+                    if (_movie.genres != null &&
+                        _movie.genres!.isNotEmpty)
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
-                        children: widget.movie.genres!.take(3).map((genre) {
+                        children: _movie.genres!.take(3).map((genre) {
                           return Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.brickRed.withValues(alpha: 20),
+                              color: AppTheme.filmStripBlack.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: AppTheme.brickRed.withValues(alpha: 40),
+                                color: AppTheme.brickRed.withValues(alpha: 0.5),
                                 width: 1,
                               ),
                             ),
                             child: Text(
                               genre,
                               style: GoogleFonts.lato(
-                                color: _textColor,
+                                color: AppTheme.warmCream,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.3,
@@ -274,7 +487,12 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                           );
                         }).toList(),
                       ),
-                    const SizedBox(height: 12),
+
+                    // Platform badges
+                    if (hasPlatforms) ...[
+                      const SizedBox(height: 8),
+                      _buildPlatformBadges(context, availability),
+                    ],
 
                     // Action buttons on card (like/dislike)
                     if (widget.onLike != null || widget.onDislike != null) ...[
@@ -282,7 +500,6 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Dislike button
                           if (widget.onDislike != null)
                             GestureDetector(
                               onTap: widget.onDislike,
@@ -302,7 +519,6 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                             ),
                           if (widget.onDislike != null && widget.onLike != null)
                             const SizedBox(width: 24),
-                          // Like button
                           if (widget.onLike != null)
                             GestureDetector(
                               onTap: widget.onLike,
@@ -328,13 +544,51 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
               ),
             ),
 
-            // Tap indicator (info icon)
-            if (widget.onTap != null)
+            // Friend-liked badge
+            if (widget.friendLikedLabel != null)
+              Positioned(
+                bottom: 72,
+                left: 12,
+                right: 60,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.filmStripBlack.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: AppTheme.popcornGold.withValues(alpha: 0.6)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('❤️', style: TextStyle(fontSize: 12)),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          '${widget.friendLikedLabel} liked this',
+                          style: GoogleFonts.lato(
+                            fontSize: 11,
+                            color: AppTheme.creamyWhite,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Info icon — opens quick peek when onInfoTap is provided,
+            // otherwise falls back to onTap (full detail navigation)
+            if (widget.onTap != null || widget.onInfoTap != null)
               Positioned(
                 top: 20,
                 right: 20,
                 child: GestureDetector(
-                  onTap: widget.onTap,
+                  onTap: widget.onInfoTap ?? widget.onTap,
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(

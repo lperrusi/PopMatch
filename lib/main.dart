@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/movie_provider.dart';
@@ -12,6 +14,8 @@ import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_config.dart';
 import 'services/omdb_service.dart';
+import 'services/streaming_service.dart';
+import 'utils/locale_utils.dart';
 
 /// Main entry point for the PopMatch app
 void main() async {
@@ -55,6 +59,11 @@ void main() async {
     debugPrint('Stack trace: $stackTrace');
   }
   
+  // Detect device country and configure streaming service accordingly.
+  // This ensures watch/providers data is fetched for the user's country, not 'US'.
+  final countryCode = LocaleUtils.detectCountryCode();
+  StreamingService.instance.setUserCountry(countryCode);
+
   // Run app even if services fail to initialize
   runApp(const PopMatchApp());
 }
@@ -82,6 +91,17 @@ class PopMatchApp extends StatelessWidget {
             theme: AppTheme.retroCinemaLightTheme,
             darkTheme: AppTheme.retroCinemaTheme,
             themeMode: ThemeMode.dark, // Use dark theme by default for Retro Cinema aesthetic
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en'),
+              Locale('es'),
+              Locale('pt'),
+            ],
             home: const SplashScreen(),
           );
         },

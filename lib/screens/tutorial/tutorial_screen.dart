@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../auth/login_screen.dart';
 
 /// Intro onboarding (Figma): 3 screens — Swipe to Match, AI Picks, Curate Watchlist
@@ -16,24 +17,36 @@ class _TutorialScreenState extends State<TutorialScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  static const List<Map<String, String>> _screens = [
+  static const List<Map<String, String>> _screenAssets = [
     {
-      'title': 'SWIPE TO MATCH',
-      'description': 'Swipe right to like, left to pass.\nFind your perfect movie match.',
       'background': 'assets/screens/figma/onboarding1_base.png',
       'overlay': 'assets/screens/figma/onboarding1_overlay.png',
     },
     {
-      'title': 'AI Powered Picks',
-      'description': 'Our AI learns your taste to suggest movies you will love.',
       'background': 'assets/screens/figma/onboarding2.png',
     },
     {
-      'title': 'Curate Your Watchlist',
-      'description': 'Save your matches and never wonder what to watch again.',
       'background': 'assets/screens/figma/onboarding3.png',
     },
   ];
+
+  List<Map<String, String>> _screens(BuildContext context) {
+    final l10n = context.l10n;
+    return [
+      {
+        'title': l10n.swipeToMatchTitle,
+        'description': l10n.swipeToMatchDescription,
+      },
+      {
+        'title': l10n.aiPoweredPicksTitle,
+        'description': l10n.aiPoweredPicksDescription,
+      },
+      {
+        'title': l10n.curateWatchlistTitle,
+        'description': l10n.curateWatchlistDescription,
+      },
+    ];
+  }
 
   @override
   void dispose() {
@@ -60,7 +73,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
           PageView(
             controller: _pageController,
             onPageChanged: (i) => setState(() => _currentPage = i),
-            children: List.generate(_screens.length, (i) => _buildPage(i)),
+            children: List.generate(_screenAssets.length, (i) => _buildPage(i)),
           ),
           // Content at bottom
           SafeArea(
@@ -72,7 +85,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                   child: Column(
                     children: [
                       Text(
-                        _screens[_currentPage]['title']!,
+                        _screens(context)[_currentPage]['title']!,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.bebasNeue(
                           fontSize: 42,
@@ -83,7 +96,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        _screens[_currentPage]['description']!,
+                        _screens(context)[_currentPage]['description']!,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.lato(
                           fontSize: 18,
@@ -97,7 +110,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                       SizedBox(
                         height: 52,
                         width: double.infinity,
-                        child: _currentPage == _screens.length - 1
+                        child: _currentPage == _screenAssets.length - 1
                             ? ElevatedButton(
                                 onPressed: _complete,
                                 style: ElevatedButton.styleFrom(
@@ -108,7 +121,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  'Get Started',
+                                  context.l10n.getStartedButton,
                                   style: GoogleFonts.bebasNeue(
                                     fontSize: 18,
                                     letterSpacing: 0.05,
@@ -137,7 +150,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: List.generate(_screens.length, (i) {
+                            children: List.generate(_screenAssets.length, (i) {
                               final isActive = i == _currentPage;
                               return Container(
                                 margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -153,7 +166,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                             }),
                           ),
                           IconButton(
-                            onPressed: _currentPage < _screens.length - 1
+                            onPressed: _currentPage < _screenAssets.length - 1
                                 ? () => _pageController.nextPage(
                                       duration: const Duration(milliseconds: 300),
                                       curve: Curves.easeInOut,
@@ -162,7 +175,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                             icon: Icon(
                               Icons.chevron_right,
                               size: 32,
-                              color: _currentPage < _screens.length - 1
+                              color: _currentPage < _screenAssets.length - 1
                                   ? AppTheme.authCream
                                   : Colors.transparent,
                             ),
@@ -181,7 +194,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
   }
 
   Widget _buildPage(int index) {
-    final data = _screens[index];
+    final data = _screenAssets[index];
     return Stack(
       fit: StackFit.expand,
       children: [

@@ -513,3 +513,95 @@ exports.getFriendsFeed = onCall({region: "us-central1"}, async (request) => {
     );
   }
 });
+
+exports.getSuggestedUsers = onCall({region: "us-central1"}, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  const limit = Math.min(Number((request.data && request.data.limit) || 10), 50);
+  if (!uid) throw new HttpsError("unauthenticated", "Authentication required.");
+
+  try {
+    // 1. Get current user's liked movie IDs
+    const myActivitiesSnap = await db.collection("socialActivities")
+        .where("actorUid", "==", uid)
+        .where("itemType", "==", "movie")
+        .where("activityType", "==", "liked")
+        .limit(200)
+        .get();
+    const myLikedIds = new Set(myActivitiesSnap.docs.map((d) => d.data().itemId));
+    if (myLikedIds.size === 0) return [];
+
+    // 2. Build exclude set: users already followed or pending
+    const followingSnap = await db.collection("followEdges")
+        .where("followerUid", "==", uid)
+        .get();
+    const excludeUids = new Set(followingSnap.docs.map((d) => d.data().followeeUid));
+    excludeUids.add(uid);
+
+    // 3. Find users who liked overlapping movies (Firestore 'in' limit = 10, so chunk)
+    const myLikedArray = Array.from(myLikedIds);
+    const candidateMap = {};
+    const chunks = [];
+    for (let i = 0; i < myLikedArray.length; i += 10) {
+      chunks.push(myLikedArray.slice(i, i + 10));
+    }
+    for (const chunk of chunks) {
+      const snap = await db.collection("socialActivities")
+          .where("itemType", "==", "movie")
+          .where("activityType", "==", "liked")
+          .where("itemId", "in", chunk)
+          .get();
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        const candidateUid = data.actorUid;
+        if (!candidateUid || excludeUids.has(candidateUid)) continue;
+        if (!candidateMap[candidateUid]) {
+          candidateMap[candidateUid] = {sharedIds: new Set()};
+        }
+        candidateMap[candidateUid].sharedIds.add(data.itemId);
+      }
+    }
+
+    // 4. Keep only candidates with >= 2 shared movies
+    const qualifiedUids = Object.keys(candidateMap)
+        .filter((u) => candidateMap[u].sharedIds.size >= 2)
+        .slice(0, 50);
+    if (!qualifiedUids.length) return [];
+
+    // 5. Compute Jaccard similarity per candidate
+    const results = [];
+    for (const candidateUid of qualifiedUids) {
+      const theirSnap = await db.collection("socialActivities")
+          .where("actorUid", "==", candidateUid)
+          .where("itemType", "==", "movie")
+          .where("activityType", "==", "liked")
+          .limit(200)
+          .get();
+      const theirLikedIds = new Set(theirSnap.docs.map((d) => d.data().itemId));
+      const shared = candidateMap[candidateUid].sharedIds;
+      const union = new Set([...myLikedIds, ...theirLikedIds]);
+      const jaccard = union.size === 0 ? 0 : shared.size / union.size;
+      results.push({uid: candidateUid, sharedMoviesCount: shared.size, tasteSimilarity: jaccard});
+    }
+
+    // 6. Sort by Jaccard desc, fetch profiles for top N
+    results.sort((a, b) => b.tasteSimilarity - a.tasteSimilarity);
+    const topResults = results.slice(0, limit);
+
+    const userProfiles = [];
+    for (const r of topResults) {
+      const userDoc = await db.collection("users").doc(r.uid).get();
+      const userData = userDoc.data() || {};
+      userProfiles.push({
+        uid: r.uid,
+        displayName: userData.displayName || "",
+        photoURL: userData.photoURL || "",
+        tasteSimilarity: r.tasteSimilarity,
+        sharedMoviesCount: r.sharedMoviesCount,
+      });
+    }
+    return userProfiles;
+  } catch (err) {
+    console.error("getSuggestedUsers failed:", err);
+    throw new HttpsError("internal", "Could not load suggested users.");
+  }
+});

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import '../models/movie.dart';
@@ -19,6 +20,7 @@ import '../services/online_learning_service.dart';
 import '../services/ab_testing_service.dart';
 import '../services/omdb_service.dart';
 import '../services/movie_discovery_service.dart';
+import '../services/discover_movie_list_cache.dart';
 import '../models/streaming_platform.dart';
 
 Set<int> _movieIdsFromUserStrings(Iterable<String> raw) {
@@ -43,7 +45,13 @@ class MovieProvider with ChangeNotifier {
   final OnlineLearningService _onlineLearningService = OnlineLearningService();
   final ABTestingService _abTestingService = ABTestingService();
   final OMDbService _omdbService = OMDbService.instance;
-  
+
+  // Maps a recommended movie id → the strategy that contributed most to its
+  // score, so a later like/dislike can train the adaptive weights. Session-only.
+  final Map<int, String> _itemDominantStrategy = {};
+  // Guards loadWeights so persisted adaptive weights load once per user/session.
+  String? _weightsLoadedForUserId;
+
   List<Movie> _movies = [];
   List<Movie> _filteredMovies = [];
   Map<int, String> _genres = {};
@@ -55,7 +63,7 @@ class MovieProvider with ChangeNotifier {
   
   // INFINITE SWIPE: Buffer management for seamless experience
   static const int _minBufferSize = 30; // Target minimum titles in the feed
-  static const int _preloadThreshold = 20; // Start preloading when this many remain (earlier = less “empty”)
+  static const int _preloadThreshold = 30; // Start preloading when this many remain (earlier = less “empty”)
   static const int _maxTmdbPages = 400; // Stop paging after this (TMDB caps ~500)
   static const int _minLengthToDeferBackgroundAdds = 3;
   static const int _flushPendingWhenVisibleAtMost = 8;
@@ -195,6 +203,38 @@ class MovieProvider with ChangeNotifier {
     }
   }
 
+  /// Loads previously-persisted movies from disk and populates the swipe deck instantly
+  /// (no network call). Returns true if cached movies were loaded, false otherwise.
+  Future<bool> loadCachedMoviesInstant({
+    required String cacheKey,
+    User? user,
+  }) async {
+    final cached =
+        await DiscoverMovieListCache.instance.load(cacheKey);
+    if (cached == null || cached.isEmpty) return false;
+
+    List<Movie> filtered = cached;
+    if (user != null) {
+      final likedIds = _movieIdsFromUserStrings(user.likedMovies);
+      final dislikedIds = _movieIdsFromUserStrings(user.dislikedMovies);
+      final skippedIds = _behaviorService.getSkippedMovies(user.id);
+      final watchlistIds = _movieIdsFromUserStrings(user.watchlist);
+      filtered = cached
+          .where((m) =>
+              !likedIds.contains(m.id) &&
+              !dislikedIds.contains(m.id) &&
+              !skippedIds.contains(m.id) &&
+              !watchlistIds.contains(m.id))
+          .toList();
+    }
+    if (filtered.isEmpty) return false;
+
+    _movies = filtered;
+    _applyFilters();
+    notifyListeners();
+    return true;
+  }
+
   /// Loads a curated starter movie list designed to help the algorithm learn user preferences
   /// This list prioritizes both popularity and rating while maintaining genre diversity for optimal learning.
   /// If [user] is provided, filters out already liked, disliked, skipped, and watchlist movies.
@@ -230,7 +270,7 @@ class MovieProvider with ChangeNotifier {
         
         // Take top 25 highly-rated popular movies
         for (final movie in topRatedPopular.take(25)) {
-          allMovies.add(movie);
+          allMovies.add(movie.copyWith(recommendationStrategy: 'popular'));
           seenMovieIds.add(movie.id);
         }
       } catch (e) {
@@ -245,7 +285,7 @@ class MovieProvider with ChangeNotifier {
         
         for (final movie in pagePopular) {
           if (!seenMovieIds.contains(movie.id)) {
-            allMovies.add(movie);
+            allMovies.add(movie.copyWith(recommendationStrategy: 'popular'));
             seenMovieIds.add(movie.id);
           }
         }
@@ -265,7 +305,7 @@ class MovieProvider with ChangeNotifier {
         // Add top 15 highest-rated movies
         for (final movie in topRated.take(15)) {
           if (!seenMovieIds.contains(movie.id)) {
-            allMovies.add(movie);
+            allMovies.add(movie.copyWith(recommendationStrategy: 'top_rated'));
             seenMovieIds.add(movie.id);
           }
         }
@@ -273,19 +313,23 @@ class MovieProvider with ChangeNotifier {
         debugPrint('Error loading top-rated movies: $e');
       }
 
-      // Strategy 5: Ensure genre diversity with popular AND well-rated movies
-      final keyGenres = [
-        28,  // Action
-        18,  // Drama
-        35,  // Comedy
-        27,  // Horror
-        878, // Science Fiction
-        10749, // Romance
-        53,  // Thriller
-        16,  // Animation
-        80,  // Crime
-        14,  // Fantasy
-      ];
+      // Strategy 5: Ensure genre diversity — prefer user's onboarding genres, fall back to defaults
+      final onboardingGenreRaw = user?.preferences['selectedGenres'] as List<dynamic>?;
+      final userOnboardingGenreIds = onboardingGenreRaw?.map((g) => g as int).toList() ?? [];
+      final keyGenres = userOnboardingGenreIds.isNotEmpty
+          ? userOnboardingGenreIds
+          : [
+              28,  // Action
+              18,  // Drama
+              35,  // Comedy
+              27,  // Horror
+              878, // Science Fiction
+              10749, // Romance
+              53,  // Thriller
+              16,  // Animation
+              80,  // Crime
+              14,  // Fantasy
+            ];
 
       // Count movies per genre in our current list
       final genreCounts = <int, int>{};
@@ -297,57 +341,66 @@ class MovieProvider with ChangeNotifier {
         }
       }
 
-      // For each key genre, if we have less than 3 movies, add popular AND well-rated ones
-      for (final genreId in keyGenres) {
-        final currentCount = genreCounts[genreId] ?? 0;
-        if (currentCount < 3) {
+      // Fetch all under-represented genres in parallel instead of sequentially
+      final genreListsForDiversity = await Future.wait(
+        keyGenres.map((genreId) async {
+          if ((genreCounts[genreId] ?? 0) >= 3) return <Movie>[];
           try {
-            // Get movies from this genre that are both popular and well-rated
-            final genreMovies = await _tmdbService.discoverMovies(
+            return await _tmdbService.discoverMovies(
               genres: [genreId],
-              minRating: 6.5, // Decent rating
-              sortBy: 'popularity.desc', // Prioritize popularity
+              minRating: 6.5,
+              sortBy: 'popularity.desc',
               page: 1,
             );
-            
-            int added = 0;
-            final targetCount = 3 - currentCount;
-            for (final movie in genreMovies) {
-              if (added >= targetCount) break;
-              if (!seenMovieIds.contains(movie.id)) {
-                allMovies.add(movie);
-                seenMovieIds.add(movie.id);
-                // Update genre counts
-                if (movie.genreIds != null) {
-                  for (final gId in movie.genreIds!) {
-                    genreCounts[gId] = (genreCounts[gId] ?? 0) + 1;
-                  }
-                }
-                added++;
-              }
-            }
           } catch (e) {
             debugPrint('Error loading movies for genre $genreId: $e');
-            continue;
+            return <Movie>[];
+          }
+        }),
+      );
+
+      for (int i = 0; i < keyGenres.length; i++) {
+        final genreId = keyGenres[i];
+        final currentCount = genreCounts[genreId] ?? 0;
+        final targetCount = 3 - currentCount;
+        int added = 0;
+        for (final movie in genreListsForDiversity[i]) {
+          if (added >= targetCount) break;
+          if (!seenMovieIds.contains(movie.id)) {
+            allMovies.add(movie.copyWith(recommendationStrategy: 'genre_match'));
+            seenMovieIds.add(movie.id);
+            if (movie.genreIds != null) {
+              for (final gId in movie.genreIds!) {
+                genreCounts[gId] = (genreCounts[gId] ?? 0) + 1;
+              }
+            }
+            added++;
           }
         }
       }
 
-      // Sort by a combination of popularity and rating
-      // Movies with both high popularity and high rating should come first
+      // Sort by a combination of popularity, rating, and onboarding genre match
       allMovies.sort((a, b) {
-        // Calculate a combined score: (rating * 0.6) + (normalized popularity * 0.4)
         // Normalize popularity (typically 0-1000+) to 0-10 scale
-        final popularityA = (a.popularity ?? 0.0) / 100.0; // Normalize to 0-10 scale
+        final popularityA = (a.popularity ?? 0.0) / 100.0;
         final popularityB = (b.popularity ?? 0.0) / 100.0;
-        
+
         final ratingA = a.voteAverage ?? 0.0;
         final ratingB = b.voteAverage ?? 0.0;
-        
-        // Combined score: 60% rating, 40% popularity
-        final scoreA = (ratingA * 0.6) + (popularityA.clamp(0.0, 10.0) * 0.4);
-        final scoreB = (ratingB * 0.6) + (popularityB.clamp(0.0, 10.0) * 0.4);
-        
+
+        // Boost movies whose genres overlap with the user's onboarding selections
+        final genreBoostA = (userOnboardingGenreIds.isNotEmpty &&
+                (a.genreIds?.any((g) => userOnboardingGenreIds.contains(g)) ?? false))
+            ? 0.15
+            : 0.0;
+        final genreBoostB = (userOnboardingGenreIds.isNotEmpty &&
+                (b.genreIds?.any((g) => userOnboardingGenreIds.contains(g)) ?? false))
+            ? 0.15
+            : 0.0;
+
+        final scoreA = (ratingA * 0.6) + (popularityA.clamp(0.0, 10.0) * 0.4) + genreBoostA;
+        final scoreB = (ratingB * 0.6) + (popularityB.clamp(0.0, 10.0) * 0.4) + genreBoostB;
+
         return scoreB.compareTo(scoreA); // Descending order
       });
 
@@ -402,14 +455,18 @@ class MovieProvider with ChangeNotifier {
       } else {
         _movies.addAll(finalCurated);
       }
-      
+
       _hasMorePages = finalCurated.isNotEmpty;
       if (user != null) {
         refreshFilters(user);
       } else {
         _applyFilters();
       }
-      
+
+      // Persist deck so next cold open can show cards instantly
+      unawaited(DiscoverMovieListCache.instance.save(
+          DiscoverMovieListCache.keyCurated, finalCurated.take(50).toList()));
+
     } catch (e) {
       _error = e.toString();
       debugPrint('Error loading curated starter movies: $e');
@@ -494,12 +551,12 @@ class MovieProvider with ChangeNotifier {
       if (query.isEmpty) {
         _filteredMovies = _movies;
       } else {
-        final searchResults = await _tmdbService.searchMovies(query);
+        final searchResults = await _tmdbService.searchMulti(query);
         _filteredMovies = _applyAdvancedFilters(searchResults, genreId, year, sortBy);
       }
       
     } catch (e) {
-      _error = e.toString();
+      _error = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -620,28 +677,63 @@ class MovieProvider with ChangeNotifier {
 
   /// Applies current filters to the movie list
   void _applyFilters() {
+    // Build swipe mood genre set once (mood takes precedence over genre selection)
+    Set<int>? swipeMoodGenres;
+    if (_swipeMoods.isNotEmpty) {
+      swipeMoodGenres = <int>{};
+      for (final mood in _swipeMoods) {
+        swipeMoodGenres.addAll(mood.preferredGenres);
+      }
+    }
+
     _filteredMovies = _movies.where((movie) {
-      // Filter by genre
+      // ── Recommendations-screen filters (genre picker / year / search) ──
       if (_selectedGenreId != null) {
         if (movie.genreIds == null || !movie.genreIds!.contains(_selectedGenreId)) {
           return false;
         }
       }
-      
-      // Filter by year
       if (_selectedYear != null) {
         final movieYear = movie.year;
         if (movieYear == null || int.tryParse(movieYear) != _selectedYear) {
           return false;
         }
       }
-      
-      // Filter by search query
       if (_searchQuery.isNotEmpty) {
         return movie.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                (movie.overview?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
       }
-      
+
+      // ── Swipe-screen genre / mood filter ──────────────────────────────
+      // Mood takes precedence; falls back to explicit genre selection.
+      if (swipeMoodGenres != null && swipeMoodGenres.isNotEmpty) {
+        final genres = movie.genreIds ?? [];
+        if (genres.isEmpty || !genres.any((id) => swipeMoodGenres!.contains(id))) {
+          return false;
+        }
+      } else if (_swipeSelectedGenres.isNotEmpty) {
+        final genres = movie.genreIds ?? [];
+        if (!_swipeSelectedGenres.any((id) => genres.contains(id))) {
+          return false;
+        }
+      }
+
+      // ── Swipe-screen platform filter (client-side, uses cached data) ──
+      // Three-way logic mirrors StreamingService.getMoviesOnMultiplePlatforms:
+      //   null            → API error, unknown — pass through (don't starve deck)
+      //   empty platforms → confirmed not on streaming — exclude
+      //   non-empty       → check against selection, exclude if no match
+      if (_swipeSelectedPlatforms.isNotEmpty) {
+        final avail = movie.streamingAvailability;
+        if (avail == null) {
+          // Unknown (API error) — pass through.
+        } else if (avail.availablePlatforms.isEmpty) {
+          return false; // Confirmed not on streaming in this country.
+        } else if (!_swipeSelectedPlatforms.any((id) => avail.isAvailableOn(id))) {
+          return false; // On streaming but not on any selected platform.
+        }
+      }
+
       return true;
     }).toList();
     
@@ -863,7 +955,13 @@ class MovieProvider with ChangeNotifier {
         notifyListeners();
       }
       _error = null;
-      
+
+      // Restore this user's persisted adaptive weights once per session.
+      if (_weightsLoadedForUserId != user.id) {
+        await _adaptiveWeighting.loadWeights(user.id);
+        _weightsLoadedForUserId = user.id;
+      }
+
       if (refresh) {
         _currentPage = 1;
         _movies.clear();
@@ -1022,54 +1120,54 @@ class MovieProvider with ChangeNotifier {
       // Strategy 4: Get recommendations based on liked movies (embedding/similar) (increased from 3 to 8)
       if (user.likedMovies.isNotEmpty) {
         final swEmbeddingBlock = Stopwatch()..start();
-        // Get recommendations from top 8 liked movies (prioritize most recent)
+        // Fetch similar+recommended for all top 8 liked movies in parallel
         final likedMoviesToAnalyze = user.likedMovies.reversed.take(8).toList();
-        for (final movieIdStr in likedMoviesToAnalyze) {
-          try {
+        final embeddingResults = await Future.wait(
+          likedMoviesToAnalyze.map((movieIdStr) async {
             final movieId = int.tryParse(movieIdStr);
-            if (movieId == null) continue;
+            if (movieId == null) return <Movie>[];
+            try {
+              final cachedSimilar = _movieSimilarSessionCache[movieId];
+              final cachedRecommendations =
+                  _movieRecommendationsSessionCache[movieId];
 
-            final cachedSimilar = _movieSimilarSessionCache[movieId];
-            final cachedRecommendations =
-                _movieRecommendationsSessionCache[movieId];
+              final List<Movie> similarMovies;
+              final List<Movie> recommendedMovies;
 
-            List<Movie> similarMovies;
-            List<Movie> recommendedMovies;
-
-            if (cachedSimilar != null && cachedRecommendations != null) {
-              similarMovies = cachedSimilar;
-              recommendedMovies = cachedRecommendations;
-            } else {
-              // Start both requests concurrently; await typed results.
-              final similarFuture = cachedSimilar != null
-                  ? Future.value(cachedSimilar)
-                  : _tmdbService.getSimilarMovies(movieId);
-              final recommendationsFuture = cachedRecommendations != null
-                  ? Future.value(cachedRecommendations)
-                  : _tmdbService.getMovieRecommendations(movieId);
-
-              similarMovies = await similarFuture;
-              recommendedMovies = await recommendationsFuture;
-
-              // Cache both (including empty lists) to prevent repeated calls
-              _movieSimilarSessionCache[movieId] = similarMovies;
-              _movieRecommendationsSessionCache[movieId] = recommendedMovies;
-            }
-            
-            // Combine similar and recommended movies
-            final combinedMovies = <Movie>[];
-            combinedMovies.addAll(similarMovies);
-            combinedMovies.addAll(recommendedMovies);
-            
-            for (final movie in combinedMovies) {
-              if (!seenMovieIds.contains(movie.id) && !currentMovieIds.contains(movie.id)) {
-                allRecommendations.add(movie.copyWith(recommendationStrategy: 'embedding'));
-                seenMovieIds.add(movie.id);
+              if (cachedSimilar != null && cachedRecommendations != null) {
+                similarMovies = cachedSimilar;
+                recommendedMovies = cachedRecommendations;
+              } else {
+                // Both TMDB calls fire concurrently within each movie
+                final results = await Future.wait([
+                  cachedSimilar != null
+                      ? Future.value(cachedSimilar)
+                      : _tmdbService.getSimilarMovies(movieId),
+                  cachedRecommendations != null
+                      ? Future.value(cachedRecommendations)
+                      : _tmdbService.getMovieRecommendations(movieId),
+                ]);
+                similarMovies = results[0];
+                recommendedMovies = results[1];
+                _movieSimilarSessionCache[movieId] = similarMovies;
+                _movieRecommendationsSessionCache[movieId] = recommendedMovies;
               }
+
+              return [...similarMovies, ...recommendedMovies];
+            } catch (e) {
+              return <Movie>[];
             }
-          } catch (e) {
-            // Continue with next movie
-            continue;
+          }),
+        );
+
+        for (final batch in embeddingResults) {
+          for (final movie in batch) {
+            if (!seenMovieIds.contains(movie.id) &&
+                !currentMovieIds.contains(movie.id)) {
+              allRecommendations
+                  .add(movie.copyWith(recommendationStrategy: 'embedding'));
+              seenMovieIds.add(movie.id);
+            }
           }
         }
         swEmbeddingBlock.stop();
@@ -1221,12 +1319,13 @@ class MovieProvider with ChangeNotifier {
         user,
       );
 
-      // Apply platform filter if platforms are selected
+      // Apply platform filter if platforms are selected.
+      // Limit to top 80 candidates — we only show 50 cards, checking all 200+ is wasteful.
       List<Movie> platformFilteredMovies = scoredMovies;
       if (effectivePlatformIds.isNotEmpty) {
         final streamingService = StreamingService.instance;
         platformFilteredMovies = await streamingService.getMoviesOnMultiplePlatforms(
-          scoredMovies,
+          scoredMovies.take(80).toList(),
           effectivePlatformIds,
         );
       }
@@ -1295,6 +1394,13 @@ class MovieProvider with ChangeNotifier {
       }
       swTotal.stop();
       _logPerf('loadPersonalizedRecommendations total', swTotal);
+
+      // Persist deck so next cold open can show cards instantly (skip on background preloads)
+      if (!backgroundLoad && refresh) {
+        unawaited(DiscoverMovieListCache.instance.save(
+            DiscoverMovieListCache.keyPersonalized,
+            finalMovies.take(50).toList()));
+      }
 
       // INFINITE SWIPE: After adding movies, check if we need to preload more
       if (backgroundLoad) {
@@ -1616,23 +1722,21 @@ class MovieProvider with ChangeNotifier {
     final likedMovies = <Movie>[];
     final cacheService = MovieCacheService.instance;
     
-    // Try cache first, then API if not cached
+    // Fetch all liked movies in parallel (cache-first, API fallback)
     final swLikedMoviesEnrich = Stopwatch()..start();
-    for (final movieId in userLikedMovieIds.take(10)) {
-      try {
-        // Check cache first for instant access
-        final cachedMovie = cacheService.getCachedMovie(movieId);
-        if (cachedMovie != null) {
-          likedMovies.add(cachedMovie);
-        } else {
-          // Load from API and cache it
-          final movie = await cacheService.getMovieDetails(movieId);
-          likedMovies.add(movie);
+    final enrichResults = await Future.wait(
+      userLikedMovieIds.take(10).map((movieId) async {
+        final cached = cacheService.getCachedMovie(movieId);
+        if (cached != null) return cached;
+        try {
+          return await cacheService.getMovieDetails(movieId);
+        } catch (_) {
+          return null;
         }
-      } catch (e) {
-        continue;
-      }
-    }
+      }),
+      eagerError: false,
+    );
+    likedMovies.addAll(enrichResults.whereType<Movie>());
     swLikedMoviesEnrich.stop();
     _logPerf('likedMoviesEnrich(10)', swLikedMoviesEnrich);
 
@@ -1648,6 +1752,10 @@ class MovieProvider with ChangeNotifier {
     } else if (variant == ABTestingService.variantB) {
       mfWeightMultiplier = 0.20; // enhanced: Moderate MF weight
     }
+
+    // Experienced users (>10 likes) have reliable preferred-cast data; lean into it
+    final isExperienced = user.likedMovies.length > 10;
+    final castBoost = isExperienced ? 1.25 : 1.0;
 
     final swScoringLoop = Stopwatch()..start();
     for (final movie in movies) {
@@ -1895,15 +2003,16 @@ class MovieProvider with ChangeNotifier {
       
       crossFeatureScore = crossFeatureScore.clamp(0.0, 1.0);
       
-      // Calculate base score from normalized components (adjusted weights)
+      // Base score — recency reduced 5%→3%, cross-feature boosted 8%→10%.
+      // Actor/director get a 1.25× boost for experienced users (>10 likes).
       final baseScore = (genreScore * 0.25) +
-                       (actorScore * 0.18) +
-                       (directorScore * 0.12) +
+                       (actorScore * castBoost * 0.18) +
+                       (directorScore * castBoost * 0.12) +
                        (ratingScore * 0.12) +
-                       (recencyScore * 0.05) +
+                       (recencyScore * 0.03) +
                        (qualityScore * 0.12) +
-                       (temporalScore * 0.08) + // NEW: Temporal features
-                       (crossFeatureScore * 0.08); // NEW: Cross-features
+                       (temporalScore * 0.08) +
+                       (crossFeatureScore * 0.10);
       
       // ENHANCED: Use adaptive weights that learn from user feedback
       final adaptiveWeights = _adaptiveWeighting.getContextualWeights(
@@ -1913,34 +2022,52 @@ class MovieProvider with ChangeNotifier {
       );
       
       // Content-based score (genre, actor, director)
-      score = baseScore * adaptiveWeights['contentBased']!;
-      
+      final contentContribution = baseScore * adaptiveWeights['contentBased']!;
+      score = contentContribution;
+
       // Contextual Recommendations - adaptive weight
       final contextualWeight = _contextualService.getContextualWeight(
         movie,
         currentMoods: currentMoods,
         currentTime: currentTime,
       );
-      score += adaptiveWeights['contextual']! * contextualWeight;
-      
+      final contextualContribution =
+          adaptiveWeights['contextual']! * contextualWeight;
+      score += contextualContribution;
+
       // Real-Time Learning from Behavior - adaptive weight
       final behaviorWeight = _behaviorService.getBehaviorWeight(movie.id);
-      score += adaptiveWeights['behavior']! * behaviorWeight;
-      
+      final behaviorContribution = adaptiveWeights['behavior']! * behaviorWeight;
+      score += behaviorContribution;
+
       // Embedding-Based Similarity - adaptive weight
+      final double embeddingContribution;
       if (likedMovies.isNotEmpty) {
         final embeddingWeight = _embeddingService.getEmbeddingWeight(movie, likedMovies);
-        score += adaptiveWeights['embedding']! * embeddingWeight;
+        embeddingContribution = adaptiveWeights['embedding']! * embeddingWeight;
       } else {
-        score += adaptiveWeights['embedding']!; // Neutral if no liked movies
+        embeddingContribution = adaptiveWeights['embedding']!; // Neutral if no liked movies
       }
-      
+      score += embeddingContribution;
+
       // Collaborative Filtering - adaptive weight
       final collaborativeWeight = _collaborativeService.getCollaborativeWeight(
         movie.id,
         userLikedMovieIds,
       );
-      score += adaptiveWeights['collaborative']! * collaborativeWeight;
+      final collaborativeContribution =
+          adaptiveWeights['collaborative']! * collaborativeWeight;
+      score += collaborativeContribution;
+
+      // Attribute this item to the strategy that contributed most to its score,
+      // so a later like/dislike can train the adaptive weights (see recordSwipeFeedback).
+      _itemDominantStrategy[movie.id] = _dominantStrategy({
+        'contentBased': contentContribution,
+        'contextual': contextualContribution,
+        'behavior': behaviorContribution,
+        'embedding': embeddingContribution,
+        'collaborative': collaborativeContribution,
+      });
       
       // NEW: Matrix Factorization - learns latent factors from user interactions
       // A/B Testing: Adjust MF weight based on variant (already calculated above)
@@ -1949,7 +2076,16 @@ class MovieProvider with ChangeNotifier {
       
       // Deep Learning (0% weight for now - disabled until model is ready)
       // This was adding noise with fallback scoring
-      
+
+      // Novelty boost: surface high-quality movies outside the user's top-3 genres.
+      // Gives a small +0.08 bump to movies rated ≥7.8 that don't overlap with the
+      // user's dominant taste, so occasional great surprises appear in the feed.
+      if ((movie.voteAverage ?? 0.0) >= 7.8 && preferences.topGenres.length >= 3) {
+        final top3 = preferences.topGenres.take(3).toSet();
+        final hasOverlap = movie.genreIds?.any((g) => top3.contains(g)) ?? false;
+        if (!hasOverlap) score += 0.08;
+      }
+
       scoredMovies.add(_ScoredMovie(movie: movie, score: score));
     }
     swScoringLoop.stop();
@@ -2099,19 +2235,19 @@ class MovieProvider with ChangeNotifier {
   /// Sets swipe screen mood filters (supports multiple moods)
   void setSwipeMoods(List<Mood> moods) {
     _swipeMoods = moods;
-    notifyListeners();
+    _applyFilters();
   }
 
   /// Sets swipe screen genre filters
   void setSwipeGenres(List<int> genres) {
     _swipeSelectedGenres = genres;
-    notifyListeners();
+    _applyFilters();
   }
 
   /// Sets swipe screen platform filters
   void setSwipePlatforms(List<String> platforms) {
     _swipeSelectedPlatforms = platforms;
-    notifyListeners();
+    _applyFilters();
   }
 
   /// Clears all swipe screen filters
@@ -2119,10 +2255,54 @@ class MovieProvider with ChangeNotifier {
     _swipeMoods = [];
     _swipeSelectedGenres = [];
     _swipeSelectedPlatforms = [];
-    notifyListeners();
+    _applyFilters();
   }
 
   /// Immediately removes a movie from swipe/deck lists after interaction.
+  /// Returns the strategy key with the largest contribution to a movie's score.
+  String _dominantStrategy(Map<String, double> contributions) {
+    var bestKey = 'contentBased';
+    var bestValue = double.negativeInfinity;
+    for (final entry in contributions.entries) {
+      if (entry.value > bestValue) {
+        bestValue = entry.value;
+        bestKey = entry.key;
+      }
+    }
+    return bestKey;
+  }
+
+  /// Trains the adaptive weights from a swipe: attributes the like/dislike to
+  /// the strategy that surfaced [movieId] (recorded at scoring time). No-op if
+  /// the movie wasn't scored this session (e.g. curated/starter cards).
+  Future<void> recordSwipeFeedback({
+    required int movieId,
+    required bool liked,
+    required User user,
+  }) async {
+    final strategy = _itemDominantStrategy[movieId];
+    if (strategy == null) return;
+    await _adaptiveWeighting.recordFeedback(
+      strategy: strategy,
+      liked: liked,
+      user: user,
+    );
+  }
+
+  /// Restores a just-swiped movie to the front of the deck (for UNDO).
+  ///
+  /// Inserts directly at the front of both `_movies` and `_filteredMovies`,
+  /// deliberately bypassing the like/dislike filter — the caller rolls back the
+  /// auth like/dislike asynchronously, so re-running [refreshFilters] here could
+  /// race and drop the movie again. Skips re-insert if it's somehow still present.
+  void reinsertSwipedMovieAtFront(Movie movie) {
+    _movies.removeWhere((m) => m.id == movie.id);
+    _movies.insert(0, movie);
+    _filteredMovies.removeWhere((m) => m.id == movie.id);
+    _filteredMovies.insert(0, movie);
+    notifyListeners();
+  }
+
   void removeMovie(int movieId, {User? user}) {
     final beforeCount = _movies.length;
     _movies.removeWhere((movie) => movie.id == movieId);

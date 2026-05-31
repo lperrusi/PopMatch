@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/movie.dart';
+import '../models/tv_show.dart';
 import 'tmdb_service.dart';
 
 /// Service for caching movie details to improve navigation performance
@@ -14,10 +15,14 @@ class MovieCacheService {
   // Cache for movie details with credits
   final Map<int, Movie> _movieDetailsCache = {};
   final Map<int, DateTime> _cacheTimestamps = {};
-  
+
+  // Cache for TV show details
+  final Map<int, TvShow> _showDetailsCache = {};
+  final Map<int, DateTime> _showCacheTimestamps = {};
+
   // Cache expiration time (24 hours)
   static const Duration _cacheExpiration = Duration(hours: 24);
-  
+
   // Maximum cache size to prevent memory issues
   static const int _maxCacheSize = 50;
 
@@ -118,10 +123,62 @@ class MovieCacheService {
     }
   }
 
+  // ── TV Show cache ──────────────────────────────────────────────────────────
+
+  /// Gets show details from cache synchronously (for instant access on remount)
+  TvShow? getCachedShow(int showId) {
+    if (_isShowCached(showId)) {
+      return _showDetailsCache[showId];
+    }
+    return null;
+  }
+
+  /// Gets show details from cache or loads from API
+  Future<TvShow> getShowDetails(int showId) async {
+    if (_isShowCached(showId)) {
+      return _showDetailsCache[showId]!;
+    }
+    final show = await TMDBService().getShowDetails(showId);
+    _cacheShow(showId, show);
+    return show;
+  }
+
+  bool _isShowCached(int showId) {
+    if (!_showDetailsCache.containsKey(showId)) return false;
+    final timestamp = _showCacheTimestamps[showId];
+    if (timestamp == null) return false;
+    final age = DateTime.now().difference(timestamp);
+    if (age > _cacheExpiration) {
+      _showDetailsCache.remove(showId);
+      _showCacheTimestamps.remove(showId);
+      return false;
+    }
+    return true;
+  }
+
+  void _cacheShow(int showId, TvShow show) {
+    if (_showDetailsCache.length >= _maxCacheSize) _evictOldestShowEntry();
+    _showDetailsCache[showId] = show;
+    _showCacheTimestamps[showId] = DateTime.now();
+  }
+
+  void _evictOldestShowEntry() {
+    if (_showCacheTimestamps.isEmpty) return;
+    final oldest = _showCacheTimestamps.entries
+        .reduce((a, b) => a.value.isBefore(b.value) ? a : b)
+        .key;
+    _showDetailsCache.remove(oldest);
+    _showCacheTimestamps.remove(oldest);
+  }
+
+  // ── General ────────────────────────────────────────────────────────────────
+
   /// Clears the entire cache
   void clearCache() {
     _movieDetailsCache.clear();
     _cacheTimestamps.clear();
+    _showDetailsCache.clear();
+    _showCacheTimestamps.clear();
   }
 
   /// Removes a specific movie from cache

@@ -17,9 +17,12 @@ import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
 import '../../services/tmdb_service.dart';
 import '../../services/movie_cache_service.dart';
 import '../../services/movie_embedding_service.dart';
+import '../../services/omdb_service.dart';
+import '../../utils/streaming_url_launcher.dart';
 import '../../widgets/transparent_button_image.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/navigation_utils.dart';
+import '../../utils/l10n_extension.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
 
 /// Retro Cinema styled movie detail screen
@@ -113,10 +116,34 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           }
         });
       }
+
+      // Enrich with IMDb / RT ratings from OMDb in the background
+      _enrichWithExternalRatings(loadedMovie);
     } catch (e) {
       debugPrint('Error loading movie details: $e');
       // Don't update state on error - keep showing what we have
       // Screen is already displaying basic movie info, no need to show error state
+    }
+  }
+
+  /// Fetches IMDb and Rotten Tomatoes ratings from OMDb and merges them into
+  /// _loadedMovie. Best-effort — silently skipped if no imdbId or no API key.
+  Future<void> _enrichWithExternalRatings(Movie movie) async {
+    final imdbId = movie.imdbId;
+    if (imdbId == null || imdbId.isEmpty) return;
+    try {
+      final ratings = await OMDbService.instance.getRatingsByImdbId(imdbId);
+      if (ratings == null || !mounted || _isDisposed) return;
+      setState(() {
+        _loadedMovie = (_loadedMovie ?? movie).copyWith(
+          imdbRating: ratings.imdbRating ?? movie.imdbRating,
+          imdbVotes: ratings.imdbVotes ?? movie.imdbVotes,
+          rottenTomatoesTomatometer: ratings.rottenTomatoesTomatometer ??
+              movie.rottenTomatoesTomatometer,
+        );
+      });
+    } catch (_) {
+      // Best-effort — screen already shows TMDB data
     }
   }
 
@@ -181,6 +208,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   Color get _textColor {
     if (_isLoadingColor) return AppTheme.warmCream;
     return _isLightBackground ? AppTheme.filmStripBlack : AppTheme.warmCream;
+  }
+
+  String _formatRuntime(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    if (h == 0) return '${m}m';
+    if (m == 0) return '${h}h';
+    return '${h}h ${m}m';
   }
 
   /// Gets the appropriate overlay color for better text readability
@@ -303,10 +338,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             ),
                             const SizedBox(height: 12),
 
-                            // Year and Rating row with adaptive colors
-                            Row(
+                            // Year · Runtime · Rating row
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                if (_displayMovie.year != null) ...[
+                                if (_displayMovie.year != null)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -330,32 +368,63 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                ],
-                                Icon(
-                                  Icons.star_rounded,
-                                  color: AppTheme.brickRed,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _displayMovie.formattedRating,
-                                  style: GoogleFonts.lato(
-                                    color: _textColor,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                if (_displayMovie.voteCount != null) ...[
-                                  const SizedBox(width: 8),
+                                if (_displayMovie.runtime != null &&
+                                    _displayMovie.runtime! > 0)
                                   Text(
-                                    '(${_displayMovie.voteCount} votes)',
+                                    _formatRuntime(_displayMovie.runtime!),
                                     style: GoogleFonts.lato(
-                                      color: _textColor.withValues(alpha: 70),
-                                      fontSize: 12,
+                                      color: _textColor.withValues(alpha: 0.85),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                ],
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.star_rounded,
+                                      color: AppTheme.brickRed,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      _displayMovie.formattedRating,
+                                      style: GoogleFonts.lato(
+                                        color: _textColor,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    if (_displayMovie.voteCount != null) ...[
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '(${_displayMovie.voteCount})',
+                                        style: GoogleFonts.lato(
+                                          color: _textColor.withValues(alpha: 0.6),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (_displayMovie.imdbRating != null)
+                                  Text(
+                                    'IMDb ${_displayMovie.imdbRating!.toStringAsFixed(1)}',
+                                    style: GoogleFonts.lato(
+                                      color: AppTheme.popcornGold,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                if (_displayMovie.rottenTomatoesTomatometer != null)
+                                  Text(
+                                    '🍅 ${_displayMovie.rottenTomatoesTomatometer}%',
+                                    style: GoogleFonts.lato(
+                                      color: _textColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -396,7 +465,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                               .showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                  'Removed ${_displayMovie.title} from watchlist'),
+                                                  context.l10n.snackbarRemovedFromWatchlist(_displayMovie.title)),
                                               backgroundColor:
                                                   AppTheme.fadedCurtain,
                                               behavior:
@@ -411,7 +480,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                               .showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                  'Added ${_displayMovie.title} to watchlist'),
+                                                  context.l10n.snackbarAddedToWatchlist(_displayMovie.title)),
                                               backgroundColor:
                                                   AppTheme.fadedCurtain,
                                               behavior:
@@ -448,7 +517,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                           if (context.mounted) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
-                                                content: Text('Removed ${_displayMovie.title} from favorites'),
+                                                content: Text(context.l10n.removedFromFavoritesSnackbar(_displayMovie.title)),
                                                 backgroundColor: AppTheme.fadedCurtain,
                                                 behavior: SnackBarBehavior.floating,
                                               ),
@@ -460,7 +529,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                           if (context.mounted) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
-                                                content: Text('Added ${_displayMovie.title} to favorites'),
+                                                content: Text(context.l10n.addedToFavoritesSnackbar(_displayMovie.title)),
                                                 backgroundColor: AppTheme.fadedCurtain,
                                                 behavior: SnackBarBehavior.floating,
                                               ),
@@ -495,7 +564,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                           if (context.mounted) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
-                                                content: Text('Removed ${_displayMovie.title} from disliked'),
+                                                content: Text(context.l10n.removedFromDislikedSnackbar(_displayMovie.title)),
                                                 backgroundColor: AppTheme.fadedCurtain,
                                                 behavior: SnackBarBehavior.floating,
                                               ),
@@ -507,7 +576,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                           if (context.mounted) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
-                                                content: Text('Added ${_displayMovie.title} to disliked'),
+                                                content: Text(context.l10n.addedToDislikedSnackbar(_displayMovie.title)),
                                                 backgroundColor: AppTheme.fadedCurtain,
                                                 behavior: SnackBarBehavior.floating,
                                               ),
@@ -596,11 +665,43 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Genre chips
+                    if (_displayMovie.genres != null &&
+                        _displayMovie.genres!.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _displayMovie.genres!.map((genre) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.brickRed.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.brickRed.withValues(alpha: 0.4),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              genre,
+                              style: GoogleFonts.lato(
+                                color: AppTheme.filmStripBlack,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
                     // Overview with Retro Cinema styling (expandable)
                     if (_displayMovie.overview != null &&
                         _displayMovie.overview!.isNotEmpty) ...[
                       Text(
-                        'Synopsis',
+                        context.l10n.synopsisLabel,
                         style: GoogleFonts.bebasNeue(
                           fontSize: 24,
                           color: AppTheme.filmStripBlack,
@@ -640,7 +741,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                   });
                                 },
                                 child: Text(
-                                  _isSynopsisExpanded ? 'Show less' : 'More',
+                                  _isSynopsisExpanded ? context.l10n.showLessLabel : context.l10n.moreLabel,
                                   style: GoogleFonts.lato(
                                     color: AppTheme.cinemaRed,
                                     fontSize: 14,
@@ -891,7 +992,7 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Movies Like This',
+            context.l10n.moviesLikeThisLabel,
             style: GoogleFonts.bebasNeue(
               fontSize: 28,
               color: AppTheme.filmStripBlack,
@@ -914,7 +1015,7 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Failed to load similar movies',
+                    context.l10n.failedToLoadSimilarMovies,
                     style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack.withValues(alpha: 70),
                       fontSize: 14,
@@ -927,7 +1028,7 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
                       backgroundColor: AppTheme.brickRed,
                       foregroundColor: AppTheme.warmCream,
                     ),
-                    child: const Text('Retry'),
+                    child: Text(context.l10n.retryButton),
                   ),
                 ],
               ),
@@ -943,7 +1044,7 @@ class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'No similar movies found',
+                    context.l10n.noSimilarMoviesFound,
                     style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack.withValues(alpha: 60),
                       fontSize: 14,
@@ -1142,7 +1243,7 @@ class _VideosSectionState extends State<_VideosSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Trailers & Videos',
+            context.l10n.trailersVideosLabel,
             style: GoogleFonts.bebasNeue(
               fontSize: 28,
               color: AppTheme.filmStripBlack,
@@ -1235,7 +1336,7 @@ class _DirectorActorsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Cast & Crew',
+          context.l10n.castCrewLabel,
           style: GoogleFonts.bebasNeue(
             fontSize: 24,
             color: AppTheme.filmStripBlack,
@@ -1485,7 +1586,7 @@ class _StreamingAvailabilitySectionState
               ),
               const SizedBox(width: 12),
               Text(
-                'Where to Watch',
+                context.l10n.whereToWatchLabel,
                 style: GoogleFonts.bebasNeue(
                   fontSize: 28,
                   color: AppTheme.filmStripBlack,
@@ -1523,7 +1624,7 @@ class _StreamingAvailabilitySectionState
                       backgroundColor: AppTheme.brickRed,
                       foregroundColor: AppTheme.warmCream,
                     ),
-                    child: const Text('Retry'),
+                    child: Text(context.l10n.retryButton),
                   ),
                 ],
               ),
@@ -1553,52 +1654,62 @@ class _StreamingAvailabilitySectionState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Platform logos
+        // Platform logos — tapping opens the platform app/site
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: platforms.map((platform) {
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.vintagePaper,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.filmStripBlack.withValues(alpha: 40),
-                  width: 1.5,
-                ),
+            return GestureDetector(
+              onTap: () => launchStreamingSearch(
+                context: context,
+                platform: platform,
+                title: widget.movie.title,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: AppTheme.brickRed.withValues(alpha: 20),
-                      borderRadius: BorderRadius.circular(8),
+              child: Tooltip(
+                message: 'Open on ${platform.name}',
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.vintagePaper,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.filmStripBlack.withValues(alpha: 40),
+                      width: 1.5,
                     ),
-                    child: Center(
-                      child: Text(
-                        _getPlatformInitials(platform.name),
-                        style: GoogleFonts.bebasNeue(
-                          color: AppTheme.brickRed,
-                          fontSize: 20,
-                          letterSpacing: 1,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppTheme.brickRed.withValues(alpha: 20),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _getPlatformInitials(platform.name),
+                            style: GoogleFonts.bebasNeue(
+                              color: AppTheme.brickRed,
+                              fontSize: 20,
+                              letterSpacing: 1,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        platform.name,
+                        style: GoogleFonts.lato(
+                          color: AppTheme.filmStripBlack,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    platform.name,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           }).toList(),
@@ -1796,7 +1907,7 @@ class _InlineStreamingAvailabilityState
             ),
             const SizedBox(width: 8),
             Text(
-              'Where to Watch:',
+              context.l10n.whereToWatchLabel,
               style: GoogleFonts.lato(
                 color: widget.textColor,
                 fontSize: 14,
@@ -1815,20 +1926,30 @@ class _InlineStreamingAvailabilityState
               final platform = platforms[index];
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.sepiaBrown,
-                    borderRadius: BorderRadius.circular(6),
+                child: GestureDetector(
+                  onTap: () => launchStreamingSearch(
+                    context: context,
+                    platform: platform,
+                    title: widget.movie.title,
                   ),
-                  child: Center(
-                    child: Text(
-                      platform.name,
-                      style: GoogleFonts.lato(
-                        color: widget.textColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                  child: Tooltip(
+                    message: 'Open on ${platform.name}',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.sepiaBrown,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          platform.name,
+                          style: GoogleFonts.lato(
+                            color: widget.textColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ),

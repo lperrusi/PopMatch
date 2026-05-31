@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import 'recommendation_metrics_service.dart';
@@ -10,14 +12,17 @@ class AdaptiveWeightingService {
   factory AdaptiveWeightingService() => _instance;
   AdaptiveWeightingService._internal();
 
-  // Current weights for different recommendation strategies
-  Map<String, double> _currentWeights = {
+  // Default strategy weights — single source of truth for init/reset/validation.
+  static const Map<String, double> _defaultWeights = {
     'contentBased': 0.40, // Genre, actor, director matching
     'contextual': 0.20, // Time, mood-based
     'behavior': 0.15, // Real-time learning
     'embedding': 0.20, // Embedding similarity
     'collaborative': 0.05, // Collaborative filtering
   };
+
+  // Current weights for different recommendation strategies
+  Map<String, double> _currentWeights = Map<String, double>.from(_defaultWeights);
 
   // Track user feedback per strategy
   final Map<String, List<bool>> _strategyFeedback =
@@ -143,41 +148,44 @@ class AdaptiveWeightingService {
 
   /// Resets weights to defaults
   Future<void> resetWeights(String userId) async {
-    _currentWeights = {
-      'contentBased': 0.40,
-      'contextual': 0.20,
-      'behavior': 0.15,
-      'embedding': 0.20,
-      'collaborative': 0.05,
-    };
+    _currentWeights = Map<String, double>.from(_defaultWeights);
     await _saveWeights(userId);
   }
 
-  /// Saves weights to local storage
+  /// Saves weights to local storage as JSON, keyed per user.
   Future<void> _saveWeights(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final weightsJson = <String, String>{};
-      for (final entry in _currentWeights.entries) {
-        weightsJson[entry.key] = entry.value.toString();
-      }
-
-      // Save per-user weights
-      await prefs.setString('adaptive_weights_$userId', weightsJson.toString());
+      await prefs.setString(
+        'adaptive_weights_$userId',
+        jsonEncode(_currentWeights),
+      );
     } catch (e) {
       // Silently fail
     }
   }
 
-  /// Loads weights from local storage
+  /// Loads weights from local storage. Keeps defaults if absent or invalid.
   Future<void> loadWeights(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final weightsStr = prefs.getString('adaptive_weights_$userId');
-      if (weightsStr != null) {
-        // Parse weights (simplified - in production use proper JSON)
-        // For now, keep defaults if parsing fails
+      if (weightsStr == null) return;
+
+      final decoded = jsonDecode(weightsStr);
+      if (decoded is! Map) return;
+
+      final parsed = <String, double>{};
+      for (final key in _defaultWeights.keys) {
+        final value = decoded[key];
+        if (value is! num || !value.isFinite) return; // invalid → keep defaults
+        parsed[key] = value.toDouble();
       }
+
+      final sum = parsed.values.fold<double>(0, (a, b) => a + b);
+      if (sum <= 0) return; // unusable → keep defaults
+
+      _currentWeights = parsed;
     } catch (e) {
       // Keep defaults if loading fails
     }

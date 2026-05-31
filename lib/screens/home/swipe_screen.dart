@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/movie.dart';
 import '../../models/tv_show.dart';
 import '../../models/mood.dart';
@@ -14,19 +15,25 @@ import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../services/movie_cache_service.dart';
 import '../../services/user_preference_analyzer.dart';
+import '../../services/discover_movie_list_cache.dart';
 import '../../services/behavior_tracking_service.dart';
 import '../../services/collaborative_filtering_service.dart';
-import '../../services/adaptive_weighting_service.dart';
 import '../../services/online_learning_service.dart';
 import '../../utils/recommendation_item_id_utils.dart';
+import '../../models/social_activity.dart';
+import '../../providers/social_provider.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
+import '../../widgets/discover_undo_snackbar.dart';
 import '../../widgets/retro_cinema_movie_card.dart';
 import '../../widgets/retro_cinema_show_card.dart';
 import '../../widgets/match_success_screen.dart';
+import '../../widgets/movie_quick_peek.dart';
+import '../../widgets/swipe_gesture_hints.dart';
 
 /// Main swiping screen with Retro Cinema aesthetic
 class SwipeScreen extends StatefulWidget {
@@ -57,6 +64,11 @@ class _SwipeScreenState extends State<SwipeScreen>
   DateTime? _lastLowDeckMovieRefresh;
   int _currentTabIndex = 0; // 0 = Movies, 1 = Shows
 
+  /// Last front-card ids we recorded a view for, so behaviour tracking fires
+  /// once per card instead of on every deck rebuild / animation frame.
+  int? _lastTrackedFrontMovieId;
+  int? _lastTrackedFrontShowId;
+
   static const int _swipePreloadRemainingThreshold = 10;
   static const Duration _swipePreloadMinInterval = Duration(seconds: 3);
   static const Duration _lowDeckRefreshMinInterval = Duration(seconds: 8);
@@ -67,6 +79,21 @@ class _SwipeScreenState extends State<SwipeScreen>
   /// Bumped to cancel pending match overlays when a new swipe or undo happens.
   int _movieSwipeEpoch = 0;
   int _showSwipeEpoch = 0;
+
+  // ── Inline undo overlay state ──────────────────────────────────────────────
+  // Movies
+  Movie?                _pendingRemovedMovie;
+  CardSwiperDirection?  _pendingMovieDirection;
+  Timer?                _movieUndoTimer;
+  bool                  _showMovieUndoBanner = false;
+  // Shows
+  TvShow?               _pendingRemovedShow;
+  CardSwiperDirection?  _pendingShowDirection;
+  Timer?                _showUndoTimer;
+  bool                  _showShowUndoBanner = false;
+
+  // ── Gesture hints overlay ──────────────────────────────────────────────────
+  bool _showGestureHints = false;
 
   /// Reloads movies when filters change
   Future<void> _reloadMoviesWithFilters() async {
@@ -85,6 +112,14 @@ class _SwipeScreenState extends State<SwipeScreen>
       }
     } else {
       await movieProvider.loadCuratedStarterMovies(refresh: true, user: null);
+    }
+
+    if (mounted) {
+      setState(() {
+        _moviesSwiperKey =
+            ValueKey('movies_${DateTime.now().millisecondsSinceEpoch}');
+        _bumpMovieSwipeEpoch();
+      });
     }
   }
 
@@ -209,6 +244,8 @@ class _SwipeScreenState extends State<SwipeScreen>
   @override
   void dispose() {
     _bufferMaintenanceTimer?.cancel();
+    _movieUndoTimer?.cancel();
+    _showUndoTimer?.cancel();
     for (final timer in _pendingTimers) {
       timer.cancel();
     }
@@ -219,104 +256,182 @@ class _SwipeScreenState extends State<SwipeScreen>
     super.dispose();
   }
 
-  /// One circular swipe hint (does not intercept gestures).
-  Widget _swipeDirectionHintCell(String asset, String tooltip,
-      {double iconSize = 46}) {
-    return Tooltip(
-      message: tooltip,
-      child: IgnorePointer(
-        child: ClipOval(
-          child: SizedBox(
-            width: iconSize,
-            height: iconSize,
-            child: Image.asset(
-              asset,
-              fit: BoxFit.contain,
-              alignment: Alignment.center,
-              filterQuality: FilterQuality.medium,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Places up / right / down / left hints at the edges of the swipe area
-  /// (aligned with swipe directions). [swiper] is typically a [CardSwiper].
-  Widget _buildSwipeAreaWithEdgeHints({
+  /// Wraps the swiper in a keyed subtree so it can be remounted on undo.
+  /// Directional affordances live in the MATCH button (above the card) and the
+  /// NOPE/SKIP/LIKE action row (below it) — each PNG embeds its swipe arrow.
+  Widget _buildSwipeArea({
     required Key swiperKey,
     required Widget swiper,
   }) {
-    const iconSize = 68.0;
-    const sideBand = iconSize + 22.0;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        Positioned.fill(
-          child: KeyedSubtree(
-            key: swiperKey,
-            child: swiper,
-          ),
-        ),
-        Positioned(
-          top: 2,
-          left: sideBand,
-          right: sideBand,
-          child: Center(
-            child: _swipeDirectionHintCell(
-              'assets/swipe/swipe_up.png',
-              'Swipe up — Match',
-              iconSize: iconSize,
-            ),
-          ),
-        ),
-        Positioned(
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: sideBand,
-          child: Center(
-            child: _swipeDirectionHintCell(
-              'assets/swipe/swipe_right.png',
-              'Swipe right — Like',
-              iconSize: iconSize,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 2,
-          left: sideBand,
-          right: sideBand,
-          child: Center(
-            child: _swipeDirectionHintCell(
-              'assets/swipe/swipe_down.png',
-              'Swipe down — Skip',
-              iconSize: iconSize,
-            ),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: sideBand,
-          child: Center(
-            child: _swipeDirectionHintCell(
-              'assets/swipe/swipe_left.png',
-              'Swipe left — Pass',
-              iconSize: iconSize,
-            ),
-          ),
-        ),
-      ],
-    );
+    return KeyedSubtree(key: swiperKey, child: swiper);
   }
 
   void _bumpMovieSwipeEpoch() => _movieSwipeEpoch++;
 
   void _bumpShowSwipeEpoch() => _showSwipeEpoch++;
+
+  // ── Card-framing action buttons ─────────────────────────────────────────────
+  // The deck is framed in a cross: rectangular MATCH on top, circular NOPE on
+  // the left edge, circular LIKE on the right edge, rectangular SKIP below the
+  // card. Each PNG embeds its swipe-direction arrow. The edge buttons are
+  // siblings of the swiper in the tab Stack, so they stay fixed while cards
+  // swipe underneath.
+
+  /// Rectangular MATCH badge (cropped ADMIT ONE ticket) at the top-center.
+  Widget _buildMatchButton(VoidCallback onTap) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: _RectActionButton(
+          leadingIcon: Icons.local_activity,
+          label: 'MATCH',
+          trailingIcon: Icons.keyboard_arrow_up_rounded,
+          fillColor: AppTheme.cinemaRed,
+          borderColor: AppTheme.popcornGold,
+          foregroundColor: AppTheme.popcornGold,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+
+  /// Circular NOPE button straddling the card's left edge, vertically centered.
+  Widget _buildNopeButton(VoidCallback onTap) {
+    return Positioned(
+      left: 0,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: _SwipeActionButton(
+          assetPath: 'assets/swipe/swipe_left.png',
+          label: null,
+          color: AppTheme.nopeRed,
+          size: 64,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+
+  /// Circular LIKE button straddling the card's right edge, vertically centered.
+  Widget _buildLikeButton(VoidCallback onTap) {
+    return Positioned(
+      right: 0,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: _SwipeActionButton(
+          assetPath: 'assets/swipe/swipe_right.png',
+          label: null,
+          color: AppTheme.likeGreen,
+          size: 64,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+
+  /// Rectangular SKIP badge (cropped "SKIP ↓") centered below the card.
+  Widget _buildSkipButton(VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: _RectActionButton(
+          leadingIcon: Icons.content_cut,
+          label: 'SKIP',
+          trailingIcon: Icons.keyboard_arrow_down_rounded,
+          fillColor: AppTheme.filmStripBlack.withValues(alpha: 0.9),
+          borderColor: AppTheme.sepiaBrown,
+          foregroundColor: AppTheme.creamyWhite,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+
+  // ── Deferred removal helpers ──────────────────────────────────────────────
+
+  /// Clears the pending-undo banner/timer for movies. Removal is immediate on
+  /// swipe (see the swipe handler), so there is nothing to commit here — this
+  /// just hides the banner and drops the undo reference.
+  void _clearMoviePendingUndo() {
+    _movieUndoTimer?.cancel();
+    _pendingRemovedMovie = null;
+    _pendingMovieDirection = null;
+    if (mounted) setState(() => _showMovieUndoBanner = false);
+  }
+
+  /// Rolls back the last movie swipe: reverses auth state and re-inserts the
+  /// swiped card at the front of the deck. Removal is immediate on swipe (so
+  /// rapid consecutive swipes always advance to the correct next card), so undo
+  /// must restore the card via [MovieProvider.reinsertSwipedMovieAtFront] rather
+  /// than the unreliable `controller.undo()` path.
+  void _undoLastMovieSwipe() {
+    _movieUndoTimer?.cancel();
+    final movie = _pendingRemovedMovie;
+    final dir = _pendingMovieDirection;
+    _pendingRemovedMovie = null;
+    _pendingMovieDirection = null;
+
+    if (movie != null && dir != null && mounted) {
+      final movieProvider = Provider.of<MovieProvider>(context, listen: false);
+      final authProvider =
+          Provider.of<AuthProvider>(context, listen: false);
+      if (dir == CardSwiperDirection.right) {
+        unawaited(authProvider.removeLikedMovie(movie.id.toString()));
+      } else if (dir == CardSwiperDirection.left) {
+        unawaited(authProvider.removeDislikedMovie(movie.id.toString()));
+      }
+      movieProvider.reinsertSwipedMovieAtFront(movie);
+      setState(() {
+        _showMovieUndoBanner = false;
+        _moviesSwiperKey =
+            ValueKey('movies_undo_${DateTime.now().millisecondsSinceEpoch}');
+        _bumpMovieSwipeEpoch();
+      });
+    } else if (mounted) {
+      setState(() => _showMovieUndoBanner = false);
+    }
+  }
+
+  /// Show counterpart of [_clearMoviePendingUndo].
+  void _clearShowPendingUndo() {
+    _showUndoTimer?.cancel();
+    _pendingRemovedShow = null;
+    _pendingShowDirection = null;
+    if (mounted) setState(() => _showShowUndoBanner = false);
+  }
+
+  /// Rolls back the last show swipe. Mirrors [_undoLastMovieSwipe].
+  void _undoLastShowSwipe() {
+    _showUndoTimer?.cancel();
+    final show = _pendingRemovedShow;
+    final dir = _pendingShowDirection;
+    _pendingRemovedShow = null;
+    _pendingShowDirection = null;
+
+    if (show != null && dir != null && mounted) {
+      final showProvider = Provider.of<ShowProvider>(context, listen: false);
+      final authProvider =
+          Provider.of<AuthProvider>(context, listen: false);
+      if (dir == CardSwiperDirection.right) {
+        unawaited(authProvider.removeLikedShow(show.id.toString()));
+      } else if (dir == CardSwiperDirection.left) {
+        unawaited(authProvider.removeDislikedShow(show.id.toString()));
+      }
+      showProvider.reinsertSwipedShowAtFront(show);
+      setState(() {
+        _showShowUndoBanner = false;
+        _showsSwiperKey =
+            ValueKey('shows_undo_${DateTime.now().millisecondsSinceEpoch}');
+        _bumpShowSwipeEpoch();
+      });
+    } else if (mounted) {
+      setState(() => _showShowUndoBanner = false);
+    }
+  }
 
   Future<void> _onMoviesDeckEnd() async {
     if (!mounted) return;
@@ -364,69 +479,15 @@ class _SwipeScreenState extends State<SwipeScreen>
     });
   }
 
-  void _showDiscoverUndoSnackBar(CardSwiperController swiperController) {
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    // Replace any currently visible snackbar to avoid stale controller races.
-    // Calling `clearSnackBars()` + later closing an old controller can trigger
-    // the `_snackBars.first == controller` assertion.
-    messenger.hideCurrentSnackBar();
-
-    messenger.showSnackBar(
-      SnackBar(
-        content: const Text('Swipe recorded'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'UNDO',
-          textColor: AppTheme.popcornGold,
-          onPressed: () {
-            messenger.hideCurrentSnackBar();
-            swiperController.undo();
-          },
-        ),
-      ),
-    );
-  }
-
   bool _onMoviesUndo(
     int? indexAfterSwipe,
     int restoredFrontIndex,
     CardSwiperDirection direction,
   ) {
+    // Auth rollback is handled by _undoLastMovieSwipe before controller.undo()
+    // is called, so nothing extra needed here.
     if (!mounted) return false;
-    final movieProvider = Provider.of<MovieProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    if (restoredFrontIndex < 0 ||
-        restoredFrontIndex >= movieProvider.filteredMovies.length) {
-      return false;
-    }
-
     _movieSwipeEpoch++;
-    final movie = movieProvider.filteredMovies[restoredFrontIndex];
-
-    switch (direction) {
-      case CardSwiperDirection.right:
-        unawaited(authProvider.removeLikedMovie(movie.id.toString()));
-        break;
-      case CardSwiperDirection.left:
-        unawaited(authProvider.removeDislikedMovie(movie.id.toString()));
-        break;
-      case CardSwiperDirection.top:
-        unawaited(authProvider.removeLikedMovie(movie.id.toString()));
-        unawaited(authProvider.removeFromWatchlist(movie.id.toString()));
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-        break;
-      case CardSwiperDirection.bottom:
-        break;
-      default:
-        return false;
-    }
-
-    if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
     return true;
   }
 
@@ -435,39 +496,10 @@ class _SwipeScreenState extends State<SwipeScreen>
     int restoredFrontIndex,
     CardSwiperDirection direction,
   ) {
+    // Auth rollback is handled by _undoLastShowSwipe before controller.undo()
+    // is called, so nothing extra needed here.
     if (!mounted) return false;
-    final showProvider = Provider.of<ShowProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    if (restoredFrontIndex < 0 ||
-        restoredFrontIndex >= showProvider.filteredShows.length) {
-      return false;
-    }
-
     _showSwipeEpoch++;
-    final show = showProvider.filteredShows[restoredFrontIndex];
-
-    switch (direction) {
-      case CardSwiperDirection.right:
-        unawaited(authProvider.removeLikedShow(show.id.toString()));
-        break;
-      case CardSwiperDirection.left:
-        unawaited(authProvider.removeDislikedShow(show.id.toString()));
-        break;
-      case CardSwiperDirection.top:
-        unawaited(authProvider.removeLikedShow(show.id.toString()));
-        unawaited(authProvider.removeFromWatchlistShow(show.id.toString()));
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-        break;
-      case CardSwiperDirection.bottom:
-        break;
-      default:
-        return false;
-    }
-
-    if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
     return true;
   }
 
@@ -581,6 +613,70 @@ class _SwipeScreenState extends State<SwipeScreen>
     );
   }
 
+  /// Smart empty state shown when active filters produce zero results.
+  Widget _buildFilteredEmptyState({
+    required IconData icon,
+    required List moods,
+    required List genres,
+    required List platforms,
+    required VoidCallback onRelax,
+  }) {
+    final String message;
+    if (platforms.isNotEmpty && genres.isEmpty && moods.isEmpty) {
+      message =
+          'No titles found on your selected platforms.\nTry adding more platforms or clearing the platform filter.';
+    } else if (genres.isNotEmpty && platforms.isEmpty && moods.isEmpty) {
+      message =
+          'No titles found in your selected genres.\nTry broadening your genre filter.';
+    } else if (moods.isNotEmpty && genres.isEmpty && platforms.isEmpty) {
+      message =
+          'No titles match this mood.\nTry a different mood or clear the mood filter.';
+    } else {
+      message =
+          'No titles match your current filters.\nTry relaxing some filters to see more results.';
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64,
+                color: AppTheme.filmStripBlack.withValues(alpha: 50)),
+            const SizedBox(height: 16),
+            Text(
+              context.l10n.nothingHereLabel,
+              style: GoogleFonts.bebasNeue(
+                fontSize: 24,
+                color: AppTheme.filmStripBlack,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRelax,
+              icon: const Icon(Icons.tune_outlined, size: 16),
+              label: Text(context.l10n.relaxFiltersButton),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.cinemaRed,
+                foregroundColor: AppTheme.warmCream,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// When returning to the Movies tab: keep the existing deck; only bootstrap if empty.
   void _ensureMoviesTabContent() {
     if (!mounted) return;
@@ -629,82 +725,135 @@ class _SwipeScreenState extends State<SwipeScreen>
     }
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    // Small delay to ensure transition completes and auth is initialized
-    await Future.delayed(const Duration(milliseconds: 200));
+    // Determine which cache key to use based on current auth state
+    final user = authProvider.userData;
+    final analyzer = UserPreferenceAnalyzer();
+    final cacheKey = (user != null && analyzer.hasEnoughData(user))
+        ? DiscoverMovieListCache.keyPersonalized
+        : DiscoverMovieListCache.keyCurated;
+
+    // Try to show cached cards immediately (no spinner, no network wait)
+    final gotCache = await movieProvider.loadCachedMoviesInstant(
+        cacheKey: cacheKey, user: user);
 
     if (!mounted) return;
 
-    // Ensure auth provider is initialized (user data might still be loading)
+    if (gotCache) {
+      // Cached cards are visible — reset swiper and show them right away
+      setState(() {
+        _moviesSwiperKey =
+            ValueKey('movies_${DateTime.now().millisecondsSinceEpoch}');
+        _bumpMovieSwipeEpoch();
+      });
+
+      // Apply user filters without waiting (they were already applied to cache)
+      _applyUserFiltersToProvider(movieProvider, user);
+
+      // Refresh in background; new movies arrive via _pendingMovies without disrupting the deck
+      unawaited(_doNetworkRefresh(movieProvider, user, backgroundLoad: true));
+
+      _maybeShowGestureHints();
+      return;
+    }
+
+    // No cache — first session or expired. Wait for auth if still loading.
     if (authProvider.isLoading) {
-      // Wait a bit more for auth to finish loading
       await Future.delayed(const Duration(milliseconds: 300));
     }
-
     if (!mounted) return;
 
-    // Always check user preferences and load appropriate recommendations
-    // This ensures personalized recommendations are loaded even after app restart
-    if (authProvider.userData != null) {
-      final user = authProvider.userData!;
-
-      // Auto-apply streaming platforms from user preferences if not already set
-      final selectedPlatforms =
-          user.preferences['selectedPlatforms'] as List<dynamic>?;
-      if (selectedPlatforms != null && selectedPlatforms.isNotEmpty) {
-        final platformList =
-            selectedPlatforms.map((p) => p.toString()).toList();
-        // Only set if not already set (to avoid overriding manual filter changes)
-        if (movieProvider.swipeSelectedPlatforms.isEmpty) {
-          movieProvider.setSwipePlatforms(platformList);
-        }
-      }
-
-      // Auto-apply genres from user profile (onboarding / edit preferences) so filter shows them selected by default
-      final selectedGenres =
-          user.preferences['selectedGenres'] as List<dynamic>?;
-      if (selectedGenres != null &&
-          selectedGenres.isNotEmpty &&
-          movieProvider.swipeSelectedGenres.isEmpty) {
-        final genreIds = selectedGenres
-            .map((g) => g is int ? g : (g as num).toInt())
-            .toList();
-        movieProvider.setSwipeGenres(genreIds);
-      }
-
-      final analyzer = UserPreferenceAnalyzer();
-
-      // Use the same hybrid personalized pipeline as TV shows for consistency.
-      if (analyzer.hasEnoughData(user)) {
-        await movieProvider.loadPersonalizedRecommendations(user, refresh: true);
-      } else {
-        await movieProvider.loadCuratedStarterMovies(refresh: true, user: user);
-      }
-
-      // INFINITE SWIPE: After initial load, start preloading to fill buffer
-      _scheduleTimer(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          movieProvider.checkAndPreload(user);
-        }
-      });
-    } else {
-      await movieProvider.loadCuratedStarterMovies(refresh: true, user: null);
-
-      // INFINITE SWIPE: After initial load, start preloading to fill buffer
-      _scheduleTimer(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          movieProvider.checkAndPreload(null);
-        }
-      });
-    }
+    // Re-read user after potential auth wait
+    final resolvedUser = authProvider.userData;
+    _applyUserFiltersToProvider(movieProvider, resolvedUser);
+    await _doNetworkRefresh(movieProvider, resolvedUser, backgroundLoad: false);
 
     if (mounted) {
-      // Any refresh-style load can shrink the list; reset swiper index safely.
       setState(() {
         _moviesSwiperKey =
             ValueKey('movies_${DateTime.now().millisecondsSinceEpoch}');
         _bumpMovieSwipeEpoch();
       });
     }
+
+    _maybeShowGestureHints();
+  }
+
+  /// Applies platform/genre filters from the user's saved preferences to [movieProvider].
+  void _applyUserFiltersToProvider(MovieProvider movieProvider, User? user) {
+    if (user == null) return;
+    final selectedPlatforms =
+        user.preferences['selectedPlatforms'] as List<dynamic>?;
+    if (selectedPlatforms != null &&
+        selectedPlatforms.isNotEmpty &&
+        movieProvider.swipeSelectedPlatforms.isEmpty) {
+      final normalized = selectedPlatforms
+          .map((p) => p.toString().trim())
+          .expand((s) {
+            if (StreamingPlatform.getById(s) != null) return [s];
+            return StreamingPlatform.availablePlatforms
+                .where((p) => p.name.toLowerCase() == s.toLowerCase())
+                .map((p) => p.id);
+          })
+          .toSet()
+          .toList();
+      movieProvider.setSwipePlatforms(normalized);
+    }
+    final selectedGenres =
+        user.preferences['selectedGenres'] as List<dynamic>?;
+    if (selectedGenres != null &&
+        selectedGenres.isNotEmpty &&
+        movieProvider.swipeSelectedGenres.isEmpty) {
+      final genreIds = selectedGenres
+          .map((g) => g is int ? g : (g as num).toInt())
+          .toList();
+      movieProvider.setSwipeGenres(genreIds);
+    }
+  }
+
+  /// Runs the appropriate network load (personalized or curated) and schedules
+  /// the buffer-maintenance preload timer afterward.
+  Future<void> _doNetworkRefresh(
+    MovieProvider movieProvider,
+    User? user, {
+    required bool backgroundLoad,
+  }) async {
+    final analyzer = UserPreferenceAnalyzer();
+    if (user != null) {
+      if (analyzer.hasEnoughData(user)) {
+        await movieProvider.loadPersonalizedRecommendations(
+          user,
+          refresh: true,
+          backgroundLoad: backgroundLoad,
+        );
+      } else {
+        await movieProvider.loadCuratedStarterMovies(
+            refresh: true, user: user);
+      }
+      _scheduleTimer(const Duration(milliseconds: 500), () {
+        if (mounted) movieProvider.checkAndPreload(user);
+      });
+    } else {
+      await movieProvider.loadCuratedStarterMovies(
+          refresh: true, user: null);
+      _scheduleTimer(const Duration(milliseconds: 500), () {
+        if (mounted) movieProvider.checkAndPreload(null);
+      });
+    }
+  }
+
+  Future<void> _maybeShowGestureHints() async {
+    final prefs = await SharedPreferences.getInstance();
+    final shown = prefs.getBool('discover_hints_shown') ?? false;
+    if (!shown && mounted) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) setState(() => _showGestureHints = true);
+    }
+  }
+
+  Future<void> _dismissGestureHints() async {
+    setState(() => _showGestureHints = false);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('discover_hints_shown', true);
   }
 
   /// Handles movie swipe actions:
@@ -773,11 +922,12 @@ class _SwipeScreenState extends State<SwipeScreen>
           BehaviorTrackingService().recordSwipe(userId, movie.id, 'like');
           CollaborativeFilteringService().recordUserLike(userId, movie.id);
 
-          // ENHANCED: Record feedback for adaptive weighting (strategy from discovery)
+          // Train adaptive weights, attributing the like to the weight-aligned
+          // strategy that surfaced this movie (tracked at scoring time).
           final user = authProvider.userData;
           if (user != null) {
-            AdaptiveWeightingService().recordFeedback(
-              strategy: movie.recommendationStrategy ?? 'contentBased',
+            movieProvider.recordSwipeFeedback(
+              movieId: movie.id,
               liked: true,
               user: user,
             );
@@ -824,11 +974,12 @@ class _SwipeScreenState extends State<SwipeScreen>
           BehaviorTrackingService().recordSwipe(userId, movie.id, 'dislike');
           CollaborativeFilteringService().recordUserDislike(userId, movie.id);
 
-          // ENHANCED: Record negative feedback for adaptive weighting (strategy from discovery)
+          // Train adaptive weights with negative feedback, attributed to the
+          // weight-aligned strategy that surfaced this movie.
           final user = authProvider.userData;
           if (user != null) {
-            AdaptiveWeightingService().recordFeedback(
-              strategy: movie.recommendationStrategy ?? 'contentBased',
+            movieProvider.recordSwipeFeedback(
+              movieId: movie.id,
               liked: false,
               user: user,
             );
@@ -857,13 +1008,42 @@ class _SwipeScreenState extends State<SwipeScreen>
           }
           movieProvider.recordSwipeForRecalc(authProvider.userData);
         } else if (direction == CardSwiperDirection.top) {
-          // Match action - show match success screen with options
+          // Match action - present the celebration immediately so it reads as
+          // one continuous animation with the card flying off. The match screen
+          // renders entirely from the in-hand `movie`, so nothing needs to be
+          // awaited first; all persistence/tracking runs afterwards in the
+          // background and never blocks the transition frame.
           final likedCountBefore =
               authProvider.userData?.likedMovies.length ?? 0;
-          await authProvider.addLikedMovie(movie.id.toString());
-
-          // Track behavior and collaborative filtering
           final userId = authProvider.userData?.id ?? '';
+
+          if (mounted && swipeToken == _movieSwipeEpoch) {
+            showMatchSuccessScreen(
+              context,
+              movie,
+              showAddToWatchlistButton: false,
+              autoDismissAfter: const Duration(seconds: 5),
+              onContinue: () {
+                Navigator.of(context).pop();
+              },
+              onViewDetails: () async {
+                // Preload movie details before navigation
+                await MovieCacheService.instance.preloadMovieDetails(movie.id);
+
+                // Replace match success screen with movie detail screen directly
+                // This avoids the delay from pop animation + push animation
+                if (mounted) {
+                  Navigator.of(context).pushReplacement(
+                    NavigationUtils.fastSlideRoute(
+                        MovieDetailScreen(movie: movie)),
+                  );
+                }
+              },
+            );
+          }
+
+          // Persist + track in the background (off the visible critical path).
+          await authProvider.addLikedMovie(movie.id.toString());
           BehaviorTrackingService().recordSwipe(userId, movie.id, 'match');
           CollaborativeFilteringService().recordUserLike(userId, movie.id);
 
@@ -893,34 +1073,6 @@ class _SwipeScreenState extends State<SwipeScreen>
           movieProvider.recordSwipeForRecalc(authProvider.userData);
 
           await authProvider.addToWatchlist(movie.id.toString());
-
-          // Show match success screen after a short delay
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (!mounted || swipeToken != _movieSwipeEpoch) return;
-            showMatchSuccessScreen(
-                context,
-                movie,
-                showAddToWatchlistButton: false,
-                autoDismissAfter: const Duration(seconds: 5),
-                onContinue: () {
-                  Navigator.of(context).pop();
-                },
-                onViewDetails: () async {
-                  // Preload movie details before navigation
-                  await MovieCacheService.instance
-                      .preloadMovieDetails(movie.id);
-
-                  // Replace match success screen with movie detail screen directly
-                  // This avoids the delay from pop animation + push animation
-                  if (mounted) {
-                    Navigator.of(context).pushReplacement(
-                      NavigationUtils.fastSlideRoute(
-                          MovieDetailScreen(movie: movie)),
-                    );
-                  }
-                },
-              );
-          });
         }
       }
 
@@ -935,17 +1087,27 @@ class _SwipeScreenState extends State<SwipeScreen>
     }
 
     if (mounted && swipedMovie != null) {
-      final movieProvider = Provider.of<MovieProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      movieProvider.removeMovie(swipedMovie.id, user: authProvider.userData);
-    }
-
-    if (mounted &&
-        previousIndex >= 0 &&
-        direction != CardSwiperDirection.top) {
-      final movieProvider = Provider.of<MovieProvider>(context, listen: false);
-      if (previousIndex < movieProvider.filteredMovies.length) {
-        _showDiscoverUndoSnackBar(_movieSwiperController);
+      final movieProvider =
+          Provider.of<MovieProvider>(context, listen: false);
+      final authProvider =
+          Provider.of<AuthProvider>(context, listen: false);
+      if (direction == CardSwiperDirection.top) {
+        // Match swipe: remove immediately (match screen drives UX), drop any
+        // pending undo from a previous swipe.
+        _clearMoviePendingUndo();
+        movieProvider.removeMovie(swipedMovie.id, user: authProvider.userData);
+      } else {
+        // Remove immediately so the deck advances correctly even on rapid
+        // consecutive swipes; keep the swiped card for one-tap UNDO. The
+        // keyed CardSwiper remounts onto the new front when the list changes.
+        _movieUndoTimer?.cancel();
+        movieProvider.removeMovie(swipedMovie.id, user: authProvider.userData);
+        _pendingRemovedMovie = swipedMovie;
+        _pendingMovieDirection = direction;
+        setState(() => _showMovieUndoBanner = true);
+        _movieUndoTimer = Timer(const Duration(seconds: 4), () {
+          _clearMoviePendingUndo();
+        });
       }
     }
 
@@ -989,19 +1151,28 @@ class _SwipeScreenState extends State<SwipeScreen>
   }
 
   /// Handles movie card tap to show details
-  void _onMovieTap(Movie movie) async {
-    // Preload movie details in the background before navigation
-    // This way the detail screen can use cached data instantly
+  String? _resolveFriendLabel(Movie movie, List<SocialActivity> feed) {
+    for (final a in feed) {
+      if (a.itemId == movie.id.toString() &&
+          a.itemType == SocialItemType.movie &&
+          a.activityType == SocialActivityType.liked) {
+        final name = a.actorDisplayName;
+        return (name != null && name.isNotEmpty) ? name : null;
+      }
+    }
+    return null;
+  }
+
+  void _onMovieTap(Movie movie) {
+    // Kick off detail preload in the background so the detail screen can use
+    // cached data, but navigate immediately. The premium shared-axis (scaled)
+    // transition zooms/fades the detail in with no pre-delay and leaves it
+    // scrollable as soon as it settles.
     MovieCacheService.instance.preloadMovieDetails(movie.id);
 
-    // Small delay to allow preload to start, then navigate
-    await Future.delayed(const Duration(milliseconds: 50));
-
-    if (mounted) {
-      Navigator.of(context).push(
-        NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
-      );
-    }
+    Navigator.of(context).push(
+      NavigationUtils.premiumScaleRoute(MovieDetailScreen(movie: movie)),
+    );
   }
 
 
@@ -1011,39 +1182,38 @@ class _SwipeScreenState extends State<SwipeScreen>
     if (!mounted) return;
     final movieProvider = Provider.of<MovieProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
     if (authProvider.isLoading) {
       await Future.delayed(const Duration(milliseconds: 300));
     }
     if (!mounted) return;
 
+    final user = authProvider.userData;
+    final analyzer = UserPreferenceAnalyzer();
+    final cacheKey = (user != null && analyzer.hasEnoughData(user))
+        ? DiscoverMovieListCache.keyPersonalized
+        : DiscoverMovieListCache.keyCurated;
+
+    final gotCache = await movieProvider.loadCachedMoviesInstant(
+        cacheKey: cacheKey, user: user);
+
+    if (!mounted) return;
+
+    if (gotCache) {
+      setState(() {
+        _moviesSwiperKey =
+            ValueKey('movies_${DateTime.now().millisecondsSinceEpoch}');
+        _bumpMovieSwipeEpoch();
+      });
+      _applyUserFiltersToProvider(movieProvider, user);
+      unawaited(_doNetworkRefresh(movieProvider, user, backgroundLoad: true));
+      return;
+    }
+
+    _applyUserFiltersToProvider(movieProvider, user);
     final refresh = !movieProvider.discoverBootstrapComplete;
-
-    if (authProvider.userData != null) {
-      final user = authProvider.userData!;
-      final selectedPlatforms =
-          user.preferences['selectedPlatforms'] as List<dynamic>?;
-      if (selectedPlatforms != null && selectedPlatforms.isNotEmpty) {
-        final platformList =
-            selectedPlatforms.map((p) => p.toString()).toList();
-        if (movieProvider.swipeSelectedPlatforms.isEmpty) {
-          movieProvider.setSwipePlatforms(platformList);
-        }
-      }
-      final selectedGenres =
-          user.preferences['selectedGenres'] as List<dynamic>?;
-      if (selectedGenres != null &&
-          selectedGenres.isNotEmpty &&
-          movieProvider.swipeSelectedGenres.isEmpty) {
-        final genreIds = selectedGenres
-            .map((g) => g is int ? g : (g as num).toInt())
-            .toList();
-        movieProvider.setSwipeGenres(genreIds);
-      }
-
-      final analyzer = UserPreferenceAnalyzer();
-      if (analyzer.hasEnoughData(user)) {
+    if (user != null) {
+      final a = UserPreferenceAnalyzer();
+      if (a.hasEnoughData(user)) {
         await movieProvider.loadPersonalizedRecommendations(user,
             refresh: refresh);
       } else {
@@ -1071,44 +1241,38 @@ class _SwipeScreenState extends State<SwipeScreen>
     if (!mounted) return;
     final showProvider = Provider.of<ShowProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
     if (authProvider.isLoading) {
       await Future.delayed(const Duration(milliseconds: 300));
     }
     if (!mounted) return;
 
+    final user = authProvider.userData;
+    final analyzer = UserPreferenceAnalyzer();
+    final cacheKey = (user != null && analyzer.hasEnoughData(user))
+        ? DiscoverMovieListCache.keyShowsPersonalized
+        : DiscoverMovieListCache.keyShowsCurated;
+
+    final gotCache = await showProvider.loadCachedShowsInstant(
+        cacheKey: cacheKey, user: user);
+
+    if (!mounted) return;
+
+    if (gotCache) {
+      setState(() {
+        _showsSwiperKey =
+            ValueKey('shows_${DateTime.now().millisecondsSinceEpoch}');
+        _bumpShowSwipeEpoch();
+      });
+      _applyShowFiltersToProvider(showProvider, user);
+      unawaited(_doShowNetworkRefresh(showProvider, user, backgroundLoad: true));
+      return;
+    }
+
+    _applyShowFiltersToProvider(showProvider, user);
     final refresh = !showProvider.discoverBootstrapComplete;
-
-    if (authProvider.userData != null) {
-      final user = authProvider.userData!;
-      final selectedPlatforms =
-          user.preferences['selectedPlatforms'] as List<dynamic>?;
-      if (selectedPlatforms != null && selectedPlatforms.isNotEmpty) {
-        final platformList =
-            selectedPlatforms.map((p) => p.toString()).toList();
-        if (showProvider.swipeSelectedPlatforms.isEmpty) {
-          showProvider.setSwipePlatforms(platformList, user: user);
-        }
-      }
-      final selectedGenres =
-          user.preferences['selectedGenres'] as List<dynamic>?;
-      if (selectedGenres != null && selectedGenres.isNotEmpty) {
-        final genreIds = selectedGenres
-            .map((g) => g is int ? g : (g as num).toInt())
-            .toList();
-        if (showProvider.swipeSelectedGenres.isEmpty) {
-          showProvider.setSwipeGenres(genreIds, user: user);
-        }
-        final movieProvider =
-            Provider.of<MovieProvider>(context, listen: false);
-        if (movieProvider.swipeSelectedGenres.isEmpty) {
-          movieProvider.setSwipeGenres(genreIds);
-        }
-      }
-
-      final analyzer = UserPreferenceAnalyzer();
-      if (analyzer.hasEnoughData(user)) {
+    if (user != null) {
+      final a = UserPreferenceAnalyzer();
+      if (a.hasEnoughData(user)) {
         await showProvider.loadPersonalizedRecommendations(user,
             refresh: refresh);
       } else {
@@ -1128,6 +1292,60 @@ class _SwipeScreenState extends State<SwipeScreen>
             ValueKey('shows_${DateTime.now().millisecondsSinceEpoch}');
         _bumpShowSwipeEpoch();
       });
+    }
+  }
+
+  void _applyShowFiltersToProvider(ShowProvider showProvider, User? user) {
+    if (user == null) return;
+    final selectedPlatforms =
+        user.preferences['selectedPlatforms'] as List<dynamic>?;
+    if (selectedPlatforms != null &&
+        selectedPlatforms.isNotEmpty &&
+        showProvider.swipeSelectedPlatforms.isEmpty) {
+      final normalized = selectedPlatforms
+          .map((p) => p.toString().trim())
+          .expand((s) {
+            if (StreamingPlatform.getById(s) != null) return [s];
+            return StreamingPlatform.availablePlatforms
+                .where((p) => p.name.toLowerCase() == s.toLowerCase())
+                .map((p) => p.id);
+          })
+          .toSet()
+          .toList();
+      showProvider.setSwipePlatforms(normalized, user: user);
+    }
+    final selectedGenres =
+        user.preferences['selectedGenres'] as List<dynamic>?;
+    if (selectedGenres != null && selectedGenres.isNotEmpty) {
+      final genreIds = selectedGenres
+          .map((g) => g is int ? g : (g as num).toInt())
+          .toList();
+      if (showProvider.swipeSelectedGenres.isEmpty) {
+        showProvider.setSwipeGenres(genreIds, user: user);
+      }
+    }
+  }
+
+  Future<void> _doShowNetworkRefresh(
+    ShowProvider showProvider,
+    User? user, {
+    required bool backgroundLoad,
+  }) async {
+    final analyzer = UserPreferenceAnalyzer();
+    if (user != null) {
+      if (analyzer.hasEnoughData(user)) {
+        await showProvider.loadPersonalizedRecommendations(
+          user,
+          refresh: true,
+          backgroundLoad: backgroundLoad,
+        );
+      } else {
+        await showProvider.loadCuratedStarterShows(refresh: true, user: user);
+      }
+      _scheduleShowPreload(user);
+    } else {
+      await showProvider.loadCuratedStarterShows(refresh: true, user: null);
+      _scheduleShowPreload(null);
     }
   }
 
@@ -1186,12 +1404,14 @@ class _SwipeScreenState extends State<SwipeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Stack(
+      children: [
+      Scaffold(
       backgroundColor:
           AppTheme.vintagePaper, // Changed to Vintage Paper from guide
       appBar: AppBar(
         title: Text(
-          'DISCOVER',
+          context.l10n.navDiscover.toUpperCase(),
           style: GoogleFonts.bebasNeue(
             fontSize: 32,
             color: AppTheme.warmCream,
@@ -1210,9 +1430,9 @@ class _SwipeScreenState extends State<SwipeScreen>
             fontSize: 20,
             letterSpacing: 1,
           ),
-          tabs: const [
-            Tab(text: 'MOVIES'),
-            Tab(text: 'SHOWS'),
+          tabs: [
+            Tab(text: context.l10n.moviesTab),
+            Tab(text: context.l10n.showsTab),
           ],
         ),
         actions: [
@@ -1228,12 +1448,14 @@ class _SwipeScreenState extends State<SwipeScreen>
                     return Stack(
                       children: [
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.tune,
-                            color: AppTheme.warmCream,
+                            color: hasActiveFilters
+                                ? AppTheme.popcornGold
+                                : AppTheme.warmCream,
                           ),
                           onPressed: () => _showFilterMenu(movieProvider),
-                          tooltip: 'Filters',
+                          tooltip: context.l10n.filtersSectionTitle,
                         ),
                         if (hasActiveFilters)
                           Positioned(
@@ -1262,12 +1484,14 @@ class _SwipeScreenState extends State<SwipeScreen>
                     return Stack(
                       children: [
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.tune,
-                            color: AppTheme.warmCream,
+                            color: hasActiveFilters
+                                ? AppTheme.popcornGold
+                                : AppTheme.warmCream,
                           ),
                           onPressed: () => _showShowFilterMenu(showProvider),
-                          tooltip: 'Filters',
+                          tooltip: context.l10n.filtersSectionTitle,
                         ),
                         if (hasActiveFilters)
                           Positioned(
@@ -1286,38 +1510,71 @@ class _SwipeScreenState extends State<SwipeScreen>
                     );
                   },
                 ),
-          // Refresh button
-          IconButton(
-            icon: const Icon(
-              Icons.refresh,
-              color: AppTheme.warmCream,
-            ),
-            onPressed: () {
-              final isMoviesTab = _tabController.index == 0;
-              if (isMoviesTab) {
-                _refreshMovies();
-              } else {
-                _refreshShows();
-              }
-            },
-            tooltip: 'Refresh',
-          ),
         ],
       ),
       body: SafeArea(
-        child: TabBarView(
-          controller: _tabController,
-          physics:
-              const NeverScrollableScrollPhysics(), // Disable swipe-to-switch tabs to prevent interference with card swiping
+        // Both decks stay mounted (like the app's IndexedStack tabs) so swiper
+        // state survives a tab switch. We cross-fade between them instead of the
+        // old TabBarView horizontal slide, which stuttered while dragging two
+        // heavy CardSwiper stacks past each other. The inactive deck is faded out
+        // and made non-interactive.
+        child: Stack(
           children: [
-            // Movies Tab
-            _buildMoviesTab(),
-            // Shows Tab
-            _buildShowsTab(),
+            _buildCrossFadeTab(
+              index: 0,
+              child: _buildMoviesTab(),
+            ),
+            _buildCrossFadeTab(
+              index: 1,
+              child: _buildShowsTab(),
+            ),
           ],
         ),
       ),
+    ),
+
+    // Gesture hints overlay — shown once on first Discover session
+    if (_showGestureHints)
+      Positioned.fill(
+        child: SwipeGestureHints(onDismiss: _dismissGestureHints),
+      ),
+    ],
     );
+  }
+
+  /// Cross-fades one Discover tab based on [_currentTabIndex]. Both tabs stay
+  /// in the tree so their swiper state is preserved; the inactive tab fades to
+  /// transparent and stops receiving input. `Positioned.fill` forces each tab to
+  /// fill the body the way `TabBarView` used to.
+  Widget _buildCrossFadeTab({required int index, required Widget child}) {
+    final bool isActive = _currentTabIndex == index;
+    return Positioned.fill(
+      child: IgnorePointer(
+        ignoring: !isActive,
+        child: AnimatedOpacity(
+          opacity: isActive ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  /// Records a behaviour-tracking view for the current front movie, deduped by
+  /// id. Called from a post-frame callback (not from `cardBuilder`) so it never
+  /// fires during a card's build or relayout.
+  void _trackFrontMovieView(int id) {
+    if (_lastTrackedFrontMovieId == id) return;
+    _lastTrackedFrontMovieId = id;
+    BehaviorTrackingService().recordMovieView(id);
+  }
+
+  /// Show counterpart of [_trackFrontMovieView] (keyed by [showItemId]).
+  void _trackFrontShowView(int showId) {
+    if (_lastTrackedFrontShowId == showId) return;
+    _lastTrackedFrontShowId = showId;
+    BehaviorTrackingService().recordMovieView(showItemId(showId));
   }
 
   /// Builds the movies tab content
@@ -1327,6 +1584,21 @@ class _SwipeScreenState extends State<SwipeScreen>
         if (movieProvider.filteredMovies.isEmpty) {
           if (movieProvider.isLoading || movieProvider.isPreloading) {
             return _buildSwipeLoadingState('Loading more movies...');
+          }
+          final hasFilters = movieProvider.swipeMoods.isNotEmpty ||
+              movieProvider.swipeSelectedGenres.isNotEmpty ||
+              movieProvider.swipeSelectedPlatforms.isNotEmpty;
+          if (hasFilters) {
+            return _buildFilteredEmptyState(
+              icon: Icons.movie_outlined,
+              moods: movieProvider.swipeMoods,
+              genres: movieProvider.swipeSelectedGenres,
+              platforms: movieProvider.swipeSelectedPlatforms,
+              onRelax: () {
+                movieProvider.clearSwipeFilters();
+                _reloadMoviesWithFilters();
+              },
+            );
           }
           return Center(
             child: Column(
@@ -1340,43 +1612,53 @@ class _SwipeScreenState extends State<SwipeScreen>
                 const SizedBox(height: 16),
                 Text(
                   movieProvider.hasMorePages
-                      ? 'No movies found'
-                      : "You're all caught up",
+                      ? context.l10n.noMoviesFoundSwipe
+                      : context.l10n.allCaughtUpLabel,
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   movieProvider.hasMorePages
-                      ? 'Try refreshing to load more movies'
-                      : 'Check back later for new releases',
+                      ? context.l10n.tryRefreshingMovies
+                      : context.l10n.checkBackLaterNewReleases,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _refreshMovies,
-                  child: const Text('Refresh'),
+                  child: Text(context.l10n.refreshButton),
                 ),
               ],
             ),
           );
         }
 
+        // Record the front card's view once it has rendered (deduped by id),
+        // instead of inside cardBuilder where it fired on every frame.
+        final frontMovieId = movieProvider.filteredMovies.first.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _trackFrontMovieView(frontMovieId);
+        });
+
         return Column(
           children: [
-            // Swipe cards area with stacked cards effect + edge hints
+            // Swipe cards area with stacked cards effect
             Expanded(
               child: Container(
                 color: AppTheme.vintagePaper, // Background color from guide
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0, vertical: 16.0),
-                  child: _buildSwipeAreaWithEdgeHints(
+                  padding: const EdgeInsets.fromLTRB(6, 8, 6, 4),
+                  child: Stack(
+                    alignment: Alignment.bottomCenter,
+                    children: [
+                      _buildSwipeArea(
                     swiperKey: _moviesSwiperKey,
                     swiper: CardSwiper(
                       // Must reset swiper state when the front item is removed from the list:
                       // CardSwiper advances its index on swipe, but we also remove the swiped
                       // row from [filteredMovies], so indices shift — without this key the
                       // "next" card shows the wrong movie or appears to swap with a new fetch.
+                      // Remounting clears CardSwiper undo history; see docs/DISCOVER_UNDO_PRODUCT_FIX.md.
                       key: ValueKey<int>(
                         movieProvider.filteredMovies.first.id,
                       ),
@@ -1410,25 +1692,62 @@ class _SwipeScreenState extends State<SwipeScreen>
                         }
                         final movie = movieProvider.filteredMovies[index];
 
-                        // Track movie view for behavior analysis
-                        BehaviorTrackingService().recordMovieView(movie.id);
+                        // View tracking is recorded once per front card outside
+                        // the builder (see _trackFrontMovieView) so it no longer
+                        // fires on every relayout / animation frame.
 
+                        final socialFeed = context
+                            .read<SocialProvider>()
+                            .friendsFeed;
                         return RetroCinemaMovieCard(
                           movie: movie,
+                          friendLikedLabel:
+                              _resolveFriendLabel(movie, socialFeed),
                           onTap: () {
-                            // Track detail view
                             final startTime = DateTime.now();
                             BehaviorTrackingService().recordDetailView(movie.id,
                                 startTime: startTime);
                             _onMovieTap(movie);
                           },
+                          onInfoTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              isScrollControlled: true,
+                              builder: (_) => MovieQuickPeek.forMovie(
+                                movie: movie,
+                                onOpenDetails: () => _onMovieTap(movie),
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
                   ),
-                ),
+                  // Card-framing buttons: MATCH top, NOPE left, LIKE right
+                  _buildMatchButton(() => _movieSwiperController.swipeTop()),
+                  _buildNopeButton(() => _movieSwiperController.swipeLeft()),
+                  _buildLikeButton(() => _movieSwiperController.swipeRight()),
+                  // Undo overlay — floats above the bottom of the card stack
+                  Positioned(
+                    bottom: 8,
+                    left: 24,
+                    right: 24,
+                    child: Center(
+                      child: DiscoverSwipeFeedback(
+                        visible: _showMovieUndoBanner,
+                        direction: _pendingMovieDirection,
+                        onUndo: _undoLastMovieSwipe,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
+        ),
+            // SKIP (swipe-down) button below the card
+            _buildSkipButton(() => _movieSwiperController.swipeBottom()),
           ],
         );
       },
@@ -1443,6 +1762,21 @@ class _SwipeScreenState extends State<SwipeScreen>
           if (showProvider.isLoading || showProvider.isPreloading) {
             return _buildSwipeLoadingState('Loading more shows...');
           }
+          final hasFilters = showProvider.swipeMoods.isNotEmpty ||
+              showProvider.swipeSelectedGenres.isNotEmpty ||
+              showProvider.swipeSelectedPlatforms.isNotEmpty;
+          if (hasFilters) {
+            return _buildFilteredEmptyState(
+              icon: Icons.tv_outlined,
+              moods: showProvider.swipeMoods,
+              genres: showProvider.swipeSelectedGenres,
+              platforms: showProvider.swipeSelectedPlatforms,
+              onRelax: () {
+                showProvider.clearSwipeFilters();
+                _reloadShowsWithFilters();
+              },
+            );
+          }
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1455,26 +1789,32 @@ class _SwipeScreenState extends State<SwipeScreen>
                 const SizedBox(height: 16),
                 Text(
                   showProvider.hasMorePages
-                      ? 'No shows found'
-                      : "You're all caught up",
+                      ? context.l10n.noShowsFoundSwipe
+                      : context.l10n.allCaughtUpLabel,
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   showProvider.hasMorePages
-                      ? 'Try refreshing to load more shows'
-                      : 'Check back later for new releases',
+                      ? context.l10n.tryRefreshingShows
+                      : context.l10n.checkBackLaterNewReleases,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _refreshShows,
-                  child: const Text('Refresh'),
+                  child: Text(context.l10n.refreshButton),
                 ),
               ],
             ),
           );
         }
+
+        // Record the front card's view once it has rendered (deduped by id).
+        final frontShowId = showProvider.filteredShows.first.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _trackFrontShowView(frontShowId);
+        });
 
         return Column(
           children: [
@@ -1482,11 +1822,14 @@ class _SwipeScreenState extends State<SwipeScreen>
               child: Container(
                 color: AppTheme.vintagePaper,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0, vertical: 16.0),
-                  child: _buildSwipeAreaWithEdgeHints(
+                  padding: const EdgeInsets.fromLTRB(6, 8, 6, 4),
+                  child: Stack(
+                    alignment: Alignment.bottomCenter,
+                    children: [
+                      _buildSwipeArea(
                     swiperKey: _showsSwiperKey,
                     swiper: CardSwiper(
+                      // Remount clears undo stack; see docs/DISCOVER_UNDO_PRODUCT_FIX.md.
                       key: ValueKey<int>(
                         showProvider.filteredShows.first.id,
                       ),
@@ -1517,8 +1860,8 @@ class _SwipeScreenState extends State<SwipeScreen>
                         }
                         final show = showProvider.filteredShows[index];
 
-                        BehaviorTrackingService()
-                            .recordMovieView(showItemId(show.id));
+                        // View tracking is recorded once per front card outside
+                        // the builder (see _trackFrontShowView).
 
                         return RetroCinemaShowCard(
                           show: show,
@@ -1529,13 +1872,45 @@ class _SwipeScreenState extends State<SwipeScreen>
                                 startTime: startTime);
                             _onShowTap(show);
                           },
+                          onInfoTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              isScrollControlled: true,
+                              builder: (_) => MovieQuickPeek.forShow(
+                                show: show,
+                                onOpenDetails: () => _onShowTap(show),
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
                   ),
-                ),
+                  // Card-framing buttons: MATCH top, NOPE left, LIKE right
+                  _buildMatchButton(() => _showSwiperController.swipeTop()),
+                  _buildNopeButton(() => _showSwiperController.swipeLeft()),
+                  _buildLikeButton(() => _showSwiperController.swipeRight()),
+                  // Undo overlay — floats above the bottom of the card stack
+                  Positioned(
+                    bottom: 8,
+                    left: 24,
+                    right: 24,
+                    child: Center(
+                      child: DiscoverSwipeFeedback(
+                        visible: _showShowUndoBanner,
+                        direction: _pendingShowDirection,
+                        onUndo: _undoLastShowSwipe,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
+        ),
+            // SKIP (swipe-down) button below the card
+            _buildSkipButton(() => _showSwiperController.swipeBottom()),
           ],
         );
       },
@@ -1611,11 +1986,12 @@ class _SwipeScreenState extends State<SwipeScreen>
               action: 'like',
             );
 
-            // Record feedback for adaptive weighting (strategy from discovery)
+            // Train adaptive weights, attributed to the weight-aligned strategy
+            // that surfaced this show (tracked at scoring time).
             final user = authProvider.userData;
             if (user != null) {
-              AdaptiveWeightingService().recordFeedback(
-                strategy: show.recommendationStrategy ?? 'contentBased',
+              showProvider.recordSwipeFeedback(
+                showId: show.id,
                 liked: true,
                 user: user,
               );
@@ -1657,8 +2033,8 @@ class _SwipeScreenState extends State<SwipeScreen>
 
             final user = authProvider.userData;
             if (user != null) {
-              AdaptiveWeightingService().recordFeedback(
-                strategy: show.recommendationStrategy ?? 'contentBased',
+              showProvider.recordSwipeFeedback(
+                showId: show.id,
                 liked: false,
                 user: user,
               );
@@ -1679,12 +2055,38 @@ class _SwipeScreenState extends State<SwipeScreen>
             );
           }
         } else if (direction == CardSwiperDirection.top) {
-          // Match action - show match success screen with options
+          // Match action - present the celebration immediately so it reads as
+          // one continuous animation with the card flying off. The match screen
+          // renders entirely from the in-hand `show`, so nothing needs to be
+          // awaited first; all persistence/tracking runs afterwards in the
+          // background and never blocks the transition frame.
           final likedCountBefore =
               authProvider.userData?.likedShows.length ?? 0;
-          await authProvider.addLikedShow(show.id.toString());
-
           final userId = authProvider.userData?.id ?? '';
+
+          if (mounted && swipeToken == _showSwipeEpoch) {
+            showShowMatchSuccessScreen(
+              context,
+              show,
+              showAddToWatchlistButton: false,
+              autoDismissAfter: const Duration(seconds: 5),
+              onContinue: () {
+                Navigator.of(context).pop();
+              },
+              onViewDetails: () async {
+                // Replace match success screen with show detail screen directly
+                if (mounted) {
+                  Navigator.of(context).pushReplacement(
+                    NavigationUtils.fastSlideRoute(
+                        ShowDetailScreen(show: show)),
+                  );
+                }
+              },
+            );
+          }
+
+          // Persist + track in the background (off the visible critical path).
+          await authProvider.addLikedShow(show.id.toString());
           BehaviorTrackingService().recordSwipe(
               userId, showItemId(show.id), 'match');
           CollaborativeFilteringService()
@@ -1700,8 +2102,8 @@ class _SwipeScreenState extends State<SwipeScreen>
 
             final user = authProvider.userData;
             if (user != null) {
-              AdaptiveWeightingService().recordFeedback(
-                strategy: show.recommendationStrategy ?? 'contentBased',
+              showProvider.recordSwipeFeedback(
+                showId: show.id,
                 liked: true,
                 user: user,
               );
@@ -1731,29 +2133,6 @@ class _SwipeScreenState extends State<SwipeScreen>
           }
 
           await authProvider.addShowToWatchlist(show.id.toString());
-
-          // Show match success screen after a short delay
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (!mounted || swipeToken != _showSwipeEpoch) return;
-            showShowMatchSuccessScreen(
-                context,
-                show,
-                showAddToWatchlistButton: false,
-                autoDismissAfter: const Duration(seconds: 5),
-                onContinue: () {
-                  Navigator.of(context).pop();
-                },
-                onViewDetails: () async {
-                  // Replace match success screen with show detail screen directly
-                  if (mounted) {
-                    Navigator.of(context).pushReplacement(
-                      NavigationUtils.fastSlideRoute(
-                          ShowDetailScreen(show: show)),
-                    );
-                  }
-                },
-              );
-          });
         }
       }
 
@@ -1768,17 +2147,25 @@ class _SwipeScreenState extends State<SwipeScreen>
     }
 
     if (mounted && swipedShow != null) {
-      final showProvider = Provider.of<ShowProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      showProvider.removeShow(swipedShow.id, user: authProvider.userData);
-    }
-
-    if (mounted &&
-        previousIndex >= 0 &&
-        direction != CardSwiperDirection.top) {
-      final showProvider = Provider.of<ShowProvider>(context, listen: false);
-      if (previousIndex < showProvider.filteredShows.length) {
-        _showDiscoverUndoSnackBar(_showSwiperController);
+      final showProvider =
+          Provider.of<ShowProvider>(context, listen: false);
+      final authProvider =
+          Provider.of<AuthProvider>(context, listen: false);
+      if (direction == CardSwiperDirection.top) {
+        // Match swipe: remove immediately (match screen drives UX).
+        _clearShowPendingUndo();
+        showProvider.removeShow(swipedShow.id, user: authProvider.userData);
+      } else {
+        // Remove immediately so the deck advances correctly even on rapid
+        // consecutive swipes; keep the swiped card for one-tap UNDO.
+        _showUndoTimer?.cancel();
+        showProvider.removeShow(swipedShow.id, user: authProvider.userData);
+        _pendingRemovedShow = swipedShow;
+        _pendingShowDirection = direction;
+        setState(() => _showShowUndoBanner = true);
+        _showUndoTimer = Timer(const Duration(seconds: 4), () {
+          _clearShowPendingUndo();
+        });
       }
     }
 
@@ -1786,13 +2173,12 @@ class _SwipeScreenState extends State<SwipeScreen>
   }
 
   /// Handles show card tap
-  void _onShowTap(TvShow show) async {
-    // Navigate to show detail screen
-    if (context.mounted) {
-      Navigator.of(context).push(
-        NavigationUtils.fastSlideRoute(ShowDetailScreen(show: show)),
-      );
-    }
+  void _onShowTap(TvShow show) {
+    // Navigate to show detail screen immediately with the premium shared-axis
+    // (scaled) transition (no show cache service exists, so nothing to preload).
+    Navigator.of(context).push(
+      NavigationUtils.premiumScaleRoute(ShowDetailScreen(show: show)),
+    );
   }
 
   /// Shows filter menu for shows
@@ -1813,7 +2199,7 @@ class _SwipeScreenState extends State<SwipeScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Filters',
+                  context.l10n.filtersSectionTitle,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 24,
                     color: AppTheme.warmCream,
@@ -1829,9 +2215,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                       Navigator.pop(context);
                       _reloadShowsWithFilters();
                     },
-                    child: const Text(
-                      'Clear All',
-                      style: TextStyle(color: AppTheme.popcornGold),
+                    child: Text(
+                      context.l10n.clearAllButton,
+                      style: const TextStyle(color: AppTheme.popcornGold),
                     ),
                   ),
               ],
@@ -1839,10 +2225,10 @@ class _SwipeScreenState extends State<SwipeScreen>
             const SizedBox(height: 20),
 
             _buildFilterMenuItem(
-              'Mood',
+              context.l10n.moodFilterLabel,
               showProvider.swipeMoods.isNotEmpty
                   ? '${showProvider.swipeMoods.length} selected'
-                  : 'Select moods',
+                  : context.l10n.selectMoodsHint,
               showProvider.swipeMoods.isNotEmpty,
               () {
                 Navigator.pop(context);
@@ -1852,10 +2238,10 @@ class _SwipeScreenState extends State<SwipeScreen>
             const SizedBox(height: 12),
 
             _buildFilterMenuItem(
-              'Genres',
+              context.l10n.genresFilterLabel,
               showProvider.swipeSelectedGenres.isNotEmpty
                   ? '${showProvider.swipeSelectedGenres.length} selected'
-                  : 'Select genres',
+                  : context.l10n.selectGenresHint,
               showProvider.swipeSelectedGenres.isNotEmpty,
               () {
                 Navigator.pop(context);
@@ -1865,10 +2251,10 @@ class _SwipeScreenState extends State<SwipeScreen>
             const SizedBox(height: 12),
 
             _buildFilterMenuItem(
-              'Platform',
+              context.l10n.platformFilterLabel,
               showProvider.swipeSelectedPlatforms.isNotEmpty
                   ? '${showProvider.swipeSelectedPlatforms.length} selected'
-                  : 'Select platforms',
+                  : context.l10n.selectPlatformsHint,
               showProvider.swipeSelectedPlatforms.isNotEmpty,
               () {
                 Navigator.pop(context);
@@ -1906,7 +2292,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Select Moods',
+                      context.l10n.selectMoodsTitle,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 24,
                         color: AppTheme.warmCream,
@@ -1920,9 +2306,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                           Navigator.pop(context);
                           _reloadShowsWithFilters();
                         },
-                        child: const Text(
-                          'Clear All',
-                          style: TextStyle(color: AppTheme.popcornGold),
+                        child: Text(
+                          context.l10n.clearAllButton,
+                          style: const TextStyle(color: AppTheme.popcornGold),
                         ),
                       ),
                   ],
@@ -2008,7 +2394,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                       foregroundColor: AppTheme.warmCream,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Apply'),
+                    child: Text(context.l10n.applyButton),
                   ),
                 ),
               ],
@@ -2025,7 +2411,7 @@ class _SwipeScreenState extends State<SwipeScreen>
     if (genres.isEmpty) {
       showProvider.loadGenres();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Loading genres...')),
+        SnackBar(content: Text(context.l10n.loadingGenresMessage)),
       );
       return;
     }
@@ -2040,6 +2426,13 @@ class _SwipeScreenState extends State<SwipeScreen>
       builder: (context) => Consumer<ShowProvider>(
         builder: (context, showProvider, _) {
           final genres = showProvider.genres;
+          final authProvider =
+              Provider.of<AuthProvider>(context, listen: false);
+          final profileGenreIds = ((authProvider.userData
+                          ?.preferences['selectedGenres'] as List<dynamic>?) ??
+                      [])
+                  .map((g) => g is int ? g : (g as num).toInt())
+                  .toSet();
           return Container(
             padding: const EdgeInsets.all(20),
             constraints: BoxConstraints(
@@ -2053,7 +2446,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Select Genres',
+                      context.l10n.selectGenresTitle,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 24,
                         color: AppTheme.warmCream,
@@ -2067,13 +2460,26 @@ class _SwipeScreenState extends State<SwipeScreen>
                           Navigator.pop(context);
                           _reloadShowsWithFilters();
                         },
-                        child: const Text(
-                          'Clear All',
-                          style: TextStyle(color: AppTheme.popcornGold),
+                        child: Text(
+                          context.l10n.clearAllButton,
+                          style: const TextStyle(color: AppTheme.popcornGold),
                         ),
                       ),
                   ],
                 ),
+                if (profileGenreIds.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.person_outline,
+                        size: 12, color: AppTheme.sepiaBrown),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Brown border = from your profile',
+                      style: GoogleFonts.lato(
+                          color: AppTheme.sepiaBrown, fontSize: 11),
+                    ),
+                  ]),
+                ],
                 const SizedBox(height: 16),
                 Flexible(
                   child: SingleChildScrollView(
@@ -2086,6 +2492,8 @@ class _SwipeScreenState extends State<SwipeScreen>
                         final isSelected = showProvider
                             .swipeSelectedGenres
                             .contains(genreId);
+                        final isFromProfile =
+                            profileGenreIds.contains(genreId);
 
                         return GestureDetector(
                           onTap: () {
@@ -2111,18 +2519,31 @@ class _SwipeScreenState extends State<SwipeScreen>
                               border: Border.all(
                                 color: isSelected
                                     ? AppTheme.popcornGold
-                                    : Colors.transparent,
+                                    : isFromProfile
+                                        ? AppTheme.sepiaBrown
+                                            .withValues(alpha: 0.8)
+                                        : Colors.transparent,
                                 width: 2,
                               ),
                             ),
-                            child: Text(
-                              genreName,
-                              style: TextStyle(
-                                color: AppTheme.warmCream,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  genreName,
+                                  style: TextStyle(
+                                    color: AppTheme.warmCream,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                                if (isFromProfile && !isSelected) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.person_outline,
+                                      size: 12, color: AppTheme.sepiaBrown),
+                                ],
+                              ],
                             ),
                           ),
                         );
@@ -2143,7 +2564,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                       foregroundColor: AppTheme.warmCream,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Apply'),
+                    child: Text(context.l10n.applyButton),
                   ),
                 ),
               ],
@@ -2180,7 +2601,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Select Platforms',
+                      context.l10n.selectPlatformsTitle,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 24,
                         color: AppTheme.warmCream,
@@ -2194,9 +2615,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                           Navigator.pop(context);
                           _reloadShowsWithFilters();
                         },
-                        child: const Text(
-                          'Clear All',
-                          style: TextStyle(color: AppTheme.popcornGold),
+                        child: Text(
+                          context.l10n.clearAllButton,
+                          style: const TextStyle(color: AppTheme.popcornGold),
                         ),
                       ),
                   ],
@@ -2268,7 +2689,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                       foregroundColor: AppTheme.warmCream,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Apply'),
+                    child: Text(context.l10n.applyButton),
                   ),
                 ),
               ],
@@ -2297,7 +2718,7 @@ class _SwipeScreenState extends State<SwipeScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Filters',
+                  context.l10n.filtersSectionTitle,
                   style: GoogleFonts.bebasNeue(
                     fontSize: 24,
                     color: AppTheme.warmCream,
@@ -2313,9 +2734,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                       Navigator.pop(context);
                       _reloadMoviesWithFilters();
                     },
-                    child: const Text(
-                      'Clear All',
-                      style: TextStyle(color: AppTheme.popcornGold),
+                    child: Text(
+                      context.l10n.clearAllButton,
+                      style: const TextStyle(color: AppTheme.popcornGold),
                     ),
                   ),
               ],
@@ -2323,10 +2744,10 @@ class _SwipeScreenState extends State<SwipeScreen>
             const SizedBox(height: 20),
             // Mood filter option
             _buildFilterMenuItem(
-              'Mood',
+              context.l10n.moodFilterLabel,
               movieProvider.swipeMoods.isNotEmpty
                   ? '${movieProvider.swipeMoods.length} selected'
-                  : 'Select moods',
+                  : context.l10n.selectMoodsHint,
               movieProvider.swipeMoods.isNotEmpty,
               () {
                 Navigator.pop(context);
@@ -2336,10 +2757,10 @@ class _SwipeScreenState extends State<SwipeScreen>
             const SizedBox(height: 12),
             // Genre filter option
             _buildFilterMenuItem(
-              'Genres',
+              context.l10n.genresFilterLabel,
               movieProvider.swipeSelectedGenres.isNotEmpty
                   ? '${movieProvider.swipeSelectedGenres.length} selected'
-                  : 'Select genres',
+                  : context.l10n.selectGenresHint,
               movieProvider.swipeSelectedGenres.isNotEmpty,
               () {
                 Navigator.pop(context);
@@ -2349,10 +2770,10 @@ class _SwipeScreenState extends State<SwipeScreen>
             const SizedBox(height: 12),
             // Platform filter option
             _buildFilterMenuItem(
-              'Platform',
+              context.l10n.platformFilterLabel,
               movieProvider.swipeSelectedPlatforms.isNotEmpty
                   ? '${movieProvider.swipeSelectedPlatforms.length} selected'
-                  : 'Select platforms',
+                  : context.l10n.selectPlatformsHint,
               movieProvider.swipeSelectedPlatforms.isNotEmpty,
               () {
                 Navigator.pop(context);
@@ -2445,7 +2866,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Select Moods',
+                      context.l10n.selectMoodsTitle,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 24,
                         color: AppTheme.warmCream,
@@ -2459,9 +2880,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                           Navigator.pop(context);
                           _reloadMoviesWithFilters();
                         },
-                        child: const Text(
-                          'Clear All',
-                          style: TextStyle(color: AppTheme.popcornGold),
+                        child: Text(
+                          context.l10n.clearAllButton,
+                          style: const TextStyle(color: AppTheme.popcornGold),
                         ),
                       ),
                   ],
@@ -2547,7 +2968,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                       foregroundColor: AppTheme.warmCream,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Apply'),
+                    child: Text(context.l10n.applyButton),
                   ),
                 ),
               ],
@@ -2565,7 +2986,7 @@ class _SwipeScreenState extends State<SwipeScreen>
       // Load genres if not loaded
       movieProvider.loadGenres();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Loading genres...')),
+        SnackBar(content: Text(context.l10n.loadingGenresMessage)),
       );
       return;
     }
@@ -2580,6 +3001,13 @@ class _SwipeScreenState extends State<SwipeScreen>
       builder: (context) => Consumer<MovieProvider>(
         builder: (context, movieProvider, _) {
           final genres = movieProvider.genres;
+          final authProvider =
+              Provider.of<AuthProvider>(context, listen: false);
+          final profileGenreIds = ((authProvider.userData
+                          ?.preferences['selectedGenres'] as List<dynamic>?) ??
+                      [])
+                  .map((g) => g is int ? g : (g as num).toInt())
+                  .toSet();
           return Container(
             padding: const EdgeInsets.all(20),
             constraints: BoxConstraints(
@@ -2593,7 +3021,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Select Genres',
+                      context.l10n.selectGenresTitle,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 24,
                         color: AppTheme.warmCream,
@@ -2607,13 +3035,26 @@ class _SwipeScreenState extends State<SwipeScreen>
                           Navigator.pop(context);
                           _reloadMoviesWithFilters();
                         },
-                        child: const Text(
-                          'Clear All',
-                          style: TextStyle(color: AppTheme.popcornGold),
+                        child: Text(
+                          context.l10n.clearAllButton,
+                          style: const TextStyle(color: AppTheme.popcornGold),
                         ),
                       ),
                   ],
                 ),
+                if (profileGenreIds.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.person_outline,
+                        size: 12, color: AppTheme.sepiaBrown),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Brown border = from your profile',
+                      style: GoogleFonts.lato(
+                          color: AppTheme.sepiaBrown, fontSize: 11),
+                    ),
+                  ]),
+                ],
                 const SizedBox(height: 16),
                 Flexible(
                   child: SingleChildScrollView(
@@ -2625,6 +3066,8 @@ class _SwipeScreenState extends State<SwipeScreen>
                         final genreName = entry.value;
                         final isSelected =
                             movieProvider.swipeSelectedGenres.contains(genreId);
+                        final isFromProfile =
+                            profileGenreIds.contains(genreId);
 
                         return GestureDetector(
                           onTap: () {
@@ -2648,18 +3091,31 @@ class _SwipeScreenState extends State<SwipeScreen>
                               border: Border.all(
                                 color: isSelected
                                     ? AppTheme.popcornGold
-                                    : Colors.transparent,
+                                    : isFromProfile
+                                        ? AppTheme.sepiaBrown
+                                            .withValues(alpha: 0.8)
+                                        : Colors.transparent,
                                 width: 2,
                               ),
                             ),
-                            child: Text(
-                              genreName,
-                              style: TextStyle(
-                                color: AppTheme.warmCream,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  genreName,
+                                  style: TextStyle(
+                                    color: AppTheme.warmCream,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                                if (isFromProfile && !isSelected) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.person_outline,
+                                      size: 12, color: AppTheme.sepiaBrown),
+                                ],
+                              ],
                             ),
                           ),
                         );
@@ -2680,7 +3136,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                       foregroundColor: AppTheme.warmCream,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Apply'),
+                    child: Text(context.l10n.applyButton),
                   ),
                 ),
               ],
@@ -2717,7 +3173,7 @@ class _SwipeScreenState extends State<SwipeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Select Platforms',
+                      context.l10n.selectPlatformsTitle,
                       style: GoogleFonts.bebasNeue(
                         fontSize: 24,
                         color: AppTheme.warmCream,
@@ -2731,9 +3187,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                           Navigator.pop(context);
                           _reloadMoviesWithFilters();
                         },
-                        child: const Text(
-                          'Clear All',
-                          style: TextStyle(color: AppTheme.popcornGold),
+                        child: Text(
+                          context.l10n.clearAllButton,
+                          style: const TextStyle(color: AppTheme.popcornGold),
                         ),
                       ),
                   ],
@@ -2802,13 +3258,174 @@ class _SwipeScreenState extends State<SwipeScreen>
                       foregroundColor: AppTheme.warmCream,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Apply'),
+                    child: Text(context.l10n.applyButton),
                   ),
                 ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ── Circular action button at the bottom of the swipe deck ────────────────────
+
+class _SwipeActionButton extends StatefulWidget {
+  const _SwipeActionButton({
+    required this.assetPath,
+    required this.label,
+    required this.color,
+    required this.size,
+    required this.onTap,
+  });
+
+  final String assetPath;
+  // When null, only the image is rendered (no caption below).
+  final String? label;
+  final Color color;
+  final double size;
+  final VoidCallback onTap;
+
+  @override
+  State<_SwipeActionButton> createState() => _SwipeActionButtonState();
+}
+
+class _SwipeActionButtonState extends State<_SwipeActionButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.88 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              widget.assetPath,
+              width: widget.size,
+              height: widget.size,
+            ),
+            if (widget.label != null) ...[
+              const SizedBox(height: 3),
+              Text(
+                widget.label!,
+                style: TextStyle(
+                  color: widget.color.withValues(alpha: 0.95),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'BebasNeue',
+                  letterSpacing: 1.1,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black87,
+                      blurRadius: 4,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Rectangular action button (MATCH / SKIP) ──────────────────────────────────
+
+/// Tappable rounded-rectangle badge in the Retro Cinema chip vocabulary: a
+/// motif glyph + BebasNeue label + optional direction chevron, on a themed
+/// fill with a colored border. Used for MATCH (ticket) and SKIP (scissors),
+/// which read better as designed rectangles than the cropped circular PNGs.
+class _RectActionButton extends StatefulWidget {
+  const _RectActionButton({
+    required this.leadingIcon,
+    required this.label,
+    required this.fillColor,
+    required this.borderColor,
+    required this.foregroundColor,
+    required this.onTap,
+    this.trailingIcon,
+  });
+
+  final IconData leadingIcon;
+  final String label;
+  final IconData? trailingIcon; // direction chevron (swipe cue)
+  final Color fillColor;
+  final Color borderColor;
+  final Color foregroundColor;
+  final VoidCallback onTap;
+
+  @override
+  State<_RectActionButton> createState() => _RectActionButtonState();
+}
+
+class _RectActionButtonState extends State<_RectActionButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.9 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.fillColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: widget.borderColor, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: widget.borderColor.withValues(alpha: 0.25),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.leadingIcon, color: widget.foregroundColor, size: 20),
+              const SizedBox(width: 7),
+              Text(
+                widget.label,
+                style: GoogleFonts.bebasNeue(
+                  color: widget.foregroundColor,
+                  fontSize: 20,
+                  letterSpacing: 2,
+                  height: 1,
+                ),
+              ),
+              if (widget.trailingIcon != null) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  widget.trailingIcon,
+                  color: widget.foregroundColor.withValues(alpha: 0.8),
+                  size: 18,
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

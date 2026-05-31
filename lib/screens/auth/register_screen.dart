@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/auth_error_handler.dart';
+import '../../utils/l10n_extension.dart';
 import '../../services/firebase_config.dart';
 import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -138,6 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       body: Stack(
         children: [
@@ -181,7 +183,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'JOIN POPMATCH',
+                            l10n.joinPopMatchTitle,
                             style: GoogleFonts.bebasNeue(
                                 fontSize: 36,
                                 color: AppTheme.authCream,
@@ -189,7 +191,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Create an account to start discovering movies',
+                            l10n.registerSubtitle,
                             style: GoogleFonts.lato(
                                 color: AppTheme.authCreamMuted, fontSize: 14),
                             textAlign: TextAlign.center,
@@ -203,7 +205,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               style:
                                   GoogleFonts.lato(color: AppTheme.authCream),
                               decoration: InputDecoration(
-                                hintText: 'Email',
+                                hintText: l10n.emailHint,
                                 hintStyle: GoogleFonts.lato(
                                     color: AppTheme.authCream
                                         .withValues(alpha: 0.4)),
@@ -217,11 +219,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
-                                  return 'Please enter your email';
+                                  return l10n.emailErrorEmpty;
                                 }
                                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
                                     .hasMatch(v)) {
-                                  return 'Please enter a valid email';
+                                  return l10n.emailErrorInvalid;
                                 }
                                 return null;
                               },
@@ -235,7 +237,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               style:
                                   GoogleFonts.lato(color: AppTheme.authCream),
                               decoration: InputDecoration(
-                                hintText: 'Display Name',
+                                hintText: l10n.displayNameHint,
                                 hintStyle: GoogleFonts.lato(
                                     color: AppTheme.authCream
                                         .withValues(alpha: 0.4)),
@@ -249,10 +251,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
-                                  return 'Please enter your display name';
+                                  return l10n.displayNameErrorEmpty;
                                 }
                                 if (v.length < 2) {
-                                  return 'Display name must be at least 2 characters';
+                                  return l10n.displayNameErrorTooShort;
                                 }
                                 return null;
                               },
@@ -267,7 +269,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               style:
                                   GoogleFonts.lato(color: AppTheme.authCream),
                               decoration: InputDecoration(
-                                hintText: 'Password',
+                                hintText: l10n.passwordHint,
                                 hintStyle: GoogleFonts.lato(
                                     color: AppTheme.authCream
                                         .withValues(alpha: 0.4)),
@@ -293,10 +295,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
-                                  return 'Please enter your password';
+                                  return l10n.passwordErrorEmpty;
                                 }
                                 if (v.length < 6) {
-                                  return 'Password must be at least 6 characters';
+                                  return l10n.passwordErrorTooShort;
                                 }
                                 return null;
                               },
@@ -311,7 +313,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               style:
                                   GoogleFonts.lato(color: AppTheme.authCream),
                               decoration: InputDecoration(
-                                hintText: 'Confirm Password',
+                                hintText: l10n.confirmPasswordHint,
                                 hintStyle: GoogleFonts.lato(
                                     color: AppTheme.authCream
                                         .withValues(alpha: 0.4)),
@@ -338,10 +340,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
-                                  return 'Please confirm your password';
+                                  return l10n.confirmPasswordErrorEmpty;
                                 }
                                 if (v != _passwordController.text) {
-                                  return 'Passwords do not match';
+                                  return l10n.confirmPasswordErrorMismatch;
                                 }
                                 return null;
                               },
@@ -386,7 +388,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           ),
                                         )
                                       : Text(
-                                          'Create Account',
+                                          l10n.createAccountButton,
                                           style: GoogleFonts.bebasNeue(
                                               fontSize: 18,
                                               letterSpacing: 0.05,
@@ -404,7 +406,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               Padding(
                                 padding:
                                     const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text('OR',
+                                child: Text(l10n.orSeparator,
                                     style: GoogleFonts.lato(
                                         color: AppTheme.authCream
                                             .withValues(alpha: 0.4),
@@ -441,7 +443,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         color: AppTheme.authBackground),
                                   ),
                                   const SizedBox(width: 12),
-                                  Text('Continue with Google',
+                                  Text(l10n.continueWithGoogleButton,
                                       style: GoogleFonts.lato(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600)),
@@ -453,7 +455,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text('Already have an account? ',
+                              Text(l10n.alreadyHaveAccountPrompt,
                                   style: GoogleFonts.lato(
                                       color: AppTheme.authCream
                                           .withValues(alpha: 0.6))),
@@ -461,7 +463,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 onPressed: () => Navigator.of(context)
                                     .pushReplacement(MaterialPageRoute(
                                         builder: (_) => const LoginScreen())),
-                                child: Text('Sign In',
+                                child: Text(l10n.signInLinkText,
                                     style: GoogleFonts.lato(
                                         color: AppTheme.authRed,
                                         fontWeight: FontWeight.w600)),

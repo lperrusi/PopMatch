@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../services/feature_flags.dart';
 import 'social_hub_screen.dart';
@@ -51,11 +52,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
         title: Text(
-          'NOTIFICATIONS',
+          l10n.notificationsPageTitle,
           style: GoogleFonts.bebasNeue(
             fontSize: 28,
             color: AppTheme.warmCream,
@@ -72,7 +74,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Choose what you want to be notified about.',
+              l10n.notificationsIntro,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: AppTheme.filmStripBlack.withValues(alpha: 0.8),
                   ),
@@ -84,8 +86,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   if (FeatureFlags.socialUiEnabled) ...[
                     ListTile(
                       leading: const Icon(Icons.group_add_rounded),
-                      title: const Text('Follow requests'),
-                      subtitle: const Text('Review who wants to follow you'),
+                      title: Text(l10n.followRequestsToggle),
+                      subtitle: Text(l10n.followRequestsToggleSubtitle),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
                         Navigator.of(context).push(
@@ -96,8 +98,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     const Divider(height: 1),
                   ],
                   SwitchListTile(
-                    title: const Text('Push notifications'),
-                    subtitle: const Text('Receive notifications from the app'),
+                    title: Text(l10n.pushNotificationsToggle),
+                    subtitle: Text(l10n.pushNotificationsToggleSubtitle),
                     value: _pushEnabled,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) {
@@ -107,8 +109,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
-                    title: const Text('Match reminders'),
-                    subtitle: const Text('Remind you when you get a match'),
+                    title: Text(l10n.matchRemindersToggle),
+                    subtitle: Text(l10n.matchRemindersToggleSubtitle),
                     value: _matchReminders,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) {
@@ -118,9 +120,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
-                    title: const Text('New recommendations'),
-                    subtitle:
-                        const Text('Updates when we add new picks for you'),
+                    title: Text(l10n.newRecommendationsToggle),
+                    subtitle: Text(l10n.newRecommendationsToggleSubtitle),
                     value: _newRecommendations,
                     activeThumbColor: AppTheme.vintagePaper,
                     onChanged: (v) {
@@ -131,8 +132,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   if (FeatureFlags.socialUiEnabled) ...[
                     const Divider(height: 1),
                     SwitchListTile(
-                      title: const Text('Friend requests'),
-                      subtitle: const Text('Notify when someone follows you'),
+                      title: Text(l10n.friendRequestsToggle),
+                      subtitle: Text(l10n.friendRequestsToggleSubtitle),
                       value: (Provider.of<AuthProvider>(context, listen: false)
                                   .userData
                                   ?.preferences['notificationsFriendRequests']
@@ -145,8 +146,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                     const Divider(height: 1),
                     SwitchListTile(
-                      title: const Text('Follow accepted'),
-                      subtitle: const Text('Notify when a follow request is accepted'),
+                      title: Text(l10n.followAcceptedToggle),
+                      subtitle: Text(l10n.followAcceptedToggleSubtitle),
                       value: (Provider.of<AuthProvider>(context, listen: false)
                                   .userData
                                   ?.preferences['notificationsFollowAccepted']

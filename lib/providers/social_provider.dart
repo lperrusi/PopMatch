@@ -13,6 +13,7 @@ class SocialProvider with ChangeNotifier {
   List<FollowEdge> _incomingRequests = [];
   List<Map<String, dynamic>> _searchResults = [];
   List<SocialActivity> _friendsFeed = [];
+  List<Map<String, dynamic>> _suggestedUsers = [];
   SocialPrivacySettings _privacy = const SocialPrivacySettings();
 
   bool get isLoading => _isLoading;
@@ -20,7 +21,16 @@ class SocialProvider with ChangeNotifier {
   List<FollowEdge> get incomingRequests => _incomingRequests;
   List<Map<String, dynamic>> get searchResults => _searchResults;
   List<SocialActivity> get friendsFeed => _friendsFeed;
+  List<Map<String, dynamic>> get suggestedUsers => _suggestedUsers;
   SocialPrivacySettings get privacy => _privacy;
+
+  /// Movie IDs liked by followed friends — used to show "friend liked this" badge on swipe cards.
+  Set<String> get friendLikedMovieIds => _friendsFeed
+      .where((a) =>
+          a.itemType == SocialItemType.movie &&
+          a.activityType == SocialActivityType.liked)
+      .map((a) => a.itemId)
+      .toSet();
 
   Future<void> initialize() async {
     _isLoading = true;
@@ -32,6 +42,7 @@ class SocialProvider with ChangeNotifier {
         loadIncomingRequests(),
         loadFriendsFeed(),
         loadPrivacy(),
+        loadSuggestedUsers(),
       ]);
     } catch (e) {
       debugPrint('SocialProvider.initialize: $e');
@@ -87,14 +98,7 @@ class SocialProvider with ChangeNotifier {
       notifyListeners();
       return;
     }
-    _searchResults = _searchResults.map((user) {
-      if ((user['uid']?.toString() ?? '') != targetUid) return user;
-      return {
-        ...user,
-        'followStatus': 'pending',
-      };
-    }).toList();
-    notifyListeners();
+    _markFollowSent(targetUid);
     await loadIncomingRequests();
   }
 
@@ -162,5 +166,27 @@ class SocialProvider with ChangeNotifier {
       itemId: showId,
       activityType: SocialActivityType.liked,
     );
+  }
+
+  Future<void> loadSuggestedUsers({int limit = 10}) async {
+    try {
+      _suggestedUsers = await _socialService.getSuggestedUsers(limit: limit);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('SocialProvider.loadSuggestedUsers: $e');
+    }
+  }
+
+  /// Updates the follow status in both searchResults and suggestedUsers optimistically.
+  void _markFollowSent(String targetUid) {
+    _searchResults = _searchResults.map((user) {
+      if ((user['uid']?.toString() ?? '') != targetUid) return user;
+      return {...user, 'followStatus': 'pending'};
+    }).toList();
+    _suggestedUsers = _suggestedUsers.map((user) {
+      if ((user['uid']?.toString() ?? '') != targetUid) return user;
+      return {...user, 'followStatus': 'pending'};
+    }).toList();
+    notifyListeners();
   }
 }

@@ -5,6 +5,7 @@ import '../../models/movie.dart';
 import '../../providers/streaming_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../../widgets/streaming_platform_widget.dart';
 import '../../widgets/search_results_widget.dart';
 
@@ -93,9 +94,10 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Streaming Filters'),
+        title: Text(l10n.streamingFiltersTitle),
         backgroundColor: AppTheme.primaryRed,
         foregroundColor: Colors.white,
         actions: [
@@ -108,7 +110,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                     _applyFilters();
                   },
                   icon: const Icon(Icons.clear),
-                  tooltip: 'Clear filters',
+                  tooltip: l10n.clearFiltersTooltip,
                 );
               }
               return const SizedBox.shrink();
@@ -135,7 +137,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Filter by Streaming Platform',
+                  l10n.filterByPlatformTitle,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -181,7 +183,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Failed to load movies',
+                              l10n.failedToLoadMovies,
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 color: AppTheme.primaryRed,
                               ),
@@ -201,7 +203,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                                 backgroundColor: AppTheme.primaryRed,
                                 foregroundColor: Colors.white,
                               ),
-                              child: const Text('Retry'),
+                              child: Text(l10n.retryButton),
                             ),
                           ],
                         ),
@@ -218,14 +220,14 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'No movies found',
+                                  l10n.noMoviesFoundFilter,
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Try selecting different streaming platforms',
+                                  l10n.tryDifferentPlatforms,
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   ),
@@ -242,7 +244,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                                 child: Row(
                                   children: [
                                     Text(
-                                      '${_filteredMovies.length} movies found',
+                                      l10n.moviesFoundCount(_filteredMovies.length),
                                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -252,7 +254,7 @@ class _StreamingFilterScreenState extends State<StreamingFilterScreen> {
                                       builder: (context, streamingProvider, child) {
                                         if (streamingProvider.selectedPlatformIds.isNotEmpty) {
                                           return Text(
-                                            'Filtered by ${streamingProvider.selectedPlatformIds.length} platform${streamingProvider.selectedPlatformIds.length > 1 ? 's' : ''}',
+                                            l10n.filteredByPlatforms(streamingProvider.selectedPlatformIds.length),
                                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                             ),

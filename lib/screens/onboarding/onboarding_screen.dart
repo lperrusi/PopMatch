@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/l10n_extension.dart';
 import '../home/home_screen.dart';
 
 /// Onboarding setup (Figma): Step 1 Welcome, Step 2 Genres, Step 3 Streaming. Gold buttons, auth styling.
@@ -30,7 +31,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     'Peacock',
     'Paramount+',
     'Crunchyroll',
-    'YouTube Premium',
+    'YouTube TV',
   ];
 
   @override
@@ -77,6 +78,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       body: Stack(
         children: [
@@ -107,7 +109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           },
                           icon: const Icon(Icons.chevron_left,
                               color: AppTheme.authCream, size: 24),
-                          label: Text('Back',
+                          label: Text(l10n.backButton,
                               style: GoogleFonts.lato(
                                   color: AppTheme.authCream,
                                   fontWeight: FontWeight.w600)),
@@ -115,7 +117,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       else
                         const SizedBox(width: 80),
                       Text(
-                        '${_currentPage + 1} of 3',
+                        l10n.pageIndicatorOf3(_currentPage + 1),
                         style: GoogleFonts.lato(
                             color: AppTheme.authCream.withValues(alpha: 0.8),
                             fontSize: 14,
@@ -148,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                             ),
                             child: Text(
-                              _currentPage == 2 ? 'Get Started' : 'Next',
+                              _currentPage == 2 ? l10n.getStartedButton : l10n.nextButton,
                               style: GoogleFonts.bebasNeue(
                                   fontSize: 18,
                                   letterSpacing: 0.05,
@@ -181,6 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildWelcomePage() {
+    final l10n = context.l10n;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Column(
@@ -196,25 +199,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 32),
           Text(
-            'WELCOME TO POPMATCH!',
+            l10n.welcomeTitle,
             style: GoogleFonts.bebasNeue(
                 fontSize: 32, color: AppTheme.authCream, letterSpacing: 0.05),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
-            "Let's personalize your movie discovery. Pick what you love and we'll find the best matches.",
+            l10n.welcomeSubtitle,
             style:
                 GoogleFonts.lato(color: AppTheme.authCreamMuted, fontSize: 16),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          _buildFeatureItem(
-              Icons.swipe, 'Swipe to discover movies you\'ll love'),
-          _buildFeatureItem(Icons.bookmark, 'Save to your watchlist'),
-          _buildFeatureItem(
-              Icons.filter_list, 'Filter by genres and preferences'),
-          _buildFeatureItem(Icons.share, 'Share with friends'),
+          _buildFeatureItem(Icons.swipe, l10n.swipeFeature),
+          _buildFeatureItem(Icons.bookmark, l10n.bookmarkFeature),
+          _buildFeatureItem(Icons.filter_list, l10n.filterFeature),
+          _buildFeatureItem(Icons.share, l10n.shareFeature),
         ],
       ),
     );
@@ -241,6 +242,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildGenreSelectionPage() {
     return Consumer<MovieProvider>(
       builder: (context, movieProvider, child) {
+        final l10n = context.l10n;
         final genres = movieProvider.genres;
         if (genres.isEmpty) {
           return Center(
@@ -249,7 +251,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               children: [
                 const CircularProgressIndicator(color: AppTheme.authCream),
                 const SizedBox(height: 16),
-                Text('Loading genres...',
+                Text(l10n.loadingGenresMessage,
                     style: GoogleFonts.lato(color: AppTheme.authCreamMuted)),
               ],
             ),
@@ -261,7 +263,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'WHAT GENRES DO YOU LOVE?',
+                l10n.genresTitle,
                 style: GoogleFonts.bebasNeue(
                     fontSize: 28,
                     color: AppTheme.authCream,
@@ -269,7 +271,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Select your favorite genres for better recommendations.',
+                l10n.genresSubtitle,
                 style: GoogleFonts.lato(
                     color: AppTheme.authCreamMuted, fontSize: 14),
               ),
@@ -334,19 +336,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildPlatformSelectionPage() {
+    final l10n = context.l10n;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'WHERE DO YOU WATCH MOVIES?',
+            l10n.platformsTitle,
             style: GoogleFonts.bebasNeue(
                 fontSize: 28, color: AppTheme.authCream, letterSpacing: 0.05),
           ),
           const SizedBox(height: 8),
           Text(
-            'Select the streaming services you have access to.',
+            l10n.platformsSubtitle,
             style:
                 GoogleFonts.lato(color: AppTheme.authCreamMuted, fontSize: 14),
           ),

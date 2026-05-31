@@ -182,8 +182,10 @@ class Movie {
       crew: json['crew'] != null 
           ? List<CrewMember>.from(json['crew'].map((c) => CrewMember.fromJson(c)))
           : null,
-      videos: json['videos'] != null 
-          ? List<Video>.from(json['videos']['results'].map((v) => Video.fromJson(v)))
+      videos: (json['videos'] is Map<String, dynamic>)
+          ? List<Video>.from(
+              ((json['videos'] as Map<String, dynamic>)['results'] as List? ?? [])
+                  .map((v) => Video.fromJson(v as Map<String, dynamic>)))
           : null,
       streamingAvailability: json['streamingAvailability'] != null 
           ? MovieStreamingAvailability.fromJson(json['streamingAvailability'])

@@ -22,6 +22,9 @@ import 'package:popmatch/widgets/retro_cinema_movie_card.dart';
 ///
 /// Run on a simulator/device:
 ///   flutter test integration_test/swipe_like_integration_test.dart -d <deviceId>
+///
+/// Also (VM / fast):
+///   flutter test integration_test/swipe_like_integration_test.dart
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -85,7 +88,8 @@ void main() {
       );
     }
 
-    testWidgets('right swipe advances deck after like', (WidgetTester tester) async {
+    testWidgets('right swipe advances deck after like',
+        (WidgetTester tester) async {
       final auth = AuthProvider()
         ..setTestUserData(
           User(
@@ -94,7 +98,8 @@ void main() {
             displayName: 'Like Test',
           ),
         );
-      final movieProvider = MovieProvider()..replaceSwipeDeckForTest(testDeck());
+      final movieProvider = MovieProvider()
+        ..replaceSwipeDeckForTest(testDeck());
 
       await tester.pumpWidget(harness(movieProvider, auth));
       await tester.pump();
@@ -111,6 +116,37 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.text('Like Deck B'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('non-last right swipe shows Swipe recorded SnackBar with UNDO',
+        (WidgetTester tester) async {
+      final auth = AuthProvider()
+        ..setTestUserData(
+          User(
+            id: 'like-int',
+            email: 'like@test.com',
+            displayName: 'Like Test',
+          ),
+        );
+      final movieProvider = MovieProvider()
+        ..replaceSwipeDeckForTest(testDeck());
+
+      await tester.pumpWidget(harness(movieProvider, auth));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final Finder movieSwiper = find.byKey(const ValueKey<int>(92001));
+      expect(movieSwiper, findsOneWidget);
+
+      await tester.drag(movieSwiper, const Offset(380, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('Like Deck B'), findsWidgets);
+      expect(find.text('Swipe recorded'), findsOneWidget);
+      expect(find.text('UNDO'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import 'user_preference_analyzer.dart';
 
@@ -61,11 +64,17 @@ class UserPreferencesSessionCache {
     }
 
     _inFlight = () async {
+      // Try disk cache before making 60+ TMDB API calls
+      if (await _loadFromDisk(sig)) {
+        return _cached!;
+      }
       final analyzer = UserPreferenceAnalyzer();
       final prefs = await analyzer.analyzePreferences(user);
       _cached = prefs;
       _cachedSig = sig;
       _lastComputedAt = DateTime.now();
+      // Persist to disk so next session skips recomputation
+      unawaited(_saveToDisk(prefs, sig));
       return prefs;
     }();
 
@@ -74,6 +83,52 @@ class UserPreferencesSessionCache {
     } finally {
       _inFlight = null;
     }
+  }
+
+  static const String _prefsKey = 'user_preferences_cache';
+
+  Future<bool> _loadFromDisk(String sig) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final json = sp.getString(_prefsKey);
+      if (json == null) return false;
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      if (map['sig'] != sig) return false;
+      final p = map['prefs'] as Map<String, dynamic>;
+      _cached = UserPreferences(
+        topGenres: List<int>.from(p['topGenres'] as List),
+        preferredYears: List<int>.from(p['preferredYears'] as List),
+        preferredMinRating: (p['preferredMinRating'] as num?)?.toDouble(),
+        preferredMaxRating: (p['preferredMaxRating'] as num?)?.toDouble(),
+        preferredActors: List<String>.from(p['preferredActors'] as List),
+        preferredDirectors: List<String>.from(p['preferredDirectors'] as List),
+      );
+      _cachedSig = sig;
+      _lastComputedAt = DateTime.now();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _saveToDisk(UserPreferences prefs, String sig) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(
+        _prefsKey,
+        jsonEncode({
+          'sig': sig,
+          'prefs': {
+            'topGenres': prefs.topGenres,
+            'preferredYears': prefs.preferredYears,
+            'preferredMinRating': prefs.preferredMinRating,
+            'preferredMaxRating': prefs.preferredMaxRating,
+            'preferredActors': prefs.preferredActors,
+            'preferredDirectors': prefs.preferredDirectors,
+          },
+        }),
+      );
+    } catch (_) {}
   }
 }
 

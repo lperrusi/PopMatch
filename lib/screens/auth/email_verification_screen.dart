@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/auth_error_handler.dart';
+import '../../utils/l10n_extension.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../home/home_screen.dart';
 
@@ -64,7 +65,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please enter a 6-digit code'),
+          content: Text(context.l10n.codeError),
           backgroundColor: AppTheme.brickRed,
           behavior: SnackBarBehavior.floating,
         ),
@@ -84,8 +85,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         if (isValid) {
           // Code is valid - mark email as verified and navigate to onboarding
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Email verified successfully!'),
+            SnackBar(
+              content: Text(context.l10n.emailVerificationSuccess),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
             ),
@@ -116,8 +117,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           // Invalid code
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  const Text('Invalid verification code. Please try again.'),
+              content: Text(context.l10n.invalidCodeError),
               backgroundColor: AppTheme.brickRed,
               behavior: SnackBarBehavior.floating,
             ),
@@ -161,14 +161,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
       if (mounted) {
         final delivery = authProvider.lastVerificationDelivery;
+        final l10n = context.l10n;
         final message = switch (delivery) {
           VerificationCodeDelivery.cloudEmailSent =>
-            'Verification code sent! Please check your email.',
+            l10n.verificationCodeSentMessage,
           VerificationCodeDelivery.fallbackCodeGenerated =>
-            'Email service is currently unavailable. Your code was generated in-app for verification.',
+            l10n.verificationCodeFallbackMessage,
           VerificationCodeDelivery.devModeCodeGenerated =>
-            'Code generated in development mode. Check debug logs for the code.',
-          null => 'Verification code generated. Please try again if needed.',
+            l10n.verificationCodeDevMessage,
+          null => l10n.verificationCodeGeneratedMessage,
         };
         final bgColor = delivery == VerificationCodeDelivery.cloudEmailSent
             ? Colors.green
@@ -208,6 +209,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -247,7 +249,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
                 // Title
                 Text(
-                  'Verify Your Email',
+                  l10n.verifyEmailTitle,
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.warmCream,
@@ -258,7 +260,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
                 // Description
                 Text(
-                  'We\'ve sent a 6-digit verification code to:',
+                  l10n.verificationCodeDescription,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppTheme.warmCream.withValues(alpha: 0.9),
                       ),
@@ -358,8 +360,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: const Text(
-                                    'Please enter the complete 6-digit code'),
+                                content: Text(l10n.incompleteCodeError),
                                 backgroundColor: AppTheme.brickRed,
                                 behavior: SnackBarBehavior.floating,
                               ),
@@ -382,9 +383,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.black),
                           ),
                         )
-                      : const Text(
-                          'Verify Code',
-                          style: TextStyle(
+                      : Text(
+                          l10n.verifyCodeButton,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -405,17 +406,17 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Row(
+                      : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.refresh,
                               color: AppTheme.popcornGold,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
-                              'Resend Code',
-                              style: TextStyle(
+                              l10n.resendCodeButton,
+                              style: const TextStyle(
                                 color: AppTheme.popcornGold,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -428,7 +429,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
                 // Help text
                 Text(
-                  'Didn\'t receive the code? Check your spam folder or try resending.',
+                  l10n.emailVerificationHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.warmCream.withValues(alpha: 0.6),
                       ),
