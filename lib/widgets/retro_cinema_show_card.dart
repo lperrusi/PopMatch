@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:palette_generator/palette_generator.dart';
+import 'package:provider/provider.dart';
 import '../models/tv_show.dart';
 import '../models/streaming_platform.dart';
+import '../providers/auth_provider.dart';
+import '../providers/show_provider.dart';
 import '../utils/theme.dart';
 import '../utils/l10n_extension.dart';
+import '../utils/recommendation_reason.dart';
 import '../utils/streaming_url_launcher.dart';
 import '../services/movie_cache_service.dart';
 import '../services/streaming_service.dart';
@@ -44,20 +48,46 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
 
   TvShow get _show => _enrichedShow ?? widget.show;
 
-  String? _strategyLabel(BuildContext context, String? strategy) {
-    if (strategy == null) return null;
+  /// The "why" badge text: a specific "Because you like {Genre}" when the
+  /// show's genres match the user's picks, else a generic strategy label.
+  String? _reasonLabel(BuildContext context) {
     final l10n = context.l10n;
-    return switch (strategy) {
-      'similar_to_liked'   => l10n.strategyLikedSimilar,
-      'genre_match'        => l10n.strategyGenreMatch,
-      'trending'           => l10n.strategyTrending,
-      'top_rated'          => l10n.strategyTopRated,
-      'personalized'       => l10n.strategyPersonalized,
-      'curated'            => l10n.strategyCurated,
-      'actor_discovery'    => l10n.strategyActorDiscovery,
-      'director_discovery' => l10n.strategyDirectorDiscovery,
-      _ => null,
-    };
+    final userGenreIds = <int>{};
+    final raw = context.read<AuthProvider>().userData?.preferences['selectedGenres'];
+    if (raw is List) {
+      for (final g in raw) {
+        final id = g is int ? g : int.tryParse(g.toString());
+        if (id != null) userGenreIds.add(id);
+      }
+    }
+    final reason = buildRecommendationReason(
+      strategy: _show.recommendationStrategy,
+      genreIds: _show.genreIds,
+      userGenreIds: userGenreIds,
+      genres: context.read<ShowProvider>().genres,
+    );
+    switch (reason.kind) {
+      case RecommendationReasonKind.becauseYouLikeGenre:
+        return l10n.reasonBecauseYouLike(reason.genreName!);
+      case RecommendationReasonKind.similarToLiked:
+        return l10n.strategyLikedSimilar;
+      case RecommendationReasonKind.genreMatch:
+        return l10n.strategyGenreMatch;
+      case RecommendationReasonKind.trending:
+        return l10n.strategyTrending;
+      case RecommendationReasonKind.topRated:
+        return l10n.strategyTopRated;
+      case RecommendationReasonKind.personalized:
+        return l10n.strategyPersonalized;
+      case RecommendationReasonKind.curated:
+        return l10n.strategyCurated;
+      case RecommendationReasonKind.actorDiscovery:
+        return l10n.strategyActorDiscovery;
+      case RecommendationReasonKind.directorDiscovery:
+        return l10n.strategyDirectorDiscovery;
+      case RecommendationReasonKind.none:
+        return null;
+    }
   }
 
   @override
@@ -236,8 +266,7 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
 
   @override
   Widget build(BuildContext context) {
-    final strategy = _show.recommendationStrategy;
-    final strategyLabel = _strategyLabel(context, strategy);
+    final strategyLabel = _reasonLabel(context);
     final availability = _show.streamingAvailability;
     final hasPlatforms =
         availability != null && availability.availablePlatforms.isNotEmpty;

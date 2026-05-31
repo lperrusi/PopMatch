@@ -106,6 +106,10 @@
   "viewDetailsButton": "Ver detalhes",
   "addToWatchlistButton": "Adicionar \u00e0 lista",
 
+  "reasonBecauseYouLike": "Porque voc\u00ea curte {genre}",
+  "@reasonBecauseYouLike": {
+    "placeholders": { "genre": { "type": "String" } }
+  },
   "strategyLikedSimilar": "Porque voc\u00ea curtiu t\u00edtulos similares",
   "strategyGenreMatch": "Combina com seus g\u00eaneros",
   "strategyTrending": "Em alta agora",

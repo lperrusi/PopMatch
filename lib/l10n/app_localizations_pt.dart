@@ -311,6 +311,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get addToWatchlistButton => 'Adicionar à lista';
 
   @override
+  String reasonBecauseYouLike(String genre) {
+    return 'Porque você curte $genre';
+  }
+
+  @override
   String get strategyLikedSimilar => 'Porque você curtiu títulos similares';
 
   @override
