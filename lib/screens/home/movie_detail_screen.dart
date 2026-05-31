@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:palette_generator/palette_generator.dart';
 import '../../models/movie.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
@@ -13,6 +12,7 @@ import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
 import '../../widgets/detail/detail_similar_section.dart';
+import '../../widgets/detail/detail_color_extraction.dart';
 import '../../providers/streaming_provider.dart';
 import '../../models/streaming_platform.dart';
 import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
@@ -40,13 +40,10 @@ class MovieDetailScreen extends StatefulWidget {
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
 }
 
-class _MovieDetailScreenState extends State<MovieDetailScreen> {
-  bool _isLightBackground = false;
-  bool _isLoadingColor = true;
+class _MovieDetailScreenState extends State<MovieDetailScreen>
+    with DetailColorExtractionMixin {
   Movie? _loadedMovie;
   bool _isSynopsisExpanded = false;
-  bool _isDisposed =
-      false; // Track if widget is disposed to prevent setState calls
   Timer? _movieDetailsTimer;
   Timer? _colorExtractionTimer;
 
@@ -69,7 +66,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Wait for multiple frames to ensure screen is fully rendered and interactive
       _movieDetailsTimer = Timer(const Duration(milliseconds: 600), () {
-        if (mounted && !_isDisposed && cachedMovie == null) {
+        if (mounted && !isDisposed && cachedMovie == null) {
           // Load additional movie details (cast/crew) in background
           // This will enhance the existing data, not block the screen
           _loadMovieDetails();
@@ -79,14 +76,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       // Color extraction - delay significantly to not block UI
       // This is non-critical and can happen much later
       _colorExtractionTimer = Timer(const Duration(milliseconds: 1500), () {
-        if (mounted && !_isDisposed) {
+        if (mounted && !isDisposed) {
           if (widget.movie.backdropUrl != null ||
               widget.movie.posterUrl != null) {
-            _extractColorFromImage();
+            extractColorFromImageUrl(
+                _displayMovie.backdropUrl ?? _displayMovie.posterUrl);
           } else {
             setState(() {
-              _isLoadingColor = false;
-              _isLightBackground = false;
+              isLoadingColor = false;
+              isLightBackground = false;
             });
           }
         }
@@ -109,9 +107,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       final loadedMovie = await cacheService.getMovieDetails(widget.movie.id);
 
       // Schedule setState on next frame to avoid blocking
-      if (mounted && !_isDisposed) {
+      if (mounted && !isDisposed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_isDisposed) {
+          if (mounted && !isDisposed) {
             setState(() {
               _loadedMovie = loadedMovie;
             });
@@ -135,7 +133,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     if (imdbId == null || imdbId.isEmpty) return;
     try {
       final ratings = await OMDbService.instance.getRatingsByImdbId(imdbId);
-      if (ratings == null || !mounted || _isDisposed) return;
+      if (ratings == null || !mounted || isDisposed) return;
       setState(() {
         _loadedMovie = (_loadedMovie ?? movie).copyWith(
           imdbRating: ratings.imdbRating ?? movie.imdbRating,
@@ -152,66 +150,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   /// Gets the movie to display (loaded movie with cast/crew, or fallback to original)
   Movie get _displayMovie => _loadedMovie ?? widget.movie;
 
-  /// Extracts dominant color from poster/backdrop image and determines if background is light
-  Future<void> _extractColorFromImage() async {
-    try {
-      final movie = _displayMovie;
-      final imageUrl = movie.backdropUrl ?? movie.posterUrl;
-      if (imageUrl == null) {
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-
-      final imageProvider = CachedNetworkImageProvider(imageUrl);
-      // Add timeout to prevent blocking for too long
-      PaletteGenerator paletteGenerator;
-      try {
-        paletteGenerator =
-            await PaletteGenerator.fromImageProvider(imageProvider)
-                .timeout(const Duration(seconds: 2));
-      } on TimeoutException {
-        // Use default color if timeout
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-
-      if (mounted && !_isDisposed) {
-        final dominantColor =
-            paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
-        final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
-        final isLight = brightness == Brightness.light;
-
-        setState(() {
-          _isLightBackground = isLight;
-          _isLoadingColor = false;
-        });
-      }
-    } catch (e) {
-      if (mounted && !_isDisposed) {
-        setState(() {
-          _isLightBackground = false;
-          _isLoadingColor = false;
-        });
-      }
-    }
-  }
-
-  /// Gets the appropriate text color based on background brightness
-  Color get _textColor {
-    if (_isLoadingColor) return AppTheme.warmCream;
-    return _isLightBackground ? AppTheme.filmStripBlack : AppTheme.warmCream;
-  }
-
   String _formatRuntime(int minutes) {
     final h = minutes ~/ 60;
     final m = minutes % 60;
@@ -220,13 +158,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     return '${h}h ${m}m';
   }
 
-  /// Gets the appropriate overlay color for better text readability
-  Color get _overlayColor {
-    if (_isLightBackground) {
-      return Colors.white.withValues(alpha: 0.85);
-    }
-    return AppTheme.filmStripBlack.withValues(alpha: 0.75);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,7 +166,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           // Mark as disposed immediately to stop all async operations
-          _isDisposed = true;
+          isDisposed = true;
           // Cancel any timers
           _movieDetailsTimer?.cancel();
           _colorExtractionTimer?.cancel();
@@ -308,7 +239,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              _overlayColor,
+                              overlayColor,
                             ],
                           ),
                         ),
@@ -331,7 +262,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               _displayMovie.title,
                               style: GoogleFonts.bebasNeue(
                                 fontSize: 36,
-                                color: _textColor,
+                                color: textColor,
                                 letterSpacing: 1.5,
                                 height: 1.1,
                               ),
@@ -356,7 +287,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                       color: AppTheme.brickRed,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: _textColor.withValues(alpha: 30),
+                                        color: textColor.withValues(alpha: 30),
                                         width: 1,
                                       ),
                                     ),
@@ -375,7 +306,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                   Text(
                                     _formatRuntime(_displayMovie.runtime!),
                                     style: GoogleFonts.lato(
-                                      color: _textColor.withValues(alpha: 0.85),
+                                      color: textColor.withValues(alpha: 0.85),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -392,7 +323,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                     Text(
                                       _displayMovie.formattedRating,
                                       style: GoogleFonts.lato(
-                                        color: _textColor,
+                                        color: textColor,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -402,7 +333,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                       Text(
                                         '(${_displayMovie.voteCount})',
                                         style: GoogleFonts.lato(
-                                          color: _textColor.withValues(alpha: 0.6),
+                                          color: textColor.withValues(alpha: 0.6),
                                           fontSize: 12,
                                         ),
                                       ),
@@ -422,7 +353,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                   Text(
                                     '🍅 ${_displayMovie.rottenTomatoesTomatometer}%',
                                     style: GoogleFonts.lato(
-                                      color: _textColor,
+                                      color: textColor,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -451,7 +382,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                           isInWatchlist
                                               ? Icons.bookmark
                                               : Icons.bookmark_border,
-                                          color: _textColor,
+                                          color: textColor,
                                           size: 24,
                                         ),
                                       ),
@@ -505,7 +436,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                     return IconButton(
                                       icon: Icon(
                                         isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                                        color: isLiked ? AppTheme.vintagePaper : _textColor,
+                                        color: isLiked ? AppTheme.vintagePaper : textColor,
                                         size: 24,
                                       ),
                                       onPressed: () async {
@@ -552,7 +483,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                     return IconButton(
                                       icon: Icon(
                                         isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
-                                        color: isDisliked ? AppTheme.vintagePaper : _textColor.withValues(alpha: 0.8),
+                                        color: isDisliked ? AppTheme.vintagePaper : textColor.withValues(alpha: 0.8),
                                         size: 24,
                                       ),
                                       onPressed: () async {
@@ -595,7 +526,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 IconButton(
                                   icon: Icon(
                                     Icons.share_rounded,
-                                    color: _textColor,
+                                    color: textColor,
                                     size: 24,
                                   ),
                                   onPressed: () => _shareMovie(context),
@@ -608,7 +539,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 itemId: _displayMovie.id,
                                 title: _displayMovie.title,
                                 isShow: false,
-                                textColor: _textColor),
+                                textColor: textColor),
                           ],
                         ),
                       ),
@@ -623,7 +554,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   child: InkWell(
                     onTap: () {
                       // Cancel all ongoing operations immediately
-                      _isDisposed = true;
+                      isDisposed = true;
                       _movieDetailsTimer?.cancel();
                       _colorExtractionTimer?.cancel();
 
@@ -815,7 +746,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   /// Handles navigation tap from bottom navigation
   void _handleNavigationTap(int index) {
     // Cancel all ongoing operations immediately
-    _isDisposed = true;
+    isDisposed = true;
     _movieDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
 
@@ -829,7 +760,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   @override
   void dispose() {
-    _isDisposed = true;
+    isDisposed = true;
     // Cancel any ongoing timers to prevent operations after disposal
     _movieDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:palette_generator/palette_generator.dart';
 import '../../models/tv_show.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/show_provider.dart';
@@ -13,6 +12,7 @@ import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
 import '../../widgets/detail/detail_similar_section.dart';
+import '../../widgets/detail/detail_color_extraction.dart';
 import '../../models/movie.dart'; // For CastMember, CrewMember
 import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
@@ -34,12 +34,10 @@ class ShowDetailScreen extends StatefulWidget {
   State<ShowDetailScreen> createState() => _ShowDetailScreenState();
 }
 
-class _ShowDetailScreenState extends State<ShowDetailScreen> {
-  bool _isLightBackground = false;
-  bool _isLoadingColor = true;
+class _ShowDetailScreenState extends State<ShowDetailScreen>
+    with DetailColorExtractionMixin {
   TvShow? _loadedShow;
   bool _isSynopsisExpanded = false;
-  bool _isDisposed = false;
   Timer? _showDetailsTimer;
   Timer? _colorExtractionTimer;
 
@@ -53,7 +51,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Wait for multiple frames to ensure screen is fully rendered and interactive
       _showDetailsTimer = Timer(const Duration(milliseconds: 600), () {
-        if (mounted && !_isDisposed) {
+        if (mounted && !isDisposed) {
           // Load additional show details (cast/crew) in background
           _loadShowDetails();
         }
@@ -61,13 +59,14 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
       
       // Color extraction - delay significantly to not block UI
       _colorExtractionTimer = Timer(const Duration(milliseconds: 1500), () {
-        if (mounted && !_isDisposed) {
+        if (mounted && !isDisposed) {
           if (widget.show.backdropUrl != null || widget.show.posterUrl != null) {
-            _extractColorFromImage();
+            extractColorFromImageUrl(
+                _displayShow.backdropUrl ?? _displayShow.posterUrl);
           } else {
             setState(() {
-              _isLoadingColor = false;
-              _isLightBackground = false;
+              isLoadingColor = false;
+              isLightBackground = false;
             });
           }
         }
@@ -106,9 +105,9 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
       );
       
       // Schedule setState on next frame to avoid blocking
-      if (mounted && !_isDisposed) {
+      if (mounted && !isDisposed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_isDisposed) {
+          if (mounted && !isDisposed) {
             setState(() {
               _loadedShow = loadedShow;
             });
@@ -123,69 +122,6 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
   /// Gets the show to display (loaded show with cast/crew, or fallback to original)
   TvShow get _displayShow => _loadedShow ?? widget.show;
 
-  /// Extracts dominant color from poster/backdrop image
-  Future<void> _extractColorFromImage() async {
-    try {
-      final show = _displayShow;
-      final imageUrl = show.backdropUrl ?? show.posterUrl;
-      if (imageUrl == null) {
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-
-      final imageProvider = CachedNetworkImageProvider(imageUrl);
-      PaletteGenerator paletteGenerator;
-      try {
-        paletteGenerator = await PaletteGenerator.fromImageProvider(imageProvider)
-            .timeout(const Duration(seconds: 2));
-      } on TimeoutException {
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _isLightBackground = false;
-            _isLoadingColor = false;
-          });
-        }
-        return;
-      }
-      
-      if (mounted && !_isDisposed) {
-        final dominantColor = paletteGenerator.dominantColor?.color ?? AppTheme.filmStripBlack;
-        final brightness = ThemeData.estimateBrightnessForColor(dominantColor);
-        final isLight = brightness == Brightness.light;
-        
-        setState(() {
-          _isLightBackground = isLight;
-          _isLoadingColor = false;
-        });
-      }
-    } catch (e) {
-      if (mounted && !_isDisposed) {
-        setState(() {
-          _isLightBackground = false;
-          _isLoadingColor = false;
-        });
-      }
-    }
-  }
-
-  /// Gets the appropriate text color based on background brightness
-  Color get _textColor {
-    if (_isLoadingColor) return AppTheme.warmCream;
-    return _isLightBackground ? AppTheme.filmStripBlack : AppTheme.warmCream;
-  }
-
-  /// Gets the appropriate overlay color for better text readability
-  Color get _overlayColor {
-    if (_isLightBackground) {
-      return Colors.white.withValues(alpha: 0.85);
-    }
-    return AppTheme.filmStripBlack.withValues(alpha: 0.75);
-  }
 
   /// Loads "Shows Like This": merges TMDB similar + recommended shows, de-dupes
   /// (excluding the current show), and maps the top 6 to [DetailSimilarItem]s.
@@ -237,7 +173,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
-          _isDisposed = true;
+          isDisposed = true;
           _showDetailsTimer?.cancel();
           _colorExtractionTimer?.cancel();
         }
@@ -320,7 +256,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            _overlayColor,
+                            overlayColor,
                           ],
                         ),
                       ),
@@ -343,7 +279,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                             _displayShow.name,
                             style: GoogleFonts.bebasNeue(
                               fontSize: 36,
-                              color: _textColor,
+                              color: textColor,
                               letterSpacing: 1.5,
                               height: 1.1,
                             ),
@@ -365,7 +301,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                     color: AppTheme.brickRed,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: _textColor.withValues(alpha: 30),
+                                      color: textColor.withValues(alpha: 30),
                                       width: 1,
                                     ),
                                   ),
@@ -390,7 +326,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                               Text(
                                 _displayShow.formattedRating,
                                 style: GoogleFonts.lato(
-                                  color: _textColor,
+                                  color: textColor,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -400,7 +336,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                 Text(
                                   '(${_displayShow.voteCount} votes)',
                                   style: GoogleFonts.lato(
-                                    color: _textColor.withValues(alpha: 70),
+                                    color: textColor.withValues(alpha: 70),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -414,14 +350,14 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                 if (_displayShow.numberOfSeasons != null) ...[
                                   Icon(
                                     Icons.layers_rounded,
-                                    color: _textColor.withValues(alpha: 80),
+                                    color: textColor.withValues(alpha: 80),
                                     size: 16,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     '${_displayShow.numberOfSeasons} ${_displayShow.numberOfSeasons == 1 ? 'Season' : 'Seasons'}',
                                     style: GoogleFonts.lato(
-                                      color: _textColor.withValues(alpha: 80),
+                                      color: textColor.withValues(alpha: 80),
                                       fontSize: 13,
                                     ),
                                   ),
@@ -432,14 +368,14 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                 if (_displayShow.numberOfEpisodes != null) ...[
                                   Icon(
                                     Icons.play_circle_outline_rounded,
-                                    color: _textColor.withValues(alpha: 80),
+                                    color: textColor.withValues(alpha: 80),
                                     size: 16,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     context.l10n.episodesLabel(_displayShow.numberOfEpisodes!),
                                     style: GoogleFonts.lato(
-                                      color: _textColor.withValues(alpha: 80),
+                                      color: textColor.withValues(alpha: 80),
                                       fontSize: 13,
                                     ),
                                   ),
@@ -464,7 +400,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                       fit: BoxFit.contain,
                                       errorWidget: Icon(
                                         isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
-                                        color: _textColor,
+                                        color: textColor,
                                         size: 24,
                                       ),
                                     ),
@@ -507,7 +443,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                   return IconButton(
                                     icon: Icon(
                                       isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                                      color: isLiked ? AppTheme.vintagePaper : _textColor,
+                                      color: isLiked ? AppTheme.vintagePaper : textColor,
                                       size: 24,
                                     ),
                                     onPressed: () async {
@@ -551,7 +487,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                                   return IconButton(
                                     icon: Icon(
                                       isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
-                                      color: isDisliked ? AppTheme.vintagePaper : _textColor.withValues(alpha: 0.8),
+                                      color: isDisliked ? AppTheme.vintagePaper : textColor.withValues(alpha: 0.8),
                                       size: 24,
                                     ),
                                     onPressed: () async {
@@ -591,7 +527,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                               IconButton(
                                 icon: Icon(
                                   Icons.share_rounded,
-                                  color: _textColor,
+                                  color: textColor,
                                   size: 24,
                                 ),
                 onPressed: () => _shareShow(context),
@@ -604,7 +540,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                               itemId: _displayShow.id,
                               title: _displayShow.name,
                               isShow: true,
-                              textColor: _textColor),
+                              textColor: textColor),
                         ],
                       ),
                     ),
@@ -618,7 +554,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
-                    _isDisposed = true;
+                    isDisposed = true;
                     _showDetailsTimer?.cancel();
                     _colorExtractionTimer?.cancel();
                     Navigator.of(context).pop();
@@ -778,7 +714,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
   }
 
   void _handleNavigationTap(int index) {
-    _isDisposed = true;
+    isDisposed = true;
     _showDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
     Navigator.of(context).pop();
@@ -787,7 +723,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
 
   @override
   void dispose() {
-    _isDisposed = true;
+    isDisposed = true;
     _showDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
     super.dispose();
