@@ -8,6 +8,7 @@ import '../../models/social_activity.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/social_provider.dart';
 import '../../utils/theme.dart';
+import '../../widgets/poster_grid_skeleton.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
@@ -766,7 +767,7 @@ class _SearchScreenState extends State<SearchScreen>
   Widget _buildMovieResults() {
     return Consumer<MovieProvider>(
       builder: (context, movieProvider, _) {
-        if (movieProvider.isLoading) return _buildLoadingState();
+        if (movieProvider.isLoading) return const PosterGridSkeleton();
 
         if (movieProvider.error != null) {
           return _buildEmptyState(
