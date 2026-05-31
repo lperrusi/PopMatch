@@ -2440,6 +2440,24 @@ abstract class AppLocalizations {
   /// **'Movies Like This'**
   String get moviesLikeThisLabel;
 
+  /// No description provided for @showsLikeThisLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows Like This'**
+  String get showsLikeThisLabel;
+
+  /// No description provided for @failedToLoadSimilarShows.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load similar shows'**
+  String get failedToLoadSimilarShows;
+
+  /// No description provided for @noSimilarShowsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No similar shows found'**
+  String get noSimilarShowsFound;
+
   /// No description provided for @failedToLoadSimilarMovies.
   ///
   /// In en, this message translates to:

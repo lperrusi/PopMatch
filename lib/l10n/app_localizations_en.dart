@@ -1293,6 +1293,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moviesLikeThisLabel => 'Movies Like This';
 
   @override
+  String get showsLikeThisLabel => 'Shows Like This';
+
+  @override
+  String get failedToLoadSimilarShows => 'Failed to load similar shows';
+
+  @override
+  String get noSimilarShowsFound => 'No similar shows found';
+
+  @override
   String get failedToLoadSimilarMovies => 'Failed to load similar movies';
 
   @override

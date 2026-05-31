@@ -12,6 +12,7 @@ import '../../utils/theme.dart';
 import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
+import '../../widgets/detail/detail_similar_section.dart';
 import '../../providers/streaming_provider.dart';
 import '../../models/streaming_platform.dart';
 import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
@@ -856,334 +857,80 @@ Check out this movie on PopMatch!
 
 // Keep existing section widgets but update their styling
 // Similar Movies Section
-class _SimilarMoviesSection extends StatefulWidget {
+class _SimilarMoviesSection extends StatelessWidget {
   final Movie movie;
 
   const _SimilarMoviesSection({required this.movie});
 
-  @override
-  State<_SimilarMoviesSection> createState() => _SimilarMoviesSectionState();
-}
+  Future<List<DetailSimilarItem>> _loadItems(BuildContext context) async {
+    final tmdbService = TMDBService();
+    final embeddingService = MovieEmbeddingService();
 
-class _SimilarMoviesSectionState extends State<_SimilarMoviesSection> {
-  List<Movie> _similarMovies = [];
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    // Defer similar movies loading until after screen renders
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _loadSimilarMovies();
-      }
-    });
-  }
-
-  Future<void> _loadSimilarMovies() async {
+    List<Movie> similarMovies = [];
+    List<Movie> recommendedMovies = [];
     try {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      final tmdbService = TMDBService();
-      final embeddingService = MovieEmbeddingService();
-
-      // Get similar movies from TMDB API
-      List<Movie> similarMovies = [];
-      List<Movie> recommendedMovies = [];
-
-      try {
-        similarMovies = await tmdbService.getSimilarMovies(widget.movie.id);
-        debugPrint(
-            'Loaded ${similarMovies.length} similar movies for movie ${widget.movie.id}');
-      } catch (e) {
-        debugPrint('Error loading similar movies: $e');
-        similarMovies = [];
-      }
-
-      try {
-        recommendedMovies =
-            await tmdbService.getMovieRecommendations(widget.movie.id);
-        debugPrint(
-            'Loaded ${recommendedMovies.length} recommended movies for movie ${widget.movie.id}');
-      } catch (e) {
-        debugPrint('Error loading recommended movies: $e');
-        recommendedMovies = [];
-      }
-
-      // Combine both lists
-      final allMovies = <Movie>[];
-      final seenIds = <int>{};
-
-      // Add similar movies first (they're more directly related)
-      for (final movie in similarMovies) {
-        if (!seenIds.contains(movie.id) && movie.id != widget.movie.id) {
-          allMovies.add(movie);
-          seenIds.add(movie.id);
-        }
-      }
-
-      // Add recommended movies (TMDB's algorithm-based recommendations)
-      for (final movie in recommendedMovies) {
-        if (!seenIds.contains(movie.id) && movie.id != widget.movie.id) {
-          allMovies.add(movie);
-          seenIds.add(movie.id);
-        }
-      }
-
-      debugPrint('Total combined movies before ranking: ${allMovies.length}');
-
-      // If we have movies, use embedding-based similarity to rank them
-      if (allMovies.isNotEmpty) {
-        // Use embedding service to find most similar movies
-        final rankedMovies = embeddingService.findSimilarMovies(
-          widget.movie,
-          allMovies,
-          limit: 6, // Show top 6 most similar for better accuracy
-        );
-
-        debugPrint('Ranked movies count: ${rankedMovies.length}');
-
-        if (!mounted) return;
-
-        setState(() {
-          _similarMovies = rankedMovies;
-          _isLoading = false;
-        });
-      } else {
-        // Fallback: try to get movies from same genres
-        if (widget.movie.genreIds != null &&
-            widget.movie.genreIds!.isNotEmpty) {
-          final genreMovies = await tmdbService.getMoviesByGenre(
-            widget.movie.genreIds!.first,
-            page: 1,
-          );
-
-          // Filter out the current movie and limit to 6
-          final filtered = genreMovies
-              .where((m) => m.id != widget.movie.id)
-              .take(6)
-              .toList();
-
-          if (!mounted) return;
-
-          setState(() {
-            _similarMovies = filtered;
-            _isLoading = false;
-          });
-        } else {
-          if (!mounted) return;
-
-          setState(() {
-            _similarMovies = [];
-            _isLoading = false;
-          });
-        }
-      }
+      similarMovies = await tmdbService.getSimilarMovies(movie.id);
     } catch (e) {
-      if (!mounted) return;
-
       debugPrint('Error loading similar movies: $e');
-      setState(() {
-        // Prefer empty-state UI over hard error card for transient data issues.
-        _error = null;
-        _similarMovies = [];
-        _isLoading = false;
-      });
     }
+    try {
+      recommendedMovies = await tmdbService.getMovieRecommendations(movie.id);
+    } catch (e) {
+      debugPrint('Error loading recommended movies: $e');
+    }
+
+    // Combine (similar first), de-dupe, exclude the current movie.
+    final allMovies = <Movie>[];
+    final seenIds = <int>{};
+    for (final m in [...similarMovies, ...recommendedMovies]) {
+      if (m.id != movie.id && seenIds.add(m.id)) {
+        allMovies.add(m);
+      }
+    }
+
+    List<Movie> ranked;
+    if (allMovies.isNotEmpty) {
+      // Embedding-based ranking for the most relevant 6.
+      ranked = embeddingService.findSimilarMovies(movie, allMovies, limit: 6);
+    } else if (movie.genreIds != null && movie.genreIds!.isNotEmpty) {
+      // Fallback: same-genre titles.
+      final genreMovies =
+          await tmdbService.getMoviesByGenre(movie.genreIds!.first, page: 1);
+      ranked = genreMovies.where((m) => m.id != movie.id).take(6).toList();
+    } else {
+      ranked = const [];
+    }
+
+    return ranked
+        .map((m) => DetailSimilarItem(
+              posterUrl: m.posterUrl,
+              title: m.title,
+              year: m.year,
+              rating: m.voteAverage != null ? m.formattedRating : null,
+              onTap: () async {
+                MovieCacheService.instance.preloadMovieDetails(m.id);
+                await Future.delayed(const Duration(milliseconds: 50));
+                if (context.mounted) {
+                  Navigator.of(context).push(
+                    NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: m)),
+                  );
+                }
+              },
+            ))
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            context.l10n.moviesLikeThisLabel,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 28,
-              color: AppTheme.filmStripBlack,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 20),
-          if (_isLoading)
-            const Center(
-              child: SizedBox.shrink(),
-            )
-          else if (_error != null)
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.error_outline_rounded,
-                    color: AppTheme.brickRed,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    context.l10n.failedToLoadSimilarMovies,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 70),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadSimilarMovies,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.brickRed,
-                      foregroundColor: AppTheme.warmCream,
-                    ),
-                    child: Text(context.l10n.retryButton),
-                  ),
-                ],
-              ),
-            )
-          else if (_similarMovies.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.movie_outlined,
-                    color: AppTheme.filmStripBlack.withValues(alpha: 30),
-                    size: 48,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    context.l10n.noSimilarMoviesFound,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 60),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            SizedBox(
-              height: 220,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _similarMovies.length,
-                itemBuilder: (context, index) {
-                  return _RetroSimilarMovieCard(movie: _similarMovies[index]);
-                },
-              ),
-            ),
-        ],
-      ),
+    return DetailSimilarSection(
+      title: context.l10n.moviesLikeThisLabel,
+      errorLabel: context.l10n.failedToLoadSimilarMovies,
+      emptyLabel: context.l10n.noSimilarMoviesFound,
+      loadItems: () => _loadItems(context),
     );
   }
 }
 
-/// Retro Cinema styled similar movie card
-class _RetroSimilarMovieCard extends StatelessWidget {
-  final Movie movie;
-
-  const _RetroSimilarMovieCard({required this.movie});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        // Preload movie details in background before navigation
-        MovieCacheService.instance.preloadMovieDetails(movie.id);
-
-        // Small delay to allow preload to start
-        await Future.delayed(const Duration(milliseconds: 50));
-
-        if (context.mounted) {
-          Navigator.of(context).push(
-            NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
-          );
-        }
-      },
-      child: Container(
-        width: 130,
-        margin: const EdgeInsets.only(right: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: movie.posterUrl ?? '',
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppTheme.vintagePaper,
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppTheme.vintagePaper,
-                      child: Icon(
-                        Icons.movie_outlined,
-                        color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              movie.title,
-              style: GoogleFonts.lato(
-                color: AppTheme.filmStripBlack,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                if (movie.year != null) ...[
-                  Text(
-                    movie.year!,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 60),
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                if (movie.voteAverage != null) ...[
-                  Icon(
-                    Icons.star_rounded,
-                    color: AppTheme.brickRed,
-                    size: 12,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    movie.formattedRating,
-                    style: GoogleFonts.lato(
-                      color: AppTheme.filmStripBlack.withValues(alpha: 80),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // Import and keep existing section widgets - they will be updated separately
 // For now, we'll keep the existing implementations but they should be styled later

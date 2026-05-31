@@ -12,7 +12,9 @@ import '../../utils/theme.dart';
 import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
+import '../../widgets/detail/detail_similar_section.dart';
 import '../../models/movie.dart'; // For CastMember, CrewMember
+import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
 import '../../widgets/transparent_button_image.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
@@ -183,6 +185,50 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
       return Colors.white.withValues(alpha: 0.85);
     }
     return AppTheme.filmStripBlack.withValues(alpha: 0.75);
+  }
+
+  /// Loads "Shows Like This": merges TMDB similar + recommended shows, de-dupes
+  /// (excluding the current show), and maps the top 6 to [DetailSimilarItem]s.
+  Future<List<DetailSimilarItem>> _loadSimilarShowItems(
+      BuildContext context) async {
+    final tmdb = TMDBService();
+    List<TvShow> similar = [];
+    List<TvShow> recommended = [];
+    try {
+      similar = await tmdb.getSimilarShows(_displayShow.id);
+    } catch (e) {
+      debugPrint('Error loading similar shows: $e');
+    }
+    try {
+      recommended = await tmdb.getShowRecommendations(_displayShow.id);
+    } catch (e) {
+      debugPrint('Error loading recommended shows: $e');
+    }
+
+    final all = <TvShow>[];
+    final seen = <int>{};
+    for (final s in [...similar, ...recommended]) {
+      if (s.id != _displayShow.id && seen.add(s.id)) {
+        all.add(s);
+      }
+    }
+
+    return all
+        .take(6)
+        .map((s) => DetailSimilarItem(
+              posterUrl: s.posterUrl,
+              title: s.name,
+              year: s.year,
+              rating: s.voteAverage != null ? s.formattedRating : null,
+              onTap: () {
+                if (context.mounted) {
+                  Navigator.of(context).push(
+                    NavigationUtils.fastSlideRoute(ShowDetailScreen(show: s)),
+                  );
+                }
+              },
+            ))
+        .toList();
   }
 
   @override
@@ -702,6 +748,14 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                         ),
                       ),
                     ),
+                  SliverToBoxAdapter(
+                    child: DetailSimilarSection(
+                      title: context.l10n.showsLikeThisLabel,
+                      errorLabel: context.l10n.failedToLoadSimilarShows,
+                      emptyLabel: context.l10n.noSimilarShowsFound,
+                      loadItems: () => _loadSimilarShowItems(context),
+                    ),
+                  ),
                 ],
               ),
               _SeasonsEpisodesTab(show: _displayShow),
