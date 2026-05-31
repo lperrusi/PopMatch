@@ -34,6 +34,7 @@ import '../../widgets/match_success_screen.dart';
 import '../../widgets/movie_quick_peek.dart';
 import '../../widgets/swipe_gesture_hints.dart';
 import '../../widgets/discover/discover_loading_states.dart';
+import '../../widgets/discover/discover_action_buttons.dart';
 
 part 'discover_filter_sheets.dart';
 
@@ -278,86 +279,6 @@ class _SwipeScreenState extends State<SwipeScreen>
 
   void _bumpShowSwipeEpoch() => _showSwipeEpoch++;
 
-  // ── Card-framing action buttons ─────────────────────────────────────────────
-  // The deck is framed in a cross: rectangular MATCH on top, circular NOPE on
-  // the left edge, circular LIKE on the right edge, rectangular SKIP below the
-  // card. Each PNG embeds its swipe-direction arrow. The edge buttons are
-  // siblings of the swiper in the tab Stack, so they stay fixed while cards
-  // swipe underneath.
-
-  /// Rectangular MATCH badge (cropped ADMIT ONE ticket) at the top-center.
-  Widget _buildMatchButton(VoidCallback onTap) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: _RectActionButton(
-          leadingIcon: Icons.local_activity,
-          label: 'MATCH',
-          trailingIcon: Icons.keyboard_arrow_up_rounded,
-          fillColor: AppTheme.cinemaRed,
-          borderColor: AppTheme.popcornGold,
-          foregroundColor: AppTheme.popcornGold,
-          onTap: onTap,
-        ),
-      ),
-    );
-  }
-
-  /// Circular NOPE button straddling the card's left edge, vertically centered.
-  Widget _buildNopeButton(VoidCallback onTap) {
-    return Positioned(
-      left: 0,
-      top: 0,
-      bottom: 0,
-      child: Center(
-        child: _SwipeActionButton(
-          assetPath: 'assets/swipe/swipe_left.png',
-          label: null,
-          color: AppTheme.nopeRed,
-          size: 64,
-          onTap: onTap,
-        ),
-      ),
-    );
-  }
-
-  /// Circular LIKE button straddling the card's right edge, vertically centered.
-  Widget _buildLikeButton(VoidCallback onTap) {
-    return Positioned(
-      right: 0,
-      top: 0,
-      bottom: 0,
-      child: Center(
-        child: _SwipeActionButton(
-          assetPath: 'assets/swipe/swipe_right.png',
-          label: null,
-          color: AppTheme.likeGreen,
-          size: 64,
-          onTap: onTap,
-        ),
-      ),
-    );
-  }
-
-  /// Rectangular SKIP badge (cropped "SKIP ↓") centered below the card.
-  Widget _buildSkipButton(VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Center(
-        child: _RectActionButton(
-          leadingIcon: Icons.content_cut,
-          label: 'SKIP',
-          trailingIcon: Icons.keyboard_arrow_down_rounded,
-          fillColor: AppTheme.filmStripBlack.withValues(alpha: 0.9),
-          borderColor: AppTheme.sepiaBrown,
-          foregroundColor: AppTheme.creamyWhite,
-          onTap: onTap,
-        ),
-      ),
-    );
-  }
 
   // ── Deferred removal helpers ──────────────────────────────────────────────
 
@@ -1560,9 +1481,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                     ),
                   ),
                   // Card-framing buttons: MATCH top, NOPE left, LIKE right
-                  _buildMatchButton(() => _movieSwiperController.swipeTop()),
-                  _buildNopeButton(() => _movieSwiperController.swipeLeft()),
-                  _buildLikeButton(() => _movieSwiperController.swipeRight()),
+                  MatchActionButton(onTap: () => _movieSwiperController.swipeTop()),
+                  NopeActionButton(onTap: () => _movieSwiperController.swipeLeft()),
+                  LikeActionButton(onTap: () => _movieSwiperController.swipeRight()),
                   // Undo overlay — floats above the bottom of the card stack
                   Positioned(
                     bottom: 8,
@@ -1582,7 +1503,7 @@ class _SwipeScreenState extends State<SwipeScreen>
           ),
         ),
             // SKIP (swipe-down) button below the card
-            _buildSkipButton(() => _movieSwiperController.swipeBottom()),
+            SkipActionButton(onTap: () => _movieSwiperController.swipeBottom()),
           ],
         );
       },
@@ -1723,9 +1644,9 @@ class _SwipeScreenState extends State<SwipeScreen>
                     ),
                   ),
                   // Card-framing buttons: MATCH top, NOPE left, LIKE right
-                  _buildMatchButton(() => _showSwiperController.swipeTop()),
-                  _buildNopeButton(() => _showSwiperController.swipeLeft()),
-                  _buildLikeButton(() => _showSwiperController.swipeRight()),
+                  MatchActionButton(onTap: () => _showSwiperController.swipeTop()),
+                  NopeActionButton(onTap: () => _showSwiperController.swipeLeft()),
+                  LikeActionButton(onTap: () => _showSwiperController.swipeRight()),
                   // Undo overlay — floats above the bottom of the card stack
                   Positioned(
                     bottom: 8,
@@ -1745,7 +1666,7 @@ class _SwipeScreenState extends State<SwipeScreen>
           ),
         ),
             // SKIP (swipe-down) button below the card
-            _buildSkipButton(() => _showSwiperController.swipeBottom()),
+            SkipActionButton(onTap: () => _showSwiperController.swipeBottom()),
           ],
         );
       },
@@ -2016,165 +1937,4 @@ class _SwipeScreenState extends State<SwipeScreen>
     );
   }
 
-}
-
-// ── Circular action button at the bottom of the swipe deck ────────────────────
-
-class _SwipeActionButton extends StatefulWidget {
-  const _SwipeActionButton({
-    required this.assetPath,
-    required this.label,
-    required this.color,
-    required this.size,
-    required this.onTap,
-  });
-
-  final String assetPath;
-  // When null, only the image is rendered (no caption below).
-  final String? label;
-  final Color color;
-  final double size;
-  final VoidCallback onTap;
-
-  @override
-  State<_SwipeActionButton> createState() => _SwipeActionButtonState();
-}
-
-class _SwipeActionButtonState extends State<_SwipeActionButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.88 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              widget.assetPath,
-              width: widget.size,
-              height: widget.size,
-            ),
-            if (widget.label != null) ...[
-              const SizedBox(height: 3),
-              Text(
-                widget.label!,
-                style: TextStyle(
-                  color: widget.color.withValues(alpha: 0.95),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  fontFamily: 'BebasNeue',
-                  letterSpacing: 1.1,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black87,
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Rectangular action button (MATCH / SKIP) ──────────────────────────────────
-
-/// Tappable rounded-rectangle badge in the Retro Cinema chip vocabulary: a
-/// motif glyph + BebasNeue label + optional direction chevron, on a themed
-/// fill with a colored border. Used for MATCH (ticket) and SKIP (scissors),
-/// which read better as designed rectangles than the cropped circular PNGs.
-class _RectActionButton extends StatefulWidget {
-  const _RectActionButton({
-    required this.leadingIcon,
-    required this.label,
-    required this.fillColor,
-    required this.borderColor,
-    required this.foregroundColor,
-    required this.onTap,
-    this.trailingIcon,
-  });
-
-  final IconData leadingIcon;
-  final String label;
-  final IconData? trailingIcon; // direction chevron (swipe cue)
-  final Color fillColor;
-  final Color borderColor;
-  final Color foregroundColor;
-  final VoidCallback onTap;
-
-  @override
-  State<_RectActionButton> createState() => _RectActionButtonState();
-}
-
-class _RectActionButtonState extends State<_RectActionButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.9 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: widget.fillColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: widget.borderColor, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: widget.borderColor.withValues(alpha: 0.25),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(widget.leadingIcon, color: widget.foregroundColor, size: 20),
-              const SizedBox(width: 7),
-              Text(
-                widget.label,
-                style: GoogleFonts.bebasNeue(
-                  color: widget.foregroundColor,
-                  fontSize: 20,
-                  letterSpacing: 2,
-                  height: 1,
-                ),
-              ),
-              if (widget.trailingIcon != null) ...[
-                const SizedBox(width: 4),
-                Icon(
-                  widget.trailingIcon,
-                  color: widget.foregroundColor.withValues(alpha: 0.8),
-                  size: 18,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
