@@ -66,6 +66,7 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
     final reason = buildRecommendationReason(
       strategy: _movie.recommendationStrategy,
       genreIds: _movie.genreIds,
+      genreNames: _movie.genres,
       userGenreIds: userGenreIds,
       genres: context.read<MovieProvider>().genres,
     );

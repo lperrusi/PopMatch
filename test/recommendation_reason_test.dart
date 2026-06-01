@@ -38,6 +38,45 @@ void main() {
       expect(r.genreName, isNull);
     });
 
+    test('name-based match when genreIds is null (detail-enriched card)', () {
+      // Detail data drops genre_ids but keeps genre names — this is the case
+      // that made every card show the generic "Picked for you".
+      final r = buildRecommendationReason(
+        strategy: 'contentBased',
+        genreIds: null,
+        genreNames: const ['Adventure', 'Sci-Fi'],
+        userGenreIds: {878}, // user picked Sci-Fi's id
+        genres: genres,
+      );
+      expect(r.kind, RecommendationReasonKind.becauseYouLikeGenre);
+      expect(r.genreName, 'Sci-Fi');
+    });
+
+    test('id path wins when both genreIds and genreNames are present', () {
+      final r = buildRecommendationReason(
+        strategy: 'contentBased',
+        genreIds: [28], // Action — picked
+        genreNames: const ['Comedy'], // also picked, but id path resolves first
+        userGenreIds: {28, 35},
+        genres: genres,
+      );
+      expect(r.kind, RecommendationReasonKind.becauseYouLikeGenre);
+      expect(r.genreName, 'Action');
+    });
+
+    test('genreNames present but no user-name intersection → strategy fallback',
+        () {
+      final r = buildRecommendationReason(
+        strategy: 'top_rated',
+        genreIds: null,
+        genreNames: const ['Adventure'], // not among the user's picks
+        userGenreIds: {878},
+        genres: genres,
+      );
+      expect(r.kind, RecommendationReasonKind.topRated);
+      expect(r.genreName, isNull);
+    });
+
     test('no genre match → strategy fallback (popular maps to trending)', () {
       final r = buildRecommendationReason(
         strategy: 'popular',

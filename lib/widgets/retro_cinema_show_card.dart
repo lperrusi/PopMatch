@@ -63,6 +63,7 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
     final reason = buildRecommendationReason(
       strategy: _show.recommendationStrategy,
       genreIds: _show.genreIds,
+      genreNames: _show.genres,
       userGenreIds: userGenreIds,
       genres: context.read<ShowProvider>().genres,
     );
