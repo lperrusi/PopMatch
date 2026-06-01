@@ -19,7 +19,7 @@ import '../../models/movie.dart'; // For CastMember, CrewMember
 import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
 import '../../services/movie_cache_service.dart';
-import '../../widgets/transparent_button_image.dart';
+import '../../widgets/detail/watchlist_icon.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/l10n_extension.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
@@ -472,18 +472,10 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
                                 builder: (context, authProvider, child) {
                                   final isInWatchlist = authProvider.isInWatchlistShow(_displayShow.id.toString());
                                   return IconButton(
-                                    icon: TransparentButtonImage(
-                                      assetPath: isInWatchlist
-                                          ? 'assets/buttons/add_to_watchlist_icon.png'
-                                          : 'assets/buttons/watchlist_icon_inactive.png',
-                                      width: 24,
-                                      height: 24,
-                                      fit: BoxFit.contain,
-                                      errorWidget: Icon(
-                                        isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
-                                        color: textColor,
-                                        size: 24,
-                                      ),
+                                    icon: WatchlistIcon(
+                                      size: 28,
+                                      added: isInWatchlist,
+                                      inactiveColor: textColor,
                                     ),
                                       onPressed: () async {
                                         final showProvider = Provider.of<ShowProvider>(context, listen: false);

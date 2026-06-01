@@ -22,7 +22,7 @@ import '../../services/movie_cache_service.dart';
 import '../../services/movie_embedding_service.dart';
 import '../../services/omdb_service.dart';
 import '../../utils/streaming_url_launcher.dart';
-import '../../widgets/transparent_button_image.dart';
+import '../../widgets/detail/watchlist_icon.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
@@ -410,20 +410,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                                         authProvider.isInWatchlist(
                                             _displayMovie.id.toString());
                                     return IconButton(
-                                      icon: TransparentButtonImage(
-                                        assetPath: isInWatchlist
-                                            ? 'assets/buttons/add_to_watchlist_icon.png'
-                                            : 'assets/buttons/watchlist_icon_inactive.png',
-                                        width: 24,
-                                        height: 24,
-                                        fit: BoxFit.contain,
-                                        errorWidget: Icon(
-                                          isInWatchlist
-                                              ? Icons.bookmark
-                                              : Icons.bookmark_border,
-                                          color: textColor,
-                                          size: 24,
-                                        ),
+                                      icon: WatchlistIcon(
+                                        size: 28,
+                                        added: isInWatchlist,
+                                        inactiveColor: textColor,
                                       ),
                                       onPressed: () async {
                                         final movieProvider =
