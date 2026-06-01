@@ -8,7 +8,7 @@ import '../../models/social_activity.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/social_provider.dart';
 import '../../utils/theme.dart';
-import '../../widgets/poster_grid_skeleton.dart';
+import '../../widgets/poster_list_skeleton.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
@@ -375,7 +375,7 @@ class _SearchScreenState extends State<SearchScreen>
         ),
         child: Row(
           children: [
-            Icon(Icons.person_add_rounded,
+            const Icon(Icons.person_add_rounded,
                 color: AppTheme.popcornGold, size: 20),
             const SizedBox(width: 10),
             Expanded(
@@ -388,7 +388,7 @@ class _SearchScreenState extends State<SearchScreen>
                     fontSize: 13),
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded,
+            const Icon(Icons.arrow_forward_ios_rounded,
                 color: AppTheme.popcornGold, size: 14),
           ],
         ),
@@ -459,7 +459,7 @@ class _SearchScreenState extends State<SearchScreen>
         ),
         child: Row(
           children: [
-            Icon(Icons.people_outline_rounded,
+            const Icon(Icons.people_outline_rounded,
                 color: AppTheme.popcornGold, size: 32),
             const SizedBox(width: 12),
             Expanded(
@@ -536,7 +536,7 @@ class _SearchScreenState extends State<SearchScreen>
                   color: AppTheme.fadedCurtain.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Center(
+                child: const Center(
                   child: CircularProgressIndicator(
                     color: AppTheme.cinemaRed,
                     strokeWidth: 2,
@@ -610,7 +610,7 @@ class _SearchScreenState extends State<SearchScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.movie_filter_rounded,
+            const Icon(Icons.movie_filter_rounded,
                 size: 72, color: AppTheme.popcornGold),
             const SizedBox(height: 20),
             Text(
@@ -767,7 +767,7 @@ class _SearchScreenState extends State<SearchScreen>
   Widget _buildMovieResults() {
     return Consumer<MovieProvider>(
       builder: (context, movieProvider, _) {
-        if (movieProvider.isLoading) return const PosterGridSkeleton();
+        if (movieProvider.isLoading) return const PosterListSkeleton();
 
         if (movieProvider.error != null) {
           return _buildEmptyState(
@@ -802,9 +802,11 @@ class _SearchScreenState extends State<SearchScreen>
           itemCount: movieProvider.filteredMovies.length,
           itemBuilder: (context, index) {
             final movie = movieProvider.filteredMovies[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _buildSearchResultItem(movie),
+            return RepaintBoundary(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildSearchResultItem(movie),
+              ),
             );
           },
         );
@@ -836,7 +838,7 @@ class _SearchScreenState extends State<SearchScreen>
         border: Border.all(color: AppTheme.cinemaRed.withValues(alpha: 0.2)),
       ),
       child: ListTile(
-        leading: Icon(Icons.history, color: AppTheme.popcornGold, size: 20),
+        leading: const Icon(Icons.history, color: AppTheme.popcornGold, size: 20),
         title: Text(query,
             style: GoogleFonts.lato(
                 color: AppTheme.filmStripBlack, fontSize: 14)),
@@ -981,7 +983,7 @@ class _SearchScreenState extends State<SearchScreen>
   // ─── States ───────────────────────────────────────────────────────────────
 
   Widget _buildLoadingState() {
-    return Center(
+    return const Center(
       child: CircularProgressIndicator(
         color: AppTheme.cinemaRed,
         strokeWidth: 2,
@@ -1193,7 +1195,7 @@ class _FriendActivityCardState extends State<_FriendActivityCard> {
                       )
                     : Container(
                         color: AppTheme.fadedCurtain.withValues(alpha: 0.4),
-                        child: Center(
+                        child: const Center(
                           child: CircularProgressIndicator(
                             color: AppTheme.cinemaRed, strokeWidth: 2),
                         ),
@@ -1361,7 +1363,7 @@ class _IncomingRequestCard extends StatelessWidget {
           CircleAvatar(
             radius: 20,
             backgroundColor: AppTheme.popcornGold.withValues(alpha: 0.15),
-            child: Icon(Icons.person_outline,
+            child: const Icon(Icons.person_outline,
                 color: AppTheme.popcornGold, size: 20),
           ),
           const SizedBox(width: 12),
@@ -1400,7 +1402,7 @@ class _IncomingRequestCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onAccept,
-                icon: Icon(Icons.check_circle_rounded,
+                icon: const Icon(Icons.check_circle_rounded,
                     color: AppTheme.popcornGold, size: 22),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

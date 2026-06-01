@@ -224,10 +224,12 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
         ...platforms.map((p) => Padding(
               padding: const EdgeInsets.only(right: 6),
               child: GestureDetector(
-                onTap: () => launchStreamingSearch(
+                onTap: () => launchStreamingTitle(
                   context: context,
                   platform: p,
                   title: _show.name,
+                  tmdbId: _show.id,
+                  isMovie: false,
                 ),
                 child: Container(
                   padding:
@@ -279,7 +281,8 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: widget.show.posterUrl != null
+              child: RepaintBoundary(
+                child: widget.show.posterUrl != null
                   ? CachedNetworkImage(
                       imageUrl: widget.show.posterUrl!,
                       fit: BoxFit.cover,
@@ -308,6 +311,7 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
                         color: AppTheme.warmCream.withValues(alpha: 50),
                       ),
                     ),
+              ),
             ),
 
             // Gradient overlay

@@ -237,10 +237,12 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
               // GestureDetector absorbs the tap so it doesn't reach the
               // CardSwiper, which only handles drag/fling gestures anyway.
               child: GestureDetector(
-                onTap: () => launchStreamingSearch(
+                onTap: () => launchStreamingTitle(
                   context: context,
                   platform: p,
                   title: _movie.title,
+                  tmdbId: _movie.id,
+                  isMovie: true,
                 ),
                 child: Container(
                   padding:
@@ -293,7 +295,8 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
           children: [
             // Movie poster as full background
             Positioned.fill(
-              child: widget.movie.posterUrl != null
+              child: RepaintBoundary(
+                child: widget.movie.posterUrl != null
                   ? CachedNetworkImage(
                       imageUrl: widget.movie.posterUrl!,
                       fit: BoxFit.cover,
@@ -322,6 +325,7 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                         color: AppTheme.warmCream.withValues(alpha: 50),
                       ),
                     ),
+              ),
             ),
 
             // Gradient overlay at bottom for text readability

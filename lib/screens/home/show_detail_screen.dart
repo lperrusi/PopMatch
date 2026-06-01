@@ -14,10 +14,12 @@ import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
 import '../../widgets/detail/detail_similar_section.dart';
 import '../../widgets/detail/detail_color_extraction.dart';
+import '../../widgets/detail/detail_screen_skeleton.dart';
 import '../../models/movie.dart'; // For CastMember, CrewMember
 import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
-import '../../widgets/transparent_button_image.dart';
+import '../../services/movie_cache_service.dart';
+import '../../widgets/detail/watchlist_icon.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/l10n_extension.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
@@ -40,29 +42,41 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
   TvShow? _loadedShow;
   bool _isSynopsisExpanded = false;
   bool _detailsLoading = true;
+  bool _forceReady = false;
   Timer? _showDetailsTimer;
   Timer? _colorExtractionTimer;
+  Timer? _revealFallbackTimer;
+
+  /// "Reveal when ready": hold a skeleton until core details and the poster
+  /// colour have both resolved, then cross-fade to the real content.
+  /// [_forceReady] is a safety net so a hung load can never strand the skeleton.
+  bool get _isReady => _forceReady || (!_detailsLoading && !isLoadingColor);
 
   @override
   void initState() {
     super.initState();
 
-    // We have basic show data from widget.show, so screen can render immediately
+    // Cached shows carry full detail — ready immediately (mirrors the movie
+    // screen's instant-cache path).
+    final cachedShow = MovieCacheService.instance.getCachedShow(widget.show.id);
+    if (cachedShow != null) {
+      _loadedShow = cachedShow;
+      _detailsLoading = false;
+    }
 
     // Defer ALL heavy operations until after the screen fully renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Wait for multiple frames to ensure screen is fully rendered and interactive
       // Load eagerly (no artificial delay) so the seasons/episodes counts —
       // which only come from getShowDetails — arrive with the rest of the header
       // instead of popping in late. Still cancellable on quick back-navigation.
       _showDetailsTimer = Timer(Duration.zero, () {
-        if (mounted && !isDisposed) {
+        if (mounted && !isDisposed && cachedShow == null) {
           _loadShowDetails();
         }
       });
       
-      // Color extraction - delay significantly to not block UI
-      _colorExtractionTimer = Timer(const Duration(milliseconds: 1500), () {
+      // Extract colour early (behind the skeleton) so the reveal isn't delayed.
+      _colorExtractionTimer = Timer(Duration.zero, () {
         if (mounted && !isDisposed) {
           if (widget.show.backdropUrl != null || widget.show.posterUrl != null) {
             extractColorFromImageUrl(
@@ -73,6 +87,13 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
               isLightBackground = false;
             });
           }
+        }
+      });
+
+      // Safety net: never strand the skeleton if a load hangs.
+      _revealFallbackTimer = Timer(const Duration(seconds: 4), () {
+        if (mounted && !isDisposed && !_forceReady) {
+          setState(() => _forceReady = true);
         }
       });
     });
@@ -207,13 +228,35 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
           isDisposed = true;
           _showDetailsTimer?.cancel();
           _colorExtractionTimer?.cancel();
+          _revealFallbackTimer?.cancel();
         }
       },
       child: Scaffold(
         backgroundColor: AppTheme.vintagePaper,
         body: DefaultTabController(
           length: 2,
-          child: NestedScrollView(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _isReady
+                ? KeyedSubtree(
+                    key: const ValueKey('content'),
+                    child: _buildContent(),
+                  )
+                : const DetailScreenSkeleton(key: ValueKey('skeleton')),
+          ),
+        ),
+        bottomNavigationBar: RetroCinemaBottomNav(
+          currentIndex: _getCurrentTabIndex(),
+          onTap: (index) {
+            _handleNavigationTap(index);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
           // Retro Cinema App Bar with show poster
           SliverAppBar(
@@ -429,16 +472,10 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
                                 builder: (context, authProvider, child) {
                                   final isInWatchlist = authProvider.isInWatchlistShow(_displayShow.id.toString());
                                   return IconButton(
-                                    icon: TransparentButtonImage(
-                                      assetPath: 'assets/buttons/watchlist_button.png',
-                                      width: 24,
-                                      height: 24,
-                                      fit: BoxFit.contain,
-                                      errorWidget: Icon(
-                                        isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
-                                        color: textColor,
-                                        size: 24,
-                                      ),
+                                    icon: WatchlistIcon(
+                                      size: 28,
+                                      added: isInWatchlist,
+                                      inactiveColor: textColor,
                                     ),
                                       onPressed: () async {
                                         final showProvider = Provider.of<ShowProvider>(context, listen: false);
@@ -733,16 +770,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
               _SeasonsEpisodesTab(show: _displayShow),
             ],
           ),
-        ),
-        ),
-      bottomNavigationBar: RetroCinemaBottomNav(
-        currentIndex: _getCurrentTabIndex(),
-        onTap: (index) {
-          _handleNavigationTap(index);
-        },
-      ),
-      ),
-    );
+        );
   }
 
   int _getCurrentTabIndex() {
@@ -762,6 +790,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
     isDisposed = true;
     _showDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
+    _revealFallbackTimer?.cancel();
     super.dispose();
   }
 
