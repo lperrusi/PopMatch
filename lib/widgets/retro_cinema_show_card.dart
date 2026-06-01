@@ -249,7 +249,8 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: widget.show.posterUrl != null
+              child: RepaintBoundary(
+                child: widget.show.posterUrl != null
                   ? CachedNetworkImage(
                       imageUrl: widget.show.posterUrl!,
                       fit: BoxFit.cover,
@@ -278,6 +279,7 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
                         color: AppTheme.warmCream.withValues(alpha: 50),
                       ),
                     ),
+              ),
             ),
 
             // Gradient overlay
