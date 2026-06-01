@@ -308,6 +308,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addToWatchlistButton => 'Add to Watchlist';
 
   @override
+  String reasonBecauseYouLike(String genre) {
+    return 'Because you like $genre';
+  }
+
+  @override
   String get strategyLikedSimilar => 'Because you liked similar titles';
 
   @override
