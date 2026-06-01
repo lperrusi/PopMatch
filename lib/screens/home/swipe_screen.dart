@@ -25,8 +25,11 @@ import '../../services/online_learning_service.dart';
 import '../../utils/recommendation_item_id_utils.dart';
 import '../../models/social_activity.dart';
 import '../../providers/social_provider.dart';
+import '../../services/premium_service.dart';
+import '../../widgets/premium_upsell_sheet.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
+import 'for_you_screen.dart';
 import '../../widgets/discover_undo_snackbar.dart';
 import '../../widgets/retro_cinema_movie_card.dart';
 import '../../widgets/retro_cinema_show_card.dart';
@@ -553,6 +556,39 @@ class _SwipeScreenState extends State<SwipeScreen>
           ],
         ),
         actions: [
+          // Premium-gated "For You" browsable surface.
+          Consumer<PremiumService>(
+            builder: (context, premium, _) => Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.auto_awesome,
+                      color: AppTheme.warmCream),
+                  tooltip: context.l10n.forYouTooltip,
+                  onPressed: () {
+                    if (premium.isPremium) {
+                      Navigator.of(context).push(
+                        NavigationUtils.fastSlideRoute(const ForYouScreen()),
+                      );
+                    } else {
+                      showPremiumUpsell(
+                        context,
+                        onUnlocked: () => Navigator.of(context).push(
+                          NavigationUtils.fastSlideRoute(const ForYouScreen()),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                if (!premium.isPremium)
+                  const Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Icon(Icons.lock,
+                        size: 12, color: AppTheme.popcornGold),
+                  ),
+              ],
+            ),
+          ),
           // Filter icon with badge if filters are active
           _currentTabIndex == 0
               ? Consumer<MovieProvider>(

@@ -489,5 +489,17 @@
   "createButton": "Criar",
   "createdListSnackbar": "Lista criada: {name}",
   "exportDataLocalSnackbar": "Exporta\u00e7\u00e3o de dados gerada localmente. Compartilhar/baixar ser\u00e1 adicionado em uma atualiza\u00e7\u00e3o futura.",
-  "failedToExportSnackbar": "Falha ao exportar dados: {error}"
+  "failedToExportSnackbar": "Falha ao exportar dados: {error}",
+  "forYouTitle": "Para Voc\u00ea",
+  "forYouTooltip": "Para Voc\u00ea",
+  "forYouBecauseYouLiked": "Porque voc\u00ea curtiu",
+  "forYouTrending": "Em alta",
+  "forYouFriendsWatching": "Seus amigos est\u00e3o assistindo",
+  "premiumUpsellTitle": "PopMatch Premium",
+  "premiumPerkUnlimitedSwipes": "Deslizes ilimitados",
+  "premiumPerkNoAds": "Experi\u00eancia sem an\u00fancios",
+  "premiumPerkForYou": "Recomenda\u00e7\u00f5es \u201cPara Voc\u00ea\u201d personalizadas",
+  "premiumUpgradeCta": "Assinar Premium",
+  "premiumComingSoon": "As assinaturas chegar\u00e3o em breve.",
+  "premiumDevEnable": "Ativar Premium (dev)"
 }

@@ -1454,4 +1454,40 @@ class AppLocalizationsPt extends AppLocalizations {
   String failedToExportSnackbar(String error) {
     return 'Falha ao exportar dados: $error';
   }
+
+  @override
+  String get forYouTitle => 'Para Você';
+
+  @override
+  String get forYouTooltip => 'Para Você';
+
+  @override
+  String get forYouBecauseYouLiked => 'Porque você curtiu';
+
+  @override
+  String get forYouTrending => 'Em alta';
+
+  @override
+  String get forYouFriendsWatching => 'Seus amigos estão assistindo';
+
+  @override
+  String get premiumUpsellTitle => 'PopMatch Premium';
+
+  @override
+  String get premiumPerkUnlimitedSwipes => 'Deslizes ilimitados';
+
+  @override
+  String get premiumPerkNoAds => 'Experiência sem anúncios';
+
+  @override
+  String get premiumPerkForYou => 'Recomendações “Para Você” personalizadas';
+
+  @override
+  String get premiumUpgradeCta => 'Assinar Premium';
+
+  @override
+  String get premiumComingSoon => 'As assinaturas chegarão em breve.';
+
+  @override
+  String get premiumDevEnable => 'Ativar Premium (dev)';
 }

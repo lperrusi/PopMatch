@@ -665,5 +665,17 @@
     "placeholders": {
       "error": {"type": "String"}
     }
-  }
+  },
+  "forYouTitle": "For You",
+  "forYouTooltip": "For You",
+  "forYouBecauseYouLiked": "Because You Liked",
+  "forYouTrending": "Trending Now",
+  "forYouFriendsWatching": "Friends Are Watching",
+  "premiumUpsellTitle": "PopMatch Premium",
+  "premiumPerkUnlimitedSwipes": "Unlimited swipes",
+  "premiumPerkNoAds": "Ad-free experience",
+  "premiumPerkForYou": "Personalized “For You” recommendations",
+  "premiumUpgradeCta": "Upgrade to Premium",
+  "premiumComingSoon": "Subscriptions are coming soon.",
+  "premiumDevEnable": "Enable Premium (dev)"
 }

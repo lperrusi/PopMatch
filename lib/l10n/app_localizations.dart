@@ -2685,6 +2685,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to export data: {error}'**
   String failedToExportSnackbar(String error);
+
+  /// No description provided for @forYouTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'For You'**
+  String get forYouTitle;
+
+  /// No description provided for @forYouTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'For You'**
+  String get forYouTooltip;
+
+  /// No description provided for @forYouBecauseYouLiked.
+  ///
+  /// In en, this message translates to:
+  /// **'Because You Liked'**
+  String get forYouBecauseYouLiked;
+
+  /// No description provided for @forYouTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending Now'**
+  String get forYouTrending;
+
+  /// No description provided for @forYouFriendsWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends Are Watching'**
+  String get forYouFriendsWatching;
+
+  /// No description provided for @premiumUpsellTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PopMatch Premium'**
+  String get premiumUpsellTitle;
+
+  /// No description provided for @premiumPerkUnlimitedSwipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited swipes'**
+  String get premiumPerkUnlimitedSwipes;
+
+  /// No description provided for @premiumPerkNoAds.
+  ///
+  /// In en, this message translates to:
+  /// **'Ad-free experience'**
+  String get premiumPerkNoAds;
+
+  /// No description provided for @premiumPerkForYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Personalized “For You” recommendations'**
+  String get premiumPerkForYou;
+
+  /// No description provided for @premiumUpgradeCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Premium'**
+  String get premiumUpgradeCta;
+
+  /// No description provided for @premiumComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscriptions are coming soon.'**
+  String get premiumComingSoon;
+
+  /// No description provided for @premiumDevEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Premium (dev)'**
+  String get premiumDevEnable;
 }
 
 class _AppLocalizationsDelegate

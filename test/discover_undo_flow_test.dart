@@ -14,6 +14,7 @@ import 'package:popmatch/providers/social_provider.dart';
 import 'package:popmatch/providers/streaming_provider.dart';
 import 'package:popmatch/screens/home/swipe_screen.dart';
 import 'package:popmatch/services/firebase_config.dart';
+import 'package:popmatch/services/premium_service.dart';
 import 'package:popmatch/services/tmdb_service.dart';
 import 'package:popmatch/utils/theme.dart';
 import 'package:popmatch/widgets/discover_undo_snackbar.dart';
@@ -58,6 +59,7 @@ void main() {
           ChangeNotifierProvider<RecommendationsProvider>(create: (_) => RecommendationsProvider()),
           ChangeNotifierProvider<StreamingProvider>(create: (_) => StreamingProvider()),
           ChangeNotifierProvider<SocialProvider>(create: (_) => SocialProvider()),
+          ChangeNotifierProvider<PremiumService>(create: (_) => PremiumService()),
         ],
         child: MaterialApp(
           theme: AppTheme.retroCinemaTheme,
