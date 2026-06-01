@@ -237,10 +237,12 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
               // GestureDetector absorbs the tap so it doesn't reach the
               // CardSwiper, which only handles drag/fling gestures anyway.
               child: GestureDetector(
-                onTap: () => launchStreamingSearch(
+                onTap: () => launchStreamingTitle(
                   context: context,
                   platform: p,
                   title: _movie.title,
+                  tmdbId: _movie.id,
+                  isMovie: true,
                 ),
                 child: Container(
                   padding:

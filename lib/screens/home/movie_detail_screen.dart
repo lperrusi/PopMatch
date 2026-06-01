@@ -1036,10 +1036,12 @@ class _StreamingAvailabilitySectionState
           runSpacing: 12,
           children: platforms.map((platform) {
             return GestureDetector(
-              onTap: () => launchStreamingSearch(
+              onTap: () => launchStreamingTitle(
                 context: context,
                 platform: platform,
                 title: widget.movie.title,
+                tmdbId: widget.movie.id,
+                isMovie: true,
               ),
               child: Tooltip(
                 message: 'Open on ${platform.name}',

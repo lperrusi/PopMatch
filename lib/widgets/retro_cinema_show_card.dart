@@ -224,10 +224,12 @@ class _RetroCinemaShowCardState extends State<RetroCinemaShowCard> {
         ...platforms.map((p) => Padding(
               padding: const EdgeInsets.only(right: 6),
               child: GestureDetector(
-                onTap: () => launchStreamingSearch(
+                onTap: () => launchStreamingTitle(
                   context: context,
                   platform: p,
                   title: _show.name,
+                  tmdbId: _show.id,
+                  isMovie: false,
                 ),
                 child: Container(
                   padding:
