@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../utils/l10n_extension.dart';
 import '../../utils/theme.dart';
@@ -97,7 +98,48 @@ class _DetailSimilarSectionState extends State<DetailSimilarSection> {
           ),
           const SizedBox(height: 20),
           if (_isLoading)
-            const Center(child: SizedBox.shrink())
+            // Reserve the row's height with a shimmer so titles fill in after
+            // reveal without shifting the layout.
+            SizedBox(
+              height: 220,
+              child: Shimmer.fromColors(
+                baseColor: AppTheme.filmStripBlack.withValues(alpha: 0.12),
+                highlightColor: AppTheme.filmStripBlack.withValues(alpha: 0.06),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 4,
+                  itemBuilder: (context, index) => Container(
+                    width: 130,
+                    margin: const EdgeInsets.only(right: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppTheme.filmStripBlack
+                                  .withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          height: 12,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            color:
+                                AppTheme.filmStripBlack.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            )
           else if (_hasError)
             Center(
               child: Column(

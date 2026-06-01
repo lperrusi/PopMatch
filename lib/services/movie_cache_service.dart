@@ -68,6 +68,14 @@ class MovieCacheService {
     return _isCached(movieId);
   }
 
+  /// Test seam: seed the caches so detail screens reach their "ready" state with
+  /// known data instead of test-mode sample fallbacks.
+  @visibleForTesting
+  void cacheMovieForTest(int movieId, Movie movie) => _cacheMovie(movieId, movie);
+
+  @visibleForTesting
+  void cacheShowForTest(int showId, TvShow show) => _cacheShow(showId, show);
+
   /// Checks if movie is cached and still fresh
   bool _isCached(int movieId) {
     if (!_movieDetailsCache.containsKey(movieId)) {

@@ -17,8 +17,10 @@ import 'package:popmatch/screens/home/movie_detail_screen.dart';
 import 'package:popmatch/screens/home/show_detail_screen.dart';
 import 'package:popmatch/screens/home/watchlist_screen.dart';
 import 'package:popmatch/services/firebase_config.dart';
+import 'package:popmatch/services/movie_cache_service.dart';
 import 'package:popmatch/services/tmdb_service.dart';
 import 'package:popmatch/utils/theme.dart';
+import 'package:popmatch/widgets/detail/detail_color_extraction.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,11 +30,16 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       TMDBService.setTestMode(true);
       FirebaseConfig.setTestMode(true);
+      // Detail screens gate their reveal on poster-colour extraction, which
+      // can't resolve against a real image in tests — skip it so they reach
+      // the ready state.
+      DetailColorExtractionMixin.disableForTest = true;
     });
 
     tearDown(() {
       FirebaseConfig.setTestMode(false);
       TMDBService.setTestMode(false);
+      DetailColorExtractionMixin.disableForTest = false;
     });
 
     Widget wrap(Widget child, {AuthProvider? auth}) {
@@ -85,7 +92,11 @@ void main() {
         overview: 'Overview line for widget smoke test.',
         releaseDate: '2021-06-01',
         genreIds: const <int>[28],
+        cast: const <CastMember>[],
       );
+      // Seed the cache so the "reveal when ready" gate clears with this movie's
+      // data (test mode otherwise returns a sample movie).
+      MovieCacheService.instance.cacheMovieForTest(movie.id, movie);
 
       await tester.pumpWidget(wrap(MovieDetailScreen(movie: movie)));
       await tester.pump();
@@ -104,6 +115,9 @@ void main() {
         firstAirDate: '2022-01-01',
         genreIds: const <int>[18],
       );
+      // Seed the cache so the "reveal when ready" gate clears with this show's
+      // data (test mode otherwise returns a sample show).
+      MovieCacheService.instance.cacheShowForTest(show.id, show);
 
       await tester.pumpWidget(wrap(ShowDetailScreen(show: show)));
       await tester.pump();
