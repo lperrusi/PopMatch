@@ -658,6 +658,12 @@ abstract class AppLocalizations {
   /// **'Add to Watchlist'**
   String get addToWatchlistButton;
 
+  /// No description provided for @reasonBecauseYouLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you like {genre}'**
+  String reasonBecauseYouLike(String genre);
+
   /// No description provided for @strategyLikedSimilar.
   ///
   /// In en, this message translates to:
