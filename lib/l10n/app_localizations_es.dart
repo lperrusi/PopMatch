@@ -1475,6 +1475,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get forYouBecauseYouLiked => 'Porque te gustó';
 
   @override
+  String get forYouRecommended => 'Recomendado para ti';
+
+  @override
   String get forYouTrending => 'Tendencias';
 
   @override

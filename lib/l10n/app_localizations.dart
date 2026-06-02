@@ -2704,6 +2704,12 @@ abstract class AppLocalizations {
   /// **'Because You Liked'**
   String get forYouBecauseYouLiked;
 
+  /// No description provided for @forYouRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended For You'**
+  String get forYouRecommended;
+
   /// No description provided for @forYouTrending.
   ///
   /// In en, this message translates to:

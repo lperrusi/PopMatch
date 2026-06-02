@@ -1465,6 +1465,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get forYouBecauseYouLiked => 'Porque você curtiu';
 
   @override
+  String get forYouRecommended => 'Recomendado para você';
+
+  @override
   String get forYouTrending => 'Em alta';
 
   @override

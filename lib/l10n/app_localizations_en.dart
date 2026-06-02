@@ -1450,6 +1450,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forYouBecauseYouLiked => 'Because You Liked';
 
   @override
+  String get forYouRecommended => 'Recommended For You';
+
+  @override
   String get forYouTrending => 'Trending Now';
 
   @override
