@@ -9,6 +9,7 @@ import '../models/user.dart';
 import '../services/tmdb_service.dart';
 import '../services/user_preference_analyzer.dart';
 import '../services/user_preferences_session_cache.dart';
+import '../utils/recommendation_filters.dart';
 import '../services/streaming_service.dart';
 import '../services/contextual_recommendation_service.dart';
 import '../services/behavior_tracking_service.dart';
@@ -1693,6 +1694,70 @@ class MovieProvider with ChangeNotifier {
   Future<void> loadMorePersonalizedRecommendations(User user) async {
     if (_isLoading || !_hasMorePages) return;
     await loadPersonalizedRecommendations(user);
+  }
+
+  /// Builds a high-precision personalized list for the premium "For You" surface.
+  ///
+  /// Reuses the canonical scoring engine ([_scoreMovies] + the session prefs
+  /// cache) over a focused candidate set, then keeps only quality picks the user
+  /// hasn't already liked/disliked. Does **not** touch deck state (`_movies`,
+  /// paging, swipe filters) — it returns a fresh list for the For You screen.
+  Future<List<Movie>> buildForYouRecommendations(User user,
+      {int limit = 15}) async {
+    try {
+      final prefs = await _prefsCache.getOrCompute(user, forceRefresh: false);
+
+      final candidates = <Movie>[];
+      final seen = <int>{};
+      void addAll(Iterable<Movie> movies) {
+        for (final m in movies) {
+          if (seen.add(m.id)) candidates.add(m);
+        }
+      }
+
+      // Strongest signal: titles similar to the user's most-recent likes.
+      final recentLiked = user.likedMovies.reversed
+          .take(5)
+          .map(int.tryParse)
+          .whereType<int>()
+          .toList();
+      for (final id in recentLiked) {
+        try {
+          final results = await Future.wait([
+            _tmdbService.getSimilarMovies(id),
+            _tmdbService.getMovieRecommendations(id),
+          ]);
+          addAll(results[0]);
+          addAll(results[1]);
+        } catch (_) {
+          // Skip unavailable seeds.
+        }
+      }
+
+      // Preferred genres + trending as filler (also covers low-like users).
+      for (final genreId in prefs.topGenres.take(3)) {
+        try {
+          addAll(await _tmdbService.getMoviesByGenre(genreId));
+        } catch (_) {}
+      }
+      try {
+        addAll(await _tmdbService.getTrendingMovies());
+      } catch (_) {}
+
+      // Drop already-liked/disliked + sub-quality before scoring.
+      final excludeIds = likedDislikedIds(
+        liked: user.likedMovies,
+        disliked: user.dislikedMovies,
+      );
+      final filtered = filterForYou(candidates, excludeIds: excludeIds);
+      if (filtered.isEmpty) return [];
+
+      final scored = await _scoreMovies(filtered, prefs, user);
+      return scored.take(limit).toList();
+    } catch (e) {
+      debugPrint('buildForYouRecommendations error: $e');
+      return [];
+    }
   }
 
   /// Scores movies based on relevance to user preferences

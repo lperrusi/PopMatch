@@ -665,5 +665,21 @@
     "placeholders": {
       "error": {"type": "String"}
     }
-  }
+  },
+  "forYouTitle": "For You",
+  "forYouTooltip": "For You",
+  "forYouBecauseYouLiked": "Because You Liked",
+  "forYouRecommended": "Recommended For You",
+  "forYouTrending": "Trending Now",
+  "forYouFriendsWatching": "Friends Are Watching",
+  "forYouTopPick": "Top Pick for You",
+  "forYouOpen": "Open",
+  "forYouEmpty": "Like a few titles and your personalized picks will show up here.",
+  "premiumUpsellTitle": "PopMatch Premium",
+  "premiumPerkUnlimitedSwipes": "Unlimited swipes",
+  "premiumPerkNoAds": "Ad-free experience",
+  "premiumPerkForYou": "Personalized “For You” recommendations",
+  "premiumUpgradeCta": "Upgrade to Premium",
+  "premiumComingSoon": "Subscriptions are coming soon.",
+  "premiumDevEnable": "Enable Premium (dev)"
 }

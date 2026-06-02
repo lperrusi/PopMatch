@@ -184,10 +184,12 @@ class StreamingAvailabilityWidget extends StatelessWidget {
               platform: platform,
               size: 50,
               showName: true,
-              onTap: () => launchStreamingSearch(
+              onTap: () => launchStreamingTitle(
                 context: context,
                 platform: platform,
                 title: movie.title,
+                tmdbId: movie.id,
+                isMovie: true,
               ),
             );
           }).toList(),

@@ -13,6 +13,7 @@ import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
 import '../../widgets/detail/detail_similar_section.dart';
 import '../../widgets/detail/detail_color_extraction.dart';
+import '../../widgets/detail/detail_screen_skeleton.dart';
 import '../../providers/streaming_provider.dart';
 import '../../models/streaming_platform.dart';
 import '../../models/streaming_platform.dart' show MovieStreamingAvailability;
@@ -21,7 +22,7 @@ import '../../services/movie_cache_service.dart';
 import '../../services/movie_embedding_service.dart';
 import '../../services/omdb_service.dart';
 import '../../utils/streaming_url_launcher.dart';
-import '../../widgets/transparent_button_image.dart';
+import '../../widgets/detail/watchlist_icon.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
@@ -47,8 +48,16 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
     with DetailColorExtractionMixin {
   Movie? _loadedMovie;
   bool _isSynopsisExpanded = false;
+  bool _detailsLoaded = false;
+  bool _forceReady = false;
   Timer? _movieDetailsTimer;
   Timer? _colorExtractionTimer;
+  Timer? _revealFallbackTimer;
+
+  /// "Reveal when ready": the screen shows a skeleton until core details and the
+  /// poster colour have both resolved, then cross-fades to the real content.
+  /// [_forceReady] is a safety net so a hung load can never strand the skeleton.
+  bool get _isReady => _forceReady || (_detailsLoaded && !isLoadingColor);
 
   @override
   void initState() {
@@ -58,27 +67,22 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
     final cacheService = MovieCacheService.instance;
     final cachedMovie = cacheService.getCachedMovie(widget.movie.id);
     if (cachedMovie != null) {
-      // Use cached data immediately - screen is ready to display
+      // Cached movies carry full detail (cast/crew) — ready immediately.
       _loadedMovie = cachedMovie;
+      _detailsLoaded = true;
     }
-    // We have basic movie data from widget.movie, so screen can render immediately
-    // Additional details (cast/crew) will load in background
 
-    // Defer ALL heavy operations until after the screen fully renders
-    // This ensures smooth transition animation completes before any blocking operations
+    // Kick off the core loads (details + colour) behind the skeleton, right
+    // after the first frame, so the heavy setStates land before reveal — not
+    // mid-scroll. The skeleton stays until _isReady, then we cross-fade.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Wait for multiple frames to ensure screen is fully rendered and interactive
-      _movieDetailsTimer = Timer(const Duration(milliseconds: 600), () {
+      _movieDetailsTimer = Timer(Duration.zero, () {
         if (mounted && !isDisposed && cachedMovie == null) {
-          // Load additional movie details (cast/crew) in background
-          // This will enhance the existing data, not block the screen
           _loadMovieDetails();
         }
       });
 
-      // Color extraction - delay significantly to not block UI
-      // This is non-critical and can happen much later
-      _colorExtractionTimer = Timer(const Duration(milliseconds: 1500), () {
+      _colorExtractionTimer = Timer(Duration.zero, () {
         if (mounted && !isDisposed) {
           if (widget.movie.backdropUrl != null ||
               widget.movie.posterUrl != null) {
@@ -92,6 +96,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
           }
         }
       });
+
+      // Safety net: never strand the skeleton if a load hangs.
+      _revealFallbackTimer = Timer(const Duration(seconds: 4), () {
+        if (mounted && !isDisposed && !_forceReady) {
+          setState(() => _forceReady = true);
+        }
+      });
     });
   }
 
@@ -102,6 +113,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
     if (_loadedMovie != null &&
         _loadedMovie!.cast != null &&
         _loadedMovie!.cast!.isNotEmpty) {
+      if (mounted && !isDisposed && !_detailsLoaded) {
+        setState(() => _detailsLoaded = true);
+      }
       return; // Already have full details
     }
 
@@ -115,6 +129,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
           if (mounted && !isDisposed) {
             setState(() {
               _loadedMovie = loadedMovie;
+              _detailsLoaded = true;
             });
           }
         });
@@ -124,8 +139,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
       _enrichWithExternalRatings(loadedMovie);
     } catch (e) {
       debugPrint('Error loading movie details: $e');
-      // Don't update state on error - keep showing what we have
-      // Screen is already displaying basic movie info, no need to show error state
+      // Keep showing the basic movie info we already have — still reveal.
+      if (mounted && !isDisposed) {
+        setState(() => _detailsLoaded = true);
+      }
     }
   }
 
@@ -227,11 +244,32 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
           // Cancel any timers
           _movieDetailsTimer?.cancel();
           _colorExtractionTimer?.cancel();
+          _revealFallbackTimer?.cancel();
         }
       },
       child: Scaffold(
         backgroundColor: AppTheme.vintagePaper,
-        body: CustomScrollView(
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: _isReady
+              ? KeyedSubtree(
+                  key: const ValueKey('content'),
+                  child: _buildContent(),
+                )
+              : const DetailScreenSkeleton(key: ValueKey('skeleton')),
+        ),
+        bottomNavigationBar: RetroCinemaBottomNav(
+          currentIndex: _getCurrentTabIndex(),
+          onTap: (index) {
+            _handleNavigationTap(index);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return CustomScrollView(
           slivers: [
             // Retro Cinema App Bar with movie poster
             SliverAppBar(
@@ -430,19 +468,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                                         authProvider.isInWatchlist(
                                             _displayMovie.id.toString());
                                     return IconButton(
-                                      icon: TransparentButtonImage(
-                                        assetPath:
-                                            'assets/buttons/watchlist_button.png',
-                                        width: 24,
-                                        height: 24,
-                                        fit: BoxFit.contain,
-                                        errorWidget: Icon(
-                                          isInWatchlist
-                                              ? Icons.bookmark
-                                              : Icons.bookmark_border,
-                                          color: textColor,
-                                          size: 24,
-                                        ),
+                                      icon: WatchlistIcon(
+                                        size: 28,
+                                        added: isInWatchlist,
+                                        inactiveColor: textColor,
                                       ),
                                       onPressed: () async {
                                         final movieProvider =
@@ -784,15 +813,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
               child: _SimilarMoviesSection(movie: _displayMovie),
             ),
           ],
-        ),
-        bottomNavigationBar: RetroCinemaBottomNav(
-          currentIndex: _getCurrentTabIndex(),
-          onTap: (index) {
-            _handleNavigationTap(index);
-          },
-        ),
-      ),
-    );
+        );
   }
 
   /// Gets the current tab index based on navigation context
@@ -822,6 +843,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
     // Cancel any ongoing timers to prevent operations after disposal
     _movieDetailsTimer?.cancel();
     _colorExtractionTimer?.cancel();
+    _revealFallbackTimer?.cancel();
     super.dispose();
   }
 
@@ -1072,10 +1094,12 @@ class _StreamingAvailabilitySectionState
           runSpacing: 12,
           children: platforms.map((platform) {
             return GestureDetector(
-              onTap: () => launchStreamingSearch(
+              onTap: () => launchStreamingTitle(
                 context: context,
                 platform: platform,
                 title: widget.movie.title,
+                tmdbId: widget.movie.id,
+                isMovie: true,
               ),
               child: Tooltip(
                 message: 'Open on ${platform.name}',

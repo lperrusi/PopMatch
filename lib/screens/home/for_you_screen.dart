@@ -1,0 +1,217 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/movie.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/movie_provider.dart';
+import '../../providers/recommendations_provider.dart';
+import '../../services/feature_flags.dart';
+import '../../utils/l10n_extension.dart';
+import '../../utils/navigation_utils.dart';
+import '../../utils/recommendation_filters.dart';
+import '../../utils/theme.dart';
+import '../../widgets/for_you/for_you_hero_card.dart';
+import '../../widgets/for_you/for_you_rail.dart';
+import 'movie_detail_screen.dart';
+
+/// Premium-only browsable recommendations surface. The personalized rail + hero
+/// come from the canonical scoring engine ([MovieProvider.buildForYouRecommendations]);
+/// every rail is hard-filtered (no already-liked/disliked or sub-quality titles)
+/// so a premium "Top Picks" surface never shows a likely-dislike. Tapping a
+/// poster opens its detail screen.
+class ForYouScreen extends StatefulWidget {
+  const ForYouScreen({super.key});
+
+  @override
+  State<ForYouScreen> createState() => _ForYouScreenState();
+}
+
+class _ForYouScreenState extends State<ForYouScreen> {
+  List<Movie> _forYou = [];
+  bool _loadingForYou = false;
+  bool _loadingTrending = false;
+  bool _friendsLoaded = false;
+  Set<int> _userGenreIds = {};
+
+  bool get _friendsEnabled =>
+      FeatureFlags.socialUiEnabled && FeatureFlags.friendsFeedEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAll());
+  }
+
+  Future<void> _loadAll() async {
+    if (!mounted) return;
+    final auth = context.read<AuthProvider>();
+    final rec = context.read<RecommendationsProvider>();
+    final movieProvider = context.read<MovieProvider>();
+    final user = auth.userData;
+    if (user == null) return;
+    rec.setCurrentUser(user);
+
+    _userGenreIds = _genreIdsFrom(user.preferences['selectedGenres']);
+
+    // Personalized rail + hero — canonical engine (already filtered + scored).
+    setState(() => _loadingForYou = true);
+    final forYou = await movieProvider.buildForYouRecommendations(user);
+    if (!mounted) return;
+    setState(() {
+      _forYou = forYou;
+      _loadingForYou = false;
+    });
+
+    // Trending.
+    setState(() => _loadingTrending = true);
+    await rec.loadTrendingRecommendations();
+    if (mounted) setState(() => _loadingTrending = false);
+
+    // Friends — load silently; the rail only appears once it has filtered
+    // content (avoids a loading flash when there are no friends).
+    if (_friendsEnabled) {
+      await rec.loadFriendsRecommendations(refresh: true);
+      if (mounted) setState(() => _friendsLoaded = true);
+    }
+  }
+
+  Set<int> _genreIdsFrom(dynamic raw) {
+    final ids = <int>{};
+    if (raw is List) {
+      for (final g in raw) {
+        final id = g is int ? g : int.tryParse(g.toString());
+        if (id != null) ids.add(id);
+      }
+    }
+    return ids;
+  }
+
+  void _openDetail(Movie movie) {
+    Navigator.of(context).push(
+      NavigationUtils.fastSlideRoute(MovieDetailScreen(movie: movie)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final auth = context.watch<AuthProvider>();
+    final user = auth.userData;
+    final excludeIds = user == null
+        ? <int>{}
+        : likedDislikedIds(
+            liked: user.likedMovies, disliked: user.dislikedMovies);
+
+    return Scaffold(
+      backgroundColor: AppTheme.vintagePaper,
+      appBar: AppBar(
+        backgroundColor: AppTheme.cinemaRed,
+        elevation: 0,
+        title: Text(
+          l10n.forYouTitle.toUpperCase(),
+          style: GoogleFonts.bebasNeue(
+            fontSize: 30,
+            color: AppTheme.warmCream,
+            letterSpacing: 1.5,
+          ),
+        ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: Icon(Icons.workspace_premium_rounded,
+                color: AppTheme.popcornGold),
+          ),
+        ],
+      ),
+      body: Consumer<RecommendationsProvider>(
+        builder: (context, rec, _) {
+          final hero = _forYou.isNotEmpty ? _forYou.first : null;
+          final heroId = hero?.id;
+
+          List<Movie> dropHero(List<Movie> list) =>
+              heroId == null ? list : list.where((m) => m.id != heroId).toList();
+
+          final recommended = dropHero(_forYou);
+          final trending = dropHero(
+            filterForYou(rec.trendingRecommendations, excludeIds: excludeIds),
+          );
+          final friends = dropHero(
+            filterForYou(
+              rec.friendsRecommendations,
+              excludeIds: excludeIds,
+              requireGenreOverlap: _userGenreIds,
+            ),
+          );
+
+          final everythingEmpty = !_loadingForYou &&
+              !_loadingTrending &&
+              hero == null &&
+              recommended.isEmpty &&
+              trending.isEmpty &&
+              friends.isEmpty;
+
+          return RefreshIndicator(
+            color: AppTheme.cinemaRed,
+            onRefresh: _loadAll,
+            child: ListView(
+              padding: const EdgeInsets.only(top: 12, bottom: 24),
+              children: [
+                ForYouHeroCard(
+                  movie: hero,
+                  isLoading: hero == null && _loadingForYou,
+                  onTap: () {
+                    if (hero != null) _openDetail(hero);
+                  },
+                ),
+                ForYouRail(
+                  title: l10n.forYouRecommended,
+                  movies: recommended,
+                  isLoading: _loadingForYou,
+                  onTap: _openDetail,
+                ),
+                ForYouRail(
+                  title: l10n.forYouTrending,
+                  movies: trending,
+                  isLoading: _loadingTrending,
+                  onTap: _openDetail,
+                ),
+                // Friends: render only once loaded with filtered content (no flash).
+                if (_friendsEnabled && _friendsLoaded && friends.isNotEmpty)
+                  ForYouRail(
+                    title: l10n.forYouFriendsWatching,
+                    movies: friends,
+                    isLoading: false,
+                    onTap: _openDetail,
+                  ),
+                if (everythingEmpty) _buildEmptyState(),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
+      child: Column(
+        children: [
+          Icon(Icons.auto_awesome,
+              size: 56, color: AppTheme.filmStripBlack.withValues(alpha: 0.25)),
+          const SizedBox(height: 16),
+          Text(
+            l10n.forYouEmpty,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.lato(
+              fontSize: 15,
+              color: AppTheme.filmStripBlack.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

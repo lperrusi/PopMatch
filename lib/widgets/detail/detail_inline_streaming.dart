@@ -119,10 +119,12 @@ class _DetailInlineStreamingAvailabilityState
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: GestureDetector(
-                  onTap: () => launchStreamingSearch(
+                  onTap: () => launchStreamingTitle(
                     context: context,
                     platform: platform,
                     title: widget.title,
+                    tmdbId: widget.itemId,
+                    isMovie: !widget.isShow,
                   ),
                   child: Tooltip(
                     message: 'Open on ${platform.name}',

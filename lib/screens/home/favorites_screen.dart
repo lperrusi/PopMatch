@@ -616,7 +616,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             final movie = sortedMovies[index];
             final movieId = movie.id.toString();
             final isSelected = _isDeleteMode && _selectedMovieIds.contains(movieId);
-            return GestureDetector(
+            return RepaintBoundary(
+              child: GestureDetector(
               onTap: () async {
                 if (_isDeleteMode) {
                   setState(() {
@@ -716,6 +717,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   ],
                 ),
               ),
+            ),
             );
           },
         );
@@ -932,7 +934,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             final showId = show.id.toString();
             final isSelected = _isDeleteMode && _selectedShowIds.contains(showId);
             final isFinished = _isShowFinished(authProvider, show);
-            return GestureDetector(
+            return RepaintBoundary(
+              child: GestureDetector(
               onTap: () {
                 if (_isDeleteMode) {
                   setState(() {
@@ -1059,6 +1062,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   ],
                 ),
               ),
+            ),
             );
           },
         );

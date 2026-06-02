@@ -8,6 +8,7 @@ import 'providers/movie_provider.dart';
 import 'providers/show_provider.dart';
 import 'providers/recommendations_provider.dart';
 import 'providers/streaming_provider.dart';
+import 'services/premium_service.dart';
 import 'providers/social_provider.dart';
 import 'utils/theme.dart';
 import 'screens/splash_screen.dart';
@@ -90,6 +91,7 @@ class PopMatchApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
         ChangeNotifierProvider(create: (_) => StreamingProvider()),
         ChangeNotifierProvider(create: (_) => SocialProvider()),
+        ChangeNotifierProvider(create: (_) => PremiumService()..initialize()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {

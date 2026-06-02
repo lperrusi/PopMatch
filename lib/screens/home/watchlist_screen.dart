@@ -632,11 +632,13 @@ class _WatchlistContentState extends State<_WatchlistContent> {
         }
         final movie = allMovies[index];
         MovieCacheService.instance.preloadMovieDetails(movie.id);
-        return WatchlistMovieCard(
-          movie: movie,
-          onRemove: () => widget.onRemoveMovie(context, movie),
-          onMinusPressed: () => widget.onMovieMinusPressed(context, movie),
-          onTap: () => widget.onTapMovie(context, movie),
+        return RepaintBoundary(
+          child: WatchlistMovieCard(
+            movie: movie,
+            onRemove: () => widget.onRemoveMovie(context, movie),
+            onMinusPressed: () => widget.onMovieMinusPressed(context, movie),
+            onTap: () => widget.onTapMovie(context, movie),
+          ),
         );
       },
     );
@@ -692,11 +694,13 @@ class _WatchlistContentState extends State<_WatchlistContent> {
           );
         }
         final show = allShows[index];
-        return WatchlistShowCard(
-          show: show,
-          onRemove: () => widget.onRemoveShow(context, show),
-          onMinusPressed: () => widget.onShowMinusPressed(context, show),
-          onTap: () => widget.onTapShow(context, show),
+        return RepaintBoundary(
+          child: WatchlistShowCard(
+            show: show,
+            onRemove: () => widget.onRemoveShow(context, show),
+            onMinusPressed: () => widget.onShowMinusPressed(context, show),
+            onTap: () => widget.onTapShow(context, show),
+          ),
         );
       },
     );

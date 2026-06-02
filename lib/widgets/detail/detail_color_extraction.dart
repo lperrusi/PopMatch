@@ -18,6 +18,13 @@ mixin DetailColorExtractionMixin<T extends StatefulWidget> on State<T> {
   bool isLoadingColor = true;
   bool isDisposed = false;
 
+  /// Test hook (mirrors `RetroCinema*Card.disableAsyncColorExtraction`): when
+  /// true, [extractColorFromImageUrl] skips the network/decode palette work and
+  /// settles immediately to the dark default, so widget tests reach the "ready"
+  /// state without a real image.
+  @visibleForTesting
+  static bool disableForTest = false;
+
   @override
   void dispose() {
     isDisposed = true;
@@ -43,6 +50,15 @@ mixin DetailColorExtractionMixin<T extends StatefulWidget> on State<T> {
   /// background on missing image, timeout, or error.
   Future<void> extractColorFromImageUrl(String? imageUrl) async {
     try {
+      if (disableForTest) {
+        if (mounted && !isDisposed) {
+          setState(() {
+            isLightBackground = false;
+            isLoadingColor = false;
+          });
+        }
+        return;
+      }
       if (imageUrl == null) {
         if (mounted && !isDisposed) {
           setState(() {
@@ -56,8 +72,13 @@ mixin DetailColorExtractionMixin<T extends StatefulWidget> on State<T> {
       final imageProvider = CachedNetworkImageProvider(imageUrl);
       PaletteGenerator paletteGenerator;
       try {
-        paletteGenerator = await PaletteGenerator.fromImageProvider(imageProvider)
-            .timeout(const Duration(seconds: 2));
+        // Downscale + cap colours so the decode/analysis stays off the critical
+        // path (a full-size palette pass on the main thread drops frames).
+        paletteGenerator = await PaletteGenerator.fromImageProvider(
+          imageProvider,
+          size: const Size(100, 150),
+          maximumColorCount: 8,
+        ).timeout(const Duration(seconds: 2));
       } on TimeoutException {
         if (mounted && !isDisposed) {
           setState(() {

@@ -10,6 +10,7 @@ import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../models/movie.dart';
 import '../../models/tv_show.dart';
+import '../../widgets/poster_list_skeleton.dart';
 import '../../services/movie_cache_service.dart';
 import '../../services/tmdb_service.dart';
 import '../../services/feature_flags.dart';
@@ -464,8 +465,8 @@ class _RecentLikedMoviesSectionState extends State<_RecentLikedMoviesSection> {
               },
             ));
           } else {
-            // No data yet: show loading placeholder (either loading or pending load)
-            tiles.add(_LoadingTile(label: context.l10n.loadingMovie));
+            // No data yet: show a shimmer placeholder matching the liked tile.
+            tiles.add(const PosterListTileSkeleton());
           }
         }
         return Column(children: tiles);
@@ -540,47 +541,11 @@ class _RecentLikedShowsSectionState extends State<_RecentLikedShowsSection> {
               },
             ));
           } else {
-            tiles.add(_LoadingTile(label: context.l10n.loadingShow));
+            tiles.add(const PosterListTileSkeleton());
           }
         }
         return Column(children: tiles);
       },
-    );
-  }
-}
-
-/// Placeholder tile while a movie/show is loading by ID
-class _LoadingTile extends StatelessWidget {
-  final String label;
-
-  const _LoadingTile({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 60,
-          decoration: BoxDecoration(
-            color: onSurface.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: const Center(
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.cinemaRed),
-            ),
-          ),
-        ),
-        title: Text(
-          label,
-          style: GoogleFonts.lato(fontSize: 14, color: onSurface),
-        ),
-      ),
     );
   }
 }
