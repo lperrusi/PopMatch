@@ -2716,6 +2716,24 @@ abstract class AppLocalizations {
   /// **'Friends Are Watching'**
   String get forYouFriendsWatching;
 
+  /// No description provided for @forYouTopPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Pick for You'**
+  String get forYouTopPick;
+
+  /// No description provided for @forYouOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get forYouOpen;
+
+  /// No description provided for @forYouEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Like a few titles and your personalized picks will show up here.'**
+  String get forYouEmpty;
+
   /// No description provided for @premiumUpsellTitle.
   ///
   /// In en, this message translates to:

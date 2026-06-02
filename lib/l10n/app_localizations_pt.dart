@@ -1471,6 +1471,16 @@ class AppLocalizationsPt extends AppLocalizations {
   String get forYouFriendsWatching => 'Seus amigos estão assistindo';
 
   @override
+  String get forYouTopPick => 'Escolha para você';
+
+  @override
+  String get forYouOpen => 'Abrir';
+
+  @override
+  String get forYouEmpty =>
+      'Curta alguns títulos e suas recomendações personalizadas aparecerão aqui.';
+
+  @override
   String get premiumUpsellTitle => 'PopMatch Premium';
 
   @override

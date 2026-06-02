@@ -9,13 +9,14 @@ import '../../services/feature_flags.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/theme.dart';
-import '../../widgets/recommendations_widget.dart';
+import '../../widgets/for_you/for_you_hero_card.dart';
+import '../../widgets/for_you/for_you_rail.dart';
 import 'movie_detail_screen.dart';
 
-/// Premium-only browsable recommendations surface: horizontal rails sourced from
-/// [RecommendationsProvider] (Because You Liked / Trending / Friends). Tapping a
-/// poster opens its detail screen (which owns like/watchlist actions), so there
-/// is no swipe-bypassing like/dislike here.
+/// Premium-only browsable recommendations surface: a featured hero + Retro
+/// Cinema rails (Because You Liked / Trending / Friends) sourced from
+/// [RecommendationsProvider]. Tapping a poster opens its detail screen (which
+/// owns like/watchlist), so there's no swipe-bypassing like/dislike here.
 class ForYouScreen extends StatefulWidget {
   const ForYouScreen({super.key});
 
@@ -77,6 +78,11 @@ class _ForYouScreenState extends State<ForYouScreen> {
     );
   }
 
+  List<Movie> _excludeHero(List<Movie> list, Movie? hero) {
+    if (hero == null) return list;
+    return list.where((m) => m.id != hero.id).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -93,39 +99,93 @@ class _ForYouScreenState extends State<ForYouScreen> {
             letterSpacing: 1.5,
           ),
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: Icon(Icons.workspace_premium_rounded,
+                color: AppTheme.popcornGold),
+          ),
+        ],
       ),
       body: Consumer<RecommendationsProvider>(
         builder: (context, rec, _) {
-          return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            children: [
-              if (_hasLikedSeed)
-                RecommendationsWidget(
-                  title: l10n.forYouBecauseYouLiked,
-                  movies: rec.becauseYouLikedRecommendations,
-                  isLoading: _loadingBecause,
-                  showActions: false,
-                  onMovieTap: _openDetail,
+          final because = rec.becauseYouLikedRecommendations;
+          final trending = rec.trendingRecommendations;
+          final friends = rec.friendsRecommendations;
+
+          final hero = because.isNotEmpty
+              ? because.first
+              : (trending.isNotEmpty ? trending.first : null);
+          final heroLoading =
+              hero == null && (_loadingBecause || _loadingTrending);
+
+          final anyLoading =
+              _loadingBecause || _loadingTrending || _loadingFriends;
+          final everythingEmpty = hero == null &&
+              because.isEmpty &&
+              trending.isEmpty &&
+              friends.isEmpty;
+
+          return RefreshIndicator(
+            color: AppTheme.cinemaRed,
+            onRefresh: _loadAll,
+            child: ListView(
+              padding: const EdgeInsets.only(top: 12, bottom: 24),
+              children: [
+                ForYouHeroCard(
+                  movie: hero,
+                  isLoading: heroLoading,
+                  onTap: () {
+                    if (hero != null) _openDetail(hero);
+                  },
                 ),
-              RecommendationsWidget(
-                title: l10n.forYouTrending,
-                movies: rec.trendingRecommendations,
-                isLoading: _loadingTrending,
-                showActions: false,
-                onMovieTap: _openDetail,
-              ),
-              if (_friendsEnabled &&
-                  (_loadingFriends || rec.friendsRecommendations.isNotEmpty))
-                RecommendationsWidget(
-                  title: l10n.forYouFriendsWatching,
-                  movies: rec.friendsRecommendations,
-                  isLoading: _loadingFriends,
-                  showActions: false,
-                  onMovieTap: _openDetail,
+                if (_hasLikedSeed)
+                  ForYouRail(
+                    title: l10n.forYouBecauseYouLiked,
+                    movies: _excludeHero(because, hero),
+                    isLoading: _loadingBecause,
+                    onTap: _openDetail,
+                  ),
+                ForYouRail(
+                  title: l10n.forYouTrending,
+                  movies: _excludeHero(trending, hero),
+                  isLoading: _loadingTrending,
+                  onTap: _openDetail,
                 ),
-            ],
+                if (_friendsEnabled)
+                  ForYouRail(
+                    title: l10n.forYouFriendsWatching,
+                    movies: _excludeHero(friends, hero),
+                    isLoading: _loadingFriends,
+                    onTap: _openDetail,
+                  ),
+                if (!anyLoading && everythingEmpty) _buildEmptyState(),
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
+      child: Column(
+        children: [
+          Icon(Icons.auto_awesome,
+              size: 56, color: AppTheme.filmStripBlack.withValues(alpha: 0.25)),
+          const SizedBox(height: 16),
+          Text(
+            l10n.forYouEmpty,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.lato(
+              fontSize: 15,
+              color: AppTheme.filmStripBlack.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
       ),
     );
   }
