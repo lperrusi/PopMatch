@@ -44,16 +44,15 @@ class RecommendationsWidget extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Content
-          Flexible(
-            child: isLoading
-                ? _buildLoadingState()
-                : error != null
-                    ? _buildErrorState(context)
-                    : movies.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildMovieList(context),
-          ),
+          // Content — each state is a fixed-height box, so no Flexible is needed
+          // (lets the widget live inside an unbounded ListView/Column).
+          isLoading
+              ? _buildLoadingState()
+              : error != null
+                  ? _buildErrorState(context)
+                  : movies.isEmpty
+                      ? _buildEmptyState(context)
+                      : _buildMovieList(context),
         ],
       ),
     );
