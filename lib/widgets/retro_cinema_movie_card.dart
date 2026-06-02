@@ -10,6 +10,8 @@ import '../providers/movie_provider.dart';
 import '../utils/theme.dart';
 import '../utils/l10n_extension.dart';
 import '../utils/recommendation_reason.dart';
+import '../utils/recommendation_reason_label.dart';
+import '../services/user_preferences_session_cache.dart';
 import '../utils/streaming_url_launcher.dart';
 import '../services/movie_cache_service.dart';
 import '../services/streaming_service.dart';
@@ -54,7 +56,6 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
   /// The "why" badge text: a specific "Because you like {Genre}" when the
   /// movie's genres match the user's picks, else a generic strategy label.
   String? _reasonLabel(BuildContext context) {
-    final l10n = context.l10n;
     final userGenreIds = <int>{};
     final raw = context.read<AuthProvider>().userData?.preferences['selectedGenres'];
     if (raw is List) {
@@ -63,35 +64,22 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
         if (id != null) userGenreIds.add(id);
       }
     }
+    final prefs = UserPreferencesSessionCache().cachedPreferences;
     final reason = buildRecommendationReason(
       strategy: _movie.recommendationStrategy,
       genreIds: _movie.genreIds,
       genreNames: _movie.genres,
       userGenreIds: userGenreIds,
       genres: context.read<MovieProvider>().genres,
+      castNames: _movie.cast?.take(6).map((c) => c.name).toList(),
+      directorNames: _movie.crew
+          ?.where((c) => c.job == 'Director')
+          .map((c) => c.name)
+          .toList(),
+      userActors: prefs?.preferredActors.toSet() ?? const {},
+      userDirectors: prefs?.preferredDirectors.toSet() ?? const {},
     );
-    switch (reason.kind) {
-      case RecommendationReasonKind.becauseYouLikeGenre:
-        return l10n.reasonBecauseYouLike(reason.genreName!);
-      case RecommendationReasonKind.similarToLiked:
-        return l10n.strategyLikedSimilar;
-      case RecommendationReasonKind.genreMatch:
-        return l10n.strategyGenreMatch;
-      case RecommendationReasonKind.trending:
-        return l10n.strategyTrending;
-      case RecommendationReasonKind.topRated:
-        return l10n.strategyTopRated;
-      case RecommendationReasonKind.personalized:
-        return l10n.strategyPersonalized;
-      case RecommendationReasonKind.curated:
-        return l10n.strategyCurated;
-      case RecommendationReasonKind.actorDiscovery:
-        return l10n.strategyActorDiscovery;
-      case RecommendationReasonKind.directorDiscovery:
-        return l10n.strategyDirectorDiscovery;
-      case RecommendationReasonKind.none:
-        return null;
-    }
+    return recommendationReasonLabel(context.l10n, reason);
   }
 
   @override

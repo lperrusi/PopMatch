@@ -25,6 +25,9 @@ import '../../widgets/transparent_button_image.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
+import '../../utils/recommendation_reason.dart';
+import '../../utils/recommendation_reason_label.dart';
+import '../../services/user_preferences_session_cache.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
 
 /// Retro Cinema styled movie detail screen
@@ -156,6 +159,60 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
     if (h == 0) return '${m}m';
     if (m == 0) return '${h}h';
     return '${h}h ${m}m';
+  }
+
+  /// Subtle "why you're seeing this" line (e.g. "Because you like {Actor}") under
+  /// the header meta. Reuses the same engine as the swipe-card badge; hidden when
+  /// there's no meaningful reason.
+  Widget _buildWhyLine(BuildContext context) {
+    final userGenreIds = <int>{};
+    final raw =
+        context.read<AuthProvider>().userData?.preferences['selectedGenres'];
+    if (raw is List) {
+      for (final g in raw) {
+        final id = g is int ? g : int.tryParse(g.toString());
+        if (id != null) userGenreIds.add(id);
+      }
+    }
+    final prefs = UserPreferencesSessionCache().cachedPreferences;
+    final reason = buildRecommendationReason(
+      strategy: _displayMovie.recommendationStrategy,
+      genreIds: _displayMovie.genreIds,
+      genreNames: _displayMovie.genres,
+      userGenreIds: userGenreIds,
+      genres: context.read<MovieProvider>().genres,
+      castNames: _displayMovie.cast?.take(6).map((c) => c.name).toList(),
+      directorNames: _displayMovie.crew
+          ?.where((c) => c.job == 'Director')
+          .map((c) => c.name)
+          .toList(),
+      userActors: prefs?.preferredActors.toSet() ?? const {},
+      userDirectors: prefs?.preferredDirectors.toSet() ?? const {},
+    );
+    final label = recommendationReasonLabel(context.l10n, reason);
+    if (label == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.auto_awesome, size: 14, color: AppTheme.popcornGold),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: GoogleFonts.lato(
+                color: textColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -360,6 +417,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                                   ),
                               ],
                             ),
+                            _buildWhyLine(context),
                             const SizedBox(height: 16),
 
                             // Watchlist, Like, Dislike and Share buttons row
