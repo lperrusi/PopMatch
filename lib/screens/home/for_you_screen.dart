@@ -186,14 +186,22 @@ class _ForYouScreenState extends State<ForYouScreen>
           final hero = _forYou.isNotEmpty ? _forYou.first : null;
           final heroId = hero?.id;
 
-          List<Movie> dropHero(List<Movie> list) =>
-              heroId == null ? list : list.where((m) => m.id != heroId).toList();
+          // Cumulative de-dup: a title appears in only its highest-priority rail
+          // (hero → Recommended → Trending → Friends).
+          final shown = <int>{if (heroId != null) heroId};
+          List<Movie> takeUnshown(List<Movie> list) {
+            final out = <Movie>[];
+            for (final m in list) {
+              if (shown.add(m.id)) out.add(m);
+            }
+            return out;
+          }
 
-          final recommended = dropHero(_forYou);
-          final trending = dropHero(
+          final recommended = takeUnshown(_forYou);
+          final trending = takeUnshown(
             filterForYou(rec.trendingRecommendations, excludeIds: excludeIds),
           );
-          final friends = dropHero(
+          final friends = takeUnshown(
             filterForYou(
               rec.friendsRecommendations,
               excludeIds: excludeIds,
