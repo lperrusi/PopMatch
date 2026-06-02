@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/movie.dart';
+import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/recommendations_provider.dart';
@@ -54,26 +55,41 @@ class _ForYouScreenState extends State<ForYouScreen> {
 
     _userGenreIds = _genreIdsFrom(user.preferences['selectedGenres']);
 
-    // Personalized rail + hero — canonical engine (already filtered + scored).
-    setState(() => _loadingForYou = true);
-    final forYou = await movieProvider.buildForYouRecommendations(user);
-    if (!mounted) return;
+    // Show every section's skeleton up front, then load in parallel so each
+    // rail fills in independently (no section pops in late behind another).
     setState(() {
-      _forYou = forYou;
-      _loadingForYou = false;
+      _loadingForYou = true;
+      _loadingTrending = true;
     });
 
-    // Trending.
-    setState(() => _loadingTrending = true);
+    await Future.wait([
+      _loadForYou(movieProvider, user),
+      _loadTrending(rec),
+      if (_friendsEnabled) _loadFriends(rec),
+    ]);
+  }
+
+  /// Personalized hero + rail — canonical engine (already filtered + scored).
+  Future<void> _loadForYou(MovieProvider movieProvider, User user) async {
+    final forYou = await movieProvider.buildForYouRecommendations(user);
+    if (mounted) {
+      setState(() {
+        _forYou = forYou;
+        _loadingForYou = false;
+      });
+    }
+  }
+
+  Future<void> _loadTrending(RecommendationsProvider rec) async {
     await rec.loadTrendingRecommendations();
     if (mounted) setState(() => _loadingTrending = false);
+  }
 
-    // Friends — load silently; the rail only appears once it has filtered
-    // content (avoids a loading flash when there are no friends).
-    if (_friendsEnabled) {
-      await rec.loadFriendsRecommendations(refresh: true);
-      if (mounted) setState(() => _friendsLoaded = true);
-    }
+  /// Loads silently — the Friends rail only appears once it has filtered
+  /// content (avoids a loading flash when there are no friends).
+  Future<void> _loadFriends(RecommendationsProvider rec) async {
+    await rec.loadFriendsRecommendations(refresh: true);
+    if (mounted) setState(() => _friendsLoaded = true);
   }
 
   Set<int> _genreIdsFrom(dynamic raw) {
