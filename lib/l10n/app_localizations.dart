@@ -2728,6 +2728,12 @@ abstract class AppLocalizations {
   /// **'Top Pick for You'**
   String get forYouTopPick;
 
+  /// No description provided for @forYouCurating.
+  ///
+  /// In en, this message translates to:
+  /// **'Curating your picks…'**
+  String get forYouCurating;
+
   /// No description provided for @forYouOpen.
   ///
   /// In en, this message translates to:

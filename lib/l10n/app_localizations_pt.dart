@@ -1477,6 +1477,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get forYouTopPick => 'Escolha para você';
 
   @override
+  String get forYouCurating => 'Selecionando suas recomendações…';
+
+  @override
   String get forYouOpen => 'Abrir';
 
   @override

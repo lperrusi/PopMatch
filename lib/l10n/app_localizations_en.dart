@@ -1462,6 +1462,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forYouTopPick => 'Top Pick for You';
 
   @override
+  String get forYouCurating => 'Curating your picks…';
+
+  @override
   String get forYouOpen => 'Open';
 
   @override
