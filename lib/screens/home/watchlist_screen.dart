@@ -11,6 +11,7 @@ import '../../utils/theme.dart';
 import '../../widgets/poster_grid_skeleton.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
+import 'enhanced_watchlist_screen.dart';
 import '../../services/movie_cache_service.dart';
 import '../../services/tmdb_service.dart';
 import 'movie_detail_screen.dart';
@@ -349,6 +350,16 @@ class _WatchlistScaffold extends StatelessWidget {
         ),
         backgroundColor: AppTheme.cinemaRed,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.collections_bookmark_rounded,
+                color: AppTheme.warmCream),
+            tooltip: l10n.listsTooltip,
+            onPressed: () => Navigator.of(context).push(
+              NavigationUtils.fastSlideRoute(const EnhancedWatchlistScreen()),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: tabController,
           indicatorColor: AppTheme.popcornGold,

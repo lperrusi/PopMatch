@@ -28,6 +28,7 @@ import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/recommendation_reason.dart';
 import '../../utils/recommendation_reason_label.dart';
+import '../../widgets/add_to_list_sheet.dart';
 import '../../services/user_preferences_session_cache.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
 
@@ -608,6 +609,20 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                                       },
                                     );
                                   },
+                                ),
+                                // Add to custom list / tag
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.playlist_add_rounded,
+                                    color: textColor,
+                                    size: 24,
+                                  ),
+                                  tooltip: context.l10n.addToListTitle,
+                                  onPressed: () => showAddToListSheet(
+                                    context,
+                                    movieId: _displayMovie.id.toString(),
+                                    title: _displayMovie.title,
+                                  ),
                                 ),
                                 // Share button
                                 IconButton(

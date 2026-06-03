@@ -666,6 +666,13 @@
       "error": {"type": "String"}
     }
   },
+  "listsTooltip": "Your lists",
+  "addToListTitle": "Add to List",
+  "listNameExists": "A list with that name already exists.",
+  "noListsYet": "No lists yet — create one below.",
+  "newListHint": "New list name",
+  "tagsLabel": "Tags",
+  "addTagHint": "Add a tag",
   "forYouTitle": "For You",
   "forYouTooltip": "For You",
   "forYouBecauseYouLiked": "Because You Liked",
