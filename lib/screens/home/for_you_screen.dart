@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/movie.dart';
+import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/recommendations_provider.dart';
@@ -13,6 +16,7 @@ import '../../utils/recommendation_filters.dart';
 import '../../utils/theme.dart';
 import '../../widgets/for_you/for_you_hero_card.dart';
 import '../../widgets/for_you/for_you_rail.dart';
+import '../../widgets/transparent_button_image.dart';
 import 'movie_detail_screen.dart';
 
 /// Premium-only browsable recommendations surface. The personalized rail + hero
@@ -27,20 +31,46 @@ class ForYouScreen extends StatefulWidget {
   State<ForYouScreen> createState() => _ForYouScreenState();
 }
 
-class _ForYouScreenState extends State<ForYouScreen> {
+class _ForYouScreenState extends State<ForYouScreen>
+    with SingleTickerProviderStateMixin {
   List<Movie> _forYou = [];
   bool _loadingForYou = false;
   bool _loadingTrending = false;
   bool _friendsLoaded = false;
+  bool _forceReady = false;
   Set<int> _userGenreIds = {};
+
+  late final AnimationController _pulseController;
+  Timer? _revealFallback;
 
   bool get _friendsEnabled =>
       FeatureFlags.socialUiEnabled && FeatureFlags.friendsFeedEnabled;
 
+  /// Hold the branded "curating" loader until the core sections (personalized +
+  /// trending) are ready, then cross-fade in. Friends loads silently and never
+  /// gates the reveal. [_forceReady] is a safety net against a hung load.
+  bool get _isReady => _forceReady || (!_loadingForYou && !_loadingTrending);
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAll());
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAll();
+      _revealFallback = Timer(const Duration(seconds: 6), () {
+        if (mounted && !_forceReady) setState(() => _forceReady = true);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _revealFallback?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadAll() async {
@@ -54,26 +84,41 @@ class _ForYouScreenState extends State<ForYouScreen> {
 
     _userGenreIds = _genreIdsFrom(user.preferences['selectedGenres']);
 
-    // Personalized rail + hero — canonical engine (already filtered + scored).
-    setState(() => _loadingForYou = true);
-    final forYou = await movieProvider.buildForYouRecommendations(user);
-    if (!mounted) return;
+    // Show every section's skeleton up front, then load in parallel so each
+    // rail fills in independently (no section pops in late behind another).
     setState(() {
-      _forYou = forYou;
-      _loadingForYou = false;
+      _loadingForYou = true;
+      _loadingTrending = true;
     });
 
-    // Trending.
-    setState(() => _loadingTrending = true);
+    await Future.wait([
+      _loadForYou(movieProvider, user),
+      _loadTrending(rec),
+      if (_friendsEnabled) _loadFriends(rec),
+    ]);
+  }
+
+  /// Personalized hero + rail — canonical engine (already filtered + scored).
+  Future<void> _loadForYou(MovieProvider movieProvider, User user) async {
+    final forYou = await movieProvider.buildForYouRecommendations(user);
+    if (mounted) {
+      setState(() {
+        _forYou = forYou;
+        _loadingForYou = false;
+      });
+    }
+  }
+
+  Future<void> _loadTrending(RecommendationsProvider rec) async {
     await rec.loadTrendingRecommendations();
     if (mounted) setState(() => _loadingTrending = false);
+  }
 
-    // Friends — load silently; the rail only appears once it has filtered
-    // content (avoids a loading flash when there are no friends).
-    if (_friendsEnabled) {
-      await rec.loadFriendsRecommendations(refresh: true);
-      if (mounted) setState(() => _friendsLoaded = true);
-    }
+  /// Loads silently — the Friends rail only appears once it has filtered
+  /// content (avoids a loading flash when there are no friends).
+  Future<void> _loadFriends(RecommendationsProvider rec) async {
+    await rec.loadFriendsRecommendations(refresh: true);
+    if (mounted) setState(() => _friendsLoaded = true);
   }
 
   Set<int> _genreIdsFrom(dynamic raw) {
@@ -124,8 +169,20 @@ class _ForYouScreenState extends State<ForYouScreen> {
           ),
         ],
       ),
-      body: Consumer<RecommendationsProvider>(
-        builder: (context, rec, _) {
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        child: _isReady
+            ? _buildContent(excludeIds)
+            : _buildCuratingLoader(),
+      ),
+    );
+  }
+
+  Widget _buildContent(Set<int> excludeIds) {
+    final l10n = context.l10n;
+    return Consumer<RecommendationsProvider>(
+      key: const ValueKey('forYouContent'),
+      builder: (context, rec, _) {
           final hero = _forYou.isNotEmpty ? _forYou.first : null;
           final heroId = hero?.id;
 
@@ -189,6 +246,47 @@ class _ForYouScreenState extends State<ForYouScreen> {
             ),
           );
         },
+      );
+  }
+
+  /// Branded "curating your picks" loader shown until the core sections are
+  /// ready, then cross-faded out. Premium feel: a gently pulsing gold ticket.
+  Widget _buildCuratingLoader() {
+    final l10n = context.l10n;
+    final pulse =
+        Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+    return Center(
+      key: const ValueKey('forYouLoader'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FadeTransition(
+            opacity: Tween<double>(begin: 0.65, end: 1.0).animate(pulse),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.92, end: 1.05).animate(pulse),
+              child: const TransparentButtonImage(
+                assetPath: 'assets/buttons/premium_icon_option_2.png',
+                width: 104,
+                height: 104,
+                fit: BoxFit.contain,
+                errorWidget: Icon(Icons.workspace_premium_rounded,
+                    size: 88, color: AppTheme.popcornGold),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            l10n.forYouCurating,
+            style: GoogleFonts.bebasNeue(
+              fontSize: 22,
+              color: AppTheme.cinemaRed,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }

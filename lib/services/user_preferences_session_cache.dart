@@ -18,6 +18,11 @@ class UserPreferencesSessionCache {
   Future<UserPreferences>? _inFlight;
   DateTime? _lastComputedAt;
 
+  /// The most recently computed preferences, or null if none have been computed
+  /// yet this session. Synchronous read for UI (e.g. the "why" badge); callers
+  /// must tolerate null (fall back to a less specific reason).
+  UserPreferences? get cachedPreferences => _cached;
+
   int _hashStringList(List<String> values) {
     var h = 0;
     for (final v in values) {

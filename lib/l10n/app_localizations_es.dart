@@ -1487,6 +1487,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get forYouTopPick => 'Selección para ti';
 
   @override
+  String get forYouCurating => 'Seleccionando tus recomendaciones…';
+
+  @override
   String get forYouOpen => 'Abrir';
 
   @override

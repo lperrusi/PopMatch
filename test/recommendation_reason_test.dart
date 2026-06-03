@@ -77,6 +77,60 @@ void main() {
       expect(r.genreName, isNull);
     });
 
+    test('actor match wins over a genre match', () {
+      final r = buildRecommendationReason(
+        strategy: 'contentBased',
+        genreIds: [28],
+        userGenreIds: {28},
+        genres: genres,
+        castNames: const ['Some Actor', 'Tom Hanks'],
+        userActors: {'Tom Hanks'},
+      );
+      expect(r.kind, RecommendationReasonKind.becauseYouLikeActor);
+      expect(r.personName, 'Tom Hanks');
+    });
+
+    test('director match wins over genre (case-insensitive)', () {
+      final r = buildRecommendationReason(
+        strategy: 'genre_match',
+        genreIds: [28],
+        userGenreIds: {28},
+        genres: genres,
+        directorNames: const ['Greta Gerwig'],
+        userDirectors: {'greta gerwig'},
+      );
+      expect(r.kind, RecommendationReasonKind.becauseYouLikeDirector);
+      expect(r.personName, 'Greta Gerwig');
+    });
+
+    test('actor takes precedence over director', () {
+      final r = buildRecommendationReason(
+        strategy: null,
+        genreIds: null,
+        userGenreIds: const {},
+        genres: genres,
+        castNames: const ['Zendaya'],
+        directorNames: const ['Denis Villeneuve'],
+        userActors: {'Zendaya'},
+        userDirectors: {'Denis Villeneuve'},
+      );
+      expect(r.kind, RecommendationReasonKind.becauseYouLikeActor);
+      expect(r.personName, 'Zendaya');
+    });
+
+    test('no person match falls back to the genre reason', () {
+      final r = buildRecommendationReason(
+        strategy: 'contentBased',
+        genreIds: [878],
+        userGenreIds: {878},
+        genres: genres,
+        castNames: const ['Nobody Liked'],
+        userActors: {'Tom Hanks'},
+      );
+      expect(r.kind, RecommendationReasonKind.becauseYouLikeGenre);
+      expect(r.genreName, 'Sci-Fi');
+    });
+
     test('no genre match → strategy fallback (popular maps to trending)', () {
       final r = buildRecommendationReason(
         strategy: 'popular',

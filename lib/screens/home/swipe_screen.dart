@@ -27,6 +27,7 @@ import '../../models/social_activity.dart';
 import '../../providers/social_provider.dart';
 import '../../services/premium_service.dart';
 import '../../widgets/premium_upsell_sheet.dart';
+import '../../widgets/transparent_button_image.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
 import 'for_you_screen.dart';
@@ -558,35 +559,30 @@ class _SwipeScreenState extends State<SwipeScreen>
         actions: [
           // Premium-gated "For You" browsable surface.
           Consumer<PremiumService>(
-            builder: (context, premium, _) => Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.auto_awesome,
-                      color: AppTheme.warmCream),
-                  tooltip: context.l10n.forYouTooltip,
-                  onPressed: () {
-                    if (premium.isPremium) {
-                      Navigator.of(context).push(
-                        NavigationUtils.fastSlideRoute(const ForYouScreen()),
-                      );
-                    } else {
-                      showPremiumUpsell(
-                        context,
-                        onUnlocked: () => Navigator.of(context).push(
-                          NavigationUtils.fastSlideRoute(const ForYouScreen()),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                if (!premium.isPremium)
-                  const Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Icon(Icons.lock,
-                        size: 12, color: AppTheme.popcornGold),
-                  ),
-              ],
+            builder: (context, premium, _) => IconButton(
+              icon: const TransparentButtonImage(
+                assetPath: 'assets/buttons/premium_icon_option_2.png',
+                width: 34,
+                height: 34,
+                fit: BoxFit.contain,
+                errorWidget: Icon(Icons.workspace_premium_rounded,
+                    color: AppTheme.popcornGold),
+              ),
+              tooltip: context.l10n.forYouTooltip,
+              onPressed: () {
+                if (premium.isPremium) {
+                  Navigator.of(context).push(
+                    NavigationUtils.fastSlideRoute(const ForYouScreen()),
+                  );
+                } else {
+                  showPremiumUpsell(
+                    context,
+                    onUnlocked: () => Navigator.of(context).push(
+                      NavigationUtils.fastSlideRoute(const ForYouScreen()),
+                    ),
+                  );
+                }
+              },
             ),
           ),
           // Filter icon with badge if filters are active
