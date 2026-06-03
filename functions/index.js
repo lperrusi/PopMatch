@@ -605,3 +605,75 @@ exports.getSuggestedUsers = onCall({region: "us-central1"}, async (request) => {
     throw new HttpsError("internal", "Could not load suggested users.");
   }
 });
+
+// Dev-only seeding flag. Set with: firebase functions:config / .env →
+// DEV_SEED_ENABLED=true. Leave unset/false in production.
+const devSeedEnabled = defineString("DEV_SEED_ENABLED", {default: "false"});
+
+/**
+ * DEV ONLY — seeds demo friends + accepted follows + sample "liked" activities
+ * for the caller, so the friends feed / "Friends Are Watching" rail can be
+ * tested without recruiting real users. Disabled unless DEV_SEED_ENABLED=true.
+ * Remove or keep disabled in production.
+ */
+exports.devSeedSocial = onCall({region: "us-central1"}, async (request) => {
+  if (devSeedEnabled.value() !== "true") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Dev seeding is disabled. Set DEV_SEED_ENABLED=true to enable.",
+    );
+  }
+  const uid = request.auth && request.auth.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in first.");
+  }
+
+  const db = getFirestore();
+  const now = Date.now();
+  const friends = [
+    {uid: "seed_ava", displayName: "Ava (demo)"},
+    {uid: "seed_liam", displayName: "Liam (demo)"},
+  ];
+  // A few well-known TMDB movie ids for sample activity.
+  const movieIds = ["27205", "157336", "155", "603", "24428", "299536"];
+
+  const batch = db.batch();
+  for (const f of friends) {
+    batch.set(
+        db.collection("users").doc(f.uid),
+        {
+          displayName: f.displayName,
+          email: `${f.uid}@demo.popmatch`,
+          createdAt: now,
+        },
+        {merge: true},
+    );
+    // The viewer follows the demo friend (accepted), so the friend's activity
+    // shows up in the viewer's feed.
+    batch.set(db.collection("followEdges").doc(`${uid}_${f.uid}`), {
+      followerUid: uid,
+      followeeUid: f.uid,
+      status: "accepted",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  let i = 0;
+  for (const f of friends) {
+    for (const mid of movieIds) {
+      batch.set(db.collection("socialActivities").doc(), {
+        actorUid: f.uid,
+        actorDisplayName: f.displayName,
+        itemType: "movie",
+        itemId: mid,
+        activityType: "liked",
+        visibility: "public",
+        createdAt: now - (i++ * 60000),
+      });
+    }
+  }
+
+  await batch.commit();
+  return {seededFriends: friends.length, activities: friends.length * movieIds.length};
+});

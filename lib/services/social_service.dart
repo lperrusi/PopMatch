@@ -142,6 +142,17 @@ class SocialService {
     return list.cast<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
   }
 
+  /// Dev-only: seeds demo friends + activity for the signed-in user so the
+  /// social surfaces can be tested without recruiting real users. Throws if
+  /// Firebase is off; the backend rejects it unless DEV_SEED_ENABLED=true.
+  Future<void> devSeedSocial() async {
+    if (!FirebaseConfig.isEnabled || _currentUid == null) {
+      throw StateError('Firebase is not enabled (dev/local mode).');
+    }
+    final callable = _functions.httpsCallable('devSeedSocial');
+    await callable.call(<String, dynamic>{});
+  }
+
   Future<void> recordActivity({
     required SocialItemType itemType,
     required String itemId,
