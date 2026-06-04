@@ -642,6 +642,9 @@ exports.devSeedSocial = onCall({region: "us-central1"}, async (request) => {
     batch.set(
         db.collection("users").doc(f.uid),
         {
+          // searchUsers filters out docs without a `uid` field, so seeded
+          // demo users must include it to be searchable (matches ensureUserProfile).
+          uid: f.uid,
           displayName: f.displayName,
           email: `${f.uid}@demo.popmatch`,
           createdAt: now,
