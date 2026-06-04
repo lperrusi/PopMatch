@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:popmatch/l10n/app_localizations.dart';
 
 import 'package:popmatch/utils/theme.dart';
 import 'package:popmatch/widgets/discover_undo_snackbar.dart';
@@ -13,6 +14,8 @@ void main() {
       VoidCallback? onUndo,
     }) {
       return MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.retroCinemaTheme,
         home: Scaffold(
           body: Center(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:popmatch/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:popmatch/models/user.dart';
 import 'package:popmatch/providers/auth_provider.dart';
@@ -25,7 +26,9 @@ void main() {
           ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
           ChangeNotifierProvider(create: (_) => SocialProvider()),
         ],
-        child: const MaterialApp(home: ProfileScreen()),
+        child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,home: ProfileScreen()),
       ),
     );
     await tester.pumpAndSettle();
