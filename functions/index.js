@@ -495,7 +495,9 @@ exports.getFriendsFeed = onCall({region: "us-central1"}, async (request) => {
       }
     }
 
-    out.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    // Coerce to string: createdAt is normally an ISO string (nowIso), but be
+    // defensive against legacy/numeric values so a bad doc can't crash the sort.
+    out.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     return out.slice(0, limit);
   } catch (err) {
     console.error("getFriendsFeed failed:", err);
@@ -637,7 +639,18 @@ exports.devSeedSocial = onCall({region: "us-central1"}, async (request) => {
   // A few well-known TMDB movie ids for sample activity.
   const movieIds = ["27205", "157336", "155", "603", "24428", "299536"];
 
+  const friendUids = friends.map((f) => f.uid);
+
   const batch = db.batch();
+
+  // Idempotency: purge any prior seeded activities for these demo friends so
+  // re-seeding doesn't pile up duplicates and so legacy docs (e.g. numeric
+  // createdAt from older seeder versions) are removed. Real users are untouched.
+  const priorActivities = await db.collection("socialActivities")
+      .where("actorUid", "in", friendUids)
+      .get();
+  priorActivities.forEach((doc) => batch.delete(doc.ref));
+
   for (const f of friends) {
     batch.set(
         db.collection("users").doc(f.uid),
@@ -665,14 +678,18 @@ exports.devSeedSocial = onCall({region: "us-central1"}, async (request) => {
   let i = 0;
   for (const f of friends) {
     for (const mid of movieIds) {
-      batch.set(db.collection("socialActivities").doc(), {
+      const ref = db.collection("socialActivities").doc();
+      batch.set(ref, {
+        id: ref.id,
         actorUid: f.uid,
         actorDisplayName: f.displayName,
         itemType: "movie",
         itemId: mid,
         activityType: "liked",
         visibility: "public",
-        createdAt: now - (i++ * 60000),
+        // Must be an ISO string to match recordSocialActivity/nowIso(): getFriendsFeed
+        // sorts with String.localeCompare, which throws on a numeric createdAt.
+        createdAt: new Date(now - (i++ * 60000)).toISOString(),
       });
     }
   }
