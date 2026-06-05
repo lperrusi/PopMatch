@@ -634,13 +634,9 @@ class AuthService {
       // Update display name
       await firebaseUser.updateDisplayName(displayName);
 
-      // Generate and send verification code (instead of Firebase verification link)
-      try {
-        await sendVerificationCodeEmail(email);
-      } catch (e) {
-        // Log but don't fail sign-up if verification code email fails
-        debugPrint('Failed to send verification code email: $e');
-      }
+      // NOTE: the verification code is dispatched by EmailVerificationScreen on
+      // entry (so delivery success/failure is shown to the user) — not here,
+      // which previously swallowed send errors and masked delivery problems.
 
       // Convert Firebase user to our User model
       final user = User(

@@ -4,10 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/auth_error_handler.dart';
+import '../../utils/auth_validators.dart';
 import '../../utils/l10n_extension.dart';
+import '../../widgets/auth/auth_widgets.dart';
+import '../../widgets/auth/auth_code_input.dart';
 import 'login_screen.dart';
 
-/// Forgot password screen (Figma): back, popcorn, title, email input, Send Reset Link / success state
+enum _ResetStep { email, code, done }
+
+/// Forgot-password flow using the same 6-digit code UX as sign-up:
+/// (1) enter email → emailed a code; (2) enter code + new password →
+/// server verifies and updates the password; (3) success → back to sign in.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -17,262 +24,186 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _codeKey = GlobalKey<AuthCodeInputState>();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
+
+  _ResetStep _step = _ResetStep.email;
+  String _code = '';
   bool _isLoading = false;
-  bool _emailSent = false;
 
   @override
   void dispose() {
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSendResetEmail() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isLoading = true;
-      _emailSent = false;
-    });
+  void _snack(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating));
+  }
+
+  void _backToLogin() => Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()));
+
+  Future<void> _sendCode() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _isLoading = true);
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.sendPasswordResetEmail(_emailController.text.trim());
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _emailSent = true;
-        });
-      }
+      await context
+          .read<AuthProvider>()
+          .sendPasswordResetCode(_emailController.text.trim());
+      if (!mounted) return;
+      // Backend never reveals whether the account exists — always advance.
+      setState(() => _step = _ResetStep.code);
+      _snack('If that email has an account, a code is on its way.',
+          AppTheme.popcornGold);
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              authProvider.error ?? AuthErrorHandler.getErrorMessage(e),
-              style: const TextStyle(color: AppTheme.authCream),
-            ),
-            backgroundColor: AppTheme.authBackground,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _snack(AuthErrorHandler.getErrorMessage(e), AppTheme.brickRed);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _navigateToLogin() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+  Future<void> _resend() async {
+    _codeKey.currentState?.clear();
+    await context
+        .read<AuthProvider>()
+        .sendPasswordResetCode(_emailController.text.trim());
+  }
+
+  Future<void> _confirm() async {
+    if (AuthValidators.code(_code) != null) {
+      _snack('Enter the 6-digit code.', AppTheme.brickRed);
+      return;
+    }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _isLoading = true);
+    try {
+      await context.read<AuthProvider>().confirmPasswordResetWithCode(
+            email: _emailController.text.trim(),
+            code: _code,
+            newPassword: _passwordController.text,
+          );
+      if (!mounted) return;
+      setState(() => _step = _ResetStep.done);
+    } catch (e) {
+      _snack(AuthErrorHandler.getErrorMessage(e), AppTheme.brickRed);
+      _codeKey.currentState?.clear();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/screens/figma/background_auth.png',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(color: AppTheme.authBackground),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    onPressed: _navigateToLogin,
-                    icon: const Icon(Icons.chevron_left, size: 28),
-                    color: AppTheme.authCream,
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          Image.asset(
-                            'assets/screens/figma/popcorn.png',
-                            width: 128,
-                            height: 128,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(
-                                Icons.movie_rounded,
-                                size: 80,
-                                color: AppTheme.authCream),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            _emailSent
-                                ? l10n.checkEmailTitle
-                                : l10n.forgotPasswordTitle,
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 36,
-                              color: AppTheme.authCream,
-                              letterSpacing: 0.05,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _emailSent
-                                ? l10n.checkEmailSubtitle(_emailController.text.trim())
-                                : l10n.forgotPasswordSubtitle,
-                            style: GoogleFonts.lato(
-                                color: AppTheme.authCreamMuted, fontSize: 16),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 32),
-                          if (!_emailSent) ...[
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppTheme.authInputBg,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppTheme.authBorder),
-                              ),
-                              child: TextFormField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                style:
-                                    GoogleFonts.lato(color: AppTheme.authCream),
-                                decoration: InputDecoration(
-                                  hintText: l10n.emailHint,
-                                  hintStyle: GoogleFonts.lato(
-                                      color: AppTheme.authCream
-                                          .withValues(alpha: 0.4)),
-                                  prefixIcon: Icon(Icons.mail_outline,
-                                      color: AppTheme.authCream
-                                          .withValues(alpha: 0.6),
-                                      size: 20),
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 14),
-                                ),
-                                validator: (v) {
-                                  if (v == null || v.isEmpty) {
-                                    return l10n.emailErrorEmpty;
-                                  }
-                                  if (!RegExp(
-                                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                      .hasMatch(v)) {
-                                    return l10n.emailErrorInvalid;
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton(
-                                onPressed:
-                                    _isLoading ? null : _handleSendResetEmail,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.authRed,
-                                  foregroundColor: AppTheme.authCream,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  disabledBackgroundColor:
-                                      AppTheme.authRed.withValues(alpha: 0.5),
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                    AppTheme.authCream)),
-                                      )
-                                    : Text(l10n.sendResetLinkButton,
-                                        style: GoogleFonts.bebasNeue(
-                                            fontSize: 18, letterSpacing: 0.05)),
-                              ),
-                            ),
-                          ] else ...[
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppTheme.authInputBg,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: AppTheme.authRed
-                                        .withValues(alpha: 0.4)),
-                              ),
-                              child: Text(
-                                l10n.resetEmailNotReceivedMessage,
-                                style: GoogleFonts.lato(
-                                    color: AppTheme.authCream, fontSize: 14),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: OutlinedButton(
-                                onPressed: () =>
-                                    setState(() => _emailSent = false),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: AppTheme.authRed, width: 2),
-                                  foregroundColor: AppTheme.authCream,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                                child: Text(l10n.resendEmailButton,
-                                    style: GoogleFonts.bebasNeue(
-                                        fontSize: 18, letterSpacing: 0.05)),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            TextButton(
-                              onPressed: _navigateToLogin,
-                              child: Text(l10n.backToLoginButton,
-                                  style: GoogleFonts.lato(
-                                      color: AppTheme.authRed)),
-                            ),
-                          ],
-                          if (!_emailSent) ...[
-                            const SizedBox(height: 32),
-                            TextButton(
-                              onPressed: _navigateToLogin,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(l10n.rememberPasswordPrompt,
-                                      style: GoogleFonts.lato(
-                                          color: AppTheme.authCream
-                                              .withValues(alpha: 0.6),
-                                          fontSize: 14)),
-                                  Text(l10n.signInLinkText,
-                                      style: GoogleFonts.lato(
-                                          color: AppTheme.authRed,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+    final (title, subtitle) = switch (_step) {
+      _ResetStep.email => (l10n.forgotPasswordTitle, l10n.forgotPasswordSubtitle),
+      _ResetStep.code => ('Enter code', 'We sent a 6-digit code to '
+          '${_emailController.text.trim()}'),
+      _ResetStep.done => ('Password reset', 'Your password has been updated.'),
+    };
+    return Form(
+      key: _formKey,
+      child: AuthScaffold(
+        title: title,
+        subtitle: subtitle,
+        onBack: _backToLogin,
+        children: switch (_step) {
+          _ResetStep.email => _emailStep(l10n),
+          _ResetStep.code => _codeStep(l10n),
+          _ResetStep.done => _doneStep(),
+        },
       ),
     );
+  }
+
+  List<Widget> _emailStep(dynamic l10n) {
+    return [
+      AuthTextField(
+        controller: _emailController,
+        hint: l10n.emailHint,
+        icon: Icons.mail_outline,
+        keyboardType: TextInputType.emailAddress,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _sendCode(),
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return l10n.emailErrorEmpty;
+          if (!RegExp(r'^[\w.+-]+@([\w-]+\.)+[\w-]{2,}$').hasMatch(v.trim())) {
+            return l10n.emailErrorInvalid;
+          }
+          return null;
+        },
+      ),
+      const SizedBox(height: 24),
+      AuthPrimaryButton(
+        label: 'Send code',
+        isLoading: _isLoading,
+        onPressed: _sendCode,
+      ),
+      const SizedBox(height: 16),
+      Center(
+        child: TextButton(
+          onPressed: _backToLogin,
+          child: Text(l10n.backToLoginButton,
+              style: GoogleFonts.lato(color: AppTheme.popcornGold)),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _codeStep(dynamic l10n) {
+    return [
+      AuthCodeInput(
+        key: _codeKey,
+        onChanged: (c) => setState(() => _code = c),
+      ),
+      const SizedBox(height: 20),
+      AuthPasswordField(
+        controller: _passwordController,
+        hint: 'New password',
+        showStrength: true,
+        validator: AuthValidators.password,
+      ),
+      const SizedBox(height: 16),
+      AuthPasswordField(
+        controller: _confirmController,
+        hint: 'Confirm new password',
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _confirm(),
+        validator: (v) =>
+            AuthValidators.confirmPassword(v, _passwordController.text),
+      ),
+      const SizedBox(height: 24),
+      AuthPrimaryButton(
+        label: 'Reset password',
+        isLoading: _isLoading,
+        onPressed: _confirm,
+      ),
+      const SizedBox(height: 8),
+      Center(
+        child: ResendCooldownButton(onResend: _resend),
+      ),
+    ];
+  }
+
+  List<Widget> _doneStep() {
+    return [
+      const Icon(Icons.check_circle_rounded,
+          color: AppTheme.popcornGold, size: 64),
+      const SizedBox(height: 24),
+      AuthPrimaryButton(
+        label: 'Back to sign in',
+        isLoading: false,
+        onPressed: _backToLogin,
+      ),
+    ];
   }
 }
