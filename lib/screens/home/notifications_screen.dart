@@ -6,6 +6,8 @@ import '../../utils/theme.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../services/feature_flags.dart';
+import '../../services/notification_service.dart';
+import '../../providers/social_provider.dart';
 import 'social_hub_screen.dart';
 
 /// Notifications settings screen - toggles stored in user preferences
@@ -105,6 +107,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     onChanged: (v) {
                       setState(() => _pushEnabled = v);
                       _save('notificationsPush', v);
+                      // Reflect the choice in the live social listeners and
+                      // prompt for the OS permission when enabling.
+                      context
+                          .read<SocialProvider>()
+                          .setNotificationsEnabled(v);
+                      if (v) NotificationService.instance.requestPermissions();
                     },
                   ),
                   const Divider(height: 1),

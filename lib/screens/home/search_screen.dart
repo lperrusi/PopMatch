@@ -15,6 +15,7 @@ import '../../services/tmdb_service.dart';
 import '../../services/search_service.dart';
 import '../../services/movie_cache_service.dart';
 import 'movie_detail_screen.dart';
+import 'friend_profile_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -748,6 +749,7 @@ class _SearchScreenState extends State<SearchScreen>
               final req = social.incomingRequests[index];
               return _IncomingRequestCard(
                 followerUid: req.followerUid,
+                displayName: social.nameFor(req.followerUid),
                 onAccept: () => context
                     .read<SocialProvider>()
                     .respondToFollowRequest(
@@ -1258,8 +1260,19 @@ class _UserResultCard extends StatelessWidget {
     final followStatus = user['followStatus'] as String? ?? 'notFollowing';
     final isPending = followStatus == 'pending';
     final isFollowing = followStatus == 'accepted';
+    final uid = user['uid']?.toString() ?? '';
 
-    return Container(
+    return GestureDetector(
+      onTap: uid.isEmpty
+          ? null
+          : () => Navigator.of(context).push(
+                NavigationUtils.fastSlideRoute(FriendProfileScreen(
+                  uid: uid,
+                  displayName: displayName,
+                  photoURL: photoURL,
+                )),
+              ),
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -1333,23 +1346,29 @@ class _UserResultCard extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 }
 
 class _IncomingRequestCard extends StatelessWidget {
   final String followerUid;
+  final String? displayName;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
 
   const _IncomingRequestCard({
     required this.followerUid,
+    this.displayName,
     required this.onAccept,
     required this.onDecline,
   });
 
   @override
   Widget build(BuildContext context) {
+    final name = (displayName?.trim().isNotEmpty ?? false)
+        ? displayName!.trim()
+        : 'User ${followerUid.length > 6 ? followerUid.substring(0, 6) : followerUid}';
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1372,14 +1391,16 @@ class _IncomingRequestCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Follow request',
+                  name,
                   style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack,
                       fontWeight: FontWeight.bold,
                       fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  followerUid,
+                  'wants to follow you',
                   style: GoogleFonts.lato(
                       color: AppTheme.filmStripBlack.withValues(alpha: 0.45),
                       fontSize: 11),
