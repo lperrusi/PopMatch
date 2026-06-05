@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:popmatch/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:popmatch/main.dart';
@@ -40,6 +41,8 @@ void main() {
           (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             theme: ThemeData.dark(),
             home: const TutorialScreen(),
           ),
@@ -62,6 +65,8 @@ void main() {
           (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             theme: ThemeData.dark(),
             home: const TutorialScreen(),
           ),
@@ -118,6 +123,8 @@ void main() {
           (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             theme: ThemeData.dark(),
             home: _wrapWithProviders(const LoginScreen()),
           ),
@@ -229,6 +236,8 @@ Widget _wrapWithProviders(Widget child) {
       ChangeNotifierProvider(create: (_) => StreamingProvider()),
     ],
     child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData.dark(),
       home: child,
     ),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:popmatch/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:popmatch/providers/auth_provider.dart';
@@ -30,6 +31,8 @@ void main() {
 
         await tester.pumpWidget(
           const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: EmailVerificationScreen(email: testEmail),
           ),
         );
@@ -46,6 +49,8 @@ void main() {
 
         await tester.pumpWidget(
           const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: EmailVerificationScreen(email: testEmail),
           ),
         );
@@ -58,6 +63,8 @@ void main() {
 
         await tester.pumpWidget(
           const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: EmailVerificationScreen(email: testEmail),
           ),
         );
@@ -71,6 +78,8 @@ void main() {
 
         await tester.pumpWidget(
           const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: EmailVerificationScreen(email: testEmail),
           ),
         );
@@ -91,6 +100,8 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: Provider<AuthProvider>(
               create: (_) => AuthProvider(),
               child: const EmailVerificationScreen(email: testEmail),
@@ -126,6 +137,8 @@ void main() {
 
         await tester.pumpWidget(
           const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: EmailVerificationScreen(email: testEmail),
           ),
         );
@@ -157,6 +170,8 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: Provider<AuthProvider>(
               create: (_) => AuthProvider(),
               child: const EmailVerificationScreen(email: testEmail),
@@ -180,6 +195,8 @@ void main() {
 
         await tester.pumpWidget(
           const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: EmailVerificationScreen(email: testEmail),
           ),
         );
@@ -205,6 +222,8 @@ void main() {
         // Act
         await tester.pumpWidget(
           const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             home: EmailVerificationScreen(email: testEmail),
           ),
         );

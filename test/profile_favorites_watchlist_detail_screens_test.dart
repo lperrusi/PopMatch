@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:popmatch/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:popmatch/models/user.dart';
@@ -10,6 +11,7 @@ import 'package:popmatch/providers/movie_provider.dart';
 import 'package:popmatch/providers/show_provider.dart';
 import 'package:popmatch/providers/recommendations_provider.dart';
 import 'package:popmatch/providers/streaming_provider.dart';
+import 'package:popmatch/providers/social_provider.dart';
 import 'package:popmatch/screens/home/profile_screen.dart';
 import 'package:popmatch/screens/home/favorites_screen.dart';
 import 'package:popmatch/screens/home/watchlist_screen.dart';
@@ -17,6 +19,8 @@ import 'package:popmatch/screens/home/movie_detail_screen.dart';
 import 'package:popmatch/screens/home/show_detail_screen.dart';
 import 'package:popmatch/services/tmdb_service.dart';
 import 'package:popmatch/services/firebase_config.dart';
+import 'package:popmatch/services/movie_cache_service.dart';
+import 'package:popmatch/widgets/detail/detail_color_extraction.dart';
 
 /// Full round of widget tests for Profile, Favorites, Watchlist, Movie detail, and Show detail screens.
 /// Covers UI and features: app bars, tabs, empty/loading states, actions, navigation.
@@ -29,11 +33,15 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     TMDBService.setTestMode(true);
     FirebaseConfig.setTestMode(true);
+    // Detail screens gate their reveal on poster-colour extraction, which can't
+    // resolve against a real image in tests — skip it so they reach "ready".
+    DetailColorExtractionMixin.disableForTest = true;
   });
 
   tearDownAll(() {
     TMDBService.setTestMode(false);
     FirebaseConfig.setTestMode(false);
+    DetailColorExtractionMixin.disableForTest = false;
   });
 
   setUp(() {
@@ -50,8 +58,11 @@ void main() {
         ChangeNotifierProvider(create: (_) => ShowProvider()),
         ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
         ChangeNotifierProvider(create: (_) => StreamingProvider()),
+        ChangeNotifierProvider(create: (_) => SocialProvider()),
       ],
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData.dark(),
         home: child,
       ),
@@ -366,6 +377,7 @@ void main() {
         voteAverage: 8.5,
         releaseDate: '2023-01-01',
       );
+      MovieCacheService.instance.cacheMovieForTest(movie.id, movie);
       await t.pumpWidget(wrap(MovieDetailScreen(movie: movie)));
       await t.pump();
       await t.pump(const Duration(milliseconds: 400));
@@ -383,6 +395,7 @@ void main() {
         posterPath: '/p.jpg',
         releaseDate: '2023-01-01',
       );
+      MovieCacheService.instance.cacheMovieForTest(movie.id, movie);
       await t.pumpWidget(wrap(MovieDetailScreen(movie: movie)));
       await t.pump();
       await t.pump(const Duration(milliseconds: 800));
@@ -400,6 +413,7 @@ void main() {
         posterPath: '/p.jpg',
         releaseDate: '2023-01-01',
       );
+      MovieCacheService.instance.cacheMovieForTest(movie.id, movie);
       await t.pumpWidget(wrap(MovieDetailScreen(movie: movie)));
       await t.pump();
       await t.pump(const Duration(milliseconds: 100));
@@ -417,6 +431,7 @@ void main() {
         overview: 'Overview',
         numberOfSeasons: 2,
       );
+      MovieCacheService.instance.cacheShowForTest(show.id, show);
       await t.pumpWidget(wrap(ShowDetailScreen(show: show)));
       await t.pump();
       await t.pump(const Duration(milliseconds: 400));
@@ -431,6 +446,7 @@ void main() {
     testWidgets('shows Watchlist, Like, Dislike, Share action row', (t) async {
       await t.binding.setSurfaceSize(const Size(800, 900));
       final show = TvShow(id: 1, name: 'Test Show', overview: 'Overview');
+      MovieCacheService.instance.cacheShowForTest(show.id, show);
       await t.pumpWidget(wrap(ShowDetailScreen(show: show)));
       await t.pump();
       await t.pump(const Duration(milliseconds: 800));
@@ -448,6 +464,7 @@ void main() {
         overview: 'Overview',
         numberOfSeasons: 2,
       );
+      MovieCacheService.instance.cacheShowForTest(show.id, show);
       await t.pumpWidget(wrap(ShowDetailScreen(show: show)));
       await t.pump();
       await t.pump(const Duration(milliseconds: 800));

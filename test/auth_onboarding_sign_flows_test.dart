@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:popmatch/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:popmatch/main.dart';
@@ -51,6 +52,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => StreamingProvider()),
       ],
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData.dark(),
         home: child,
       ),
@@ -76,14 +79,18 @@ void main() {
 
   group('Tutorial (intro onboarding)', () {
     testWidgets('page 1: SWIPE TO MATCH and description', (t) async {
-      await t.pumpWidget(MaterialApp(theme: ThemeData.dark(), home: const TutorialScreen()));
+      await t.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,theme: ThemeData.dark(), home: const TutorialScreen()));
       await t.pumpAndSettle();
       expect(find.text('SWIPE TO MATCH'), findsOneWidget);
       expect(find.textContaining('Swipe right to like'), findsOneWidget);
     });
 
     testWidgets('page 2: AI Powered Picks after tapping Next', (t) async {
-      await t.pumpWidget(MaterialApp(theme: ThemeData.dark(), home: const TutorialScreen()));
+      await t.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,theme: ThemeData.dark(), home: const TutorialScreen()));
       await t.pumpAndSettle();
       await t.tap(find.byIcon(Icons.chevron_right));
       await t.pumpAndSettle();
@@ -91,7 +98,9 @@ void main() {
     });
 
     testWidgets('page 3: Curate Your Watchlist and Get Started', (t) async {
-      await t.pumpWidget(MaterialApp(theme: ThemeData.dark(), home: const TutorialScreen()));
+      await t.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,theme: ThemeData.dark(), home: const TutorialScreen()));
       await t.pumpAndSettle();
       await t.tap(find.byIcon(Icons.chevron_right));
       await t.pumpAndSettle();
@@ -112,6 +121,8 @@ void main() {
             ChangeNotifierProvider(create: (_) => StreamingProvider()),
           ],
           child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
             theme: ThemeData.dark(),
             home: const TutorialScreen(),
           ),
@@ -167,6 +178,8 @@ void main() {
     testWidgets('Forgot Password link navigates to Forgot Password screen', (t) async {
       await t.pumpWidget(
         MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData.dark(),
           home: wrap(const LoginScreen()),
         ),

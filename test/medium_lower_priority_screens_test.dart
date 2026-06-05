@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:popmatch/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:popmatch/models/user.dart';
 import 'package:popmatch/models/movie.dart';
@@ -55,6 +56,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => StreamingProvider()),
       ],
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData.dark(),
         home: child,
       ),
@@ -383,6 +386,8 @@ void main() {
     testWidgets('shows HELP & SUPPORT title', (t) async {
       await t.pumpWidget(
         MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData.dark(),
           home: const HelpSupportScreen(),
         ),
@@ -395,6 +400,8 @@ void main() {
     testWidgets('shows Frequently asked questions and first FAQ', (t) async {
       await t.pumpWidget(
         MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData.dark(),
           home: const HelpSupportScreen(),
         ),
@@ -408,6 +415,8 @@ void main() {
     testWidgets('shows Contact us and Email support', (t) async {
       await t.pumpWidget(
         MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData.dark(),
           home: const HelpSupportScreen(),
         ),
@@ -422,6 +431,8 @@ void main() {
     testWidgets('tapping FAQ expands answer', (t) async {
       await t.pumpWidget(
         MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData.dark(),
           home: const HelpSupportScreen(),
         ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import 'user_preference_analyzer.dart';
@@ -22,6 +23,16 @@ class UserPreferencesSessionCache {
   /// yet this session. Synchronous read for UI (e.g. the "why" badge); callers
   /// must tolerate null (fall back to a less specific reason).
   UserPreferences? get cachedPreferences => _cached;
+
+  /// Clears the cache. Test-only — keeps this process-wide singleton from
+  /// leaking state across test files (see test/flutter_test_config.dart).
+  @visibleForTesting
+  void clear() {
+    _cached = null;
+    _cachedSig = null;
+    _inFlight = null;
+    _lastComputedAt = null;
+  }
 
   int _hashStringList(List<String> values) {
     var h = 0;
