@@ -2,6 +2,8 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineString, defineInt, defineSecret} = require("firebase-functions/params");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
+const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
 initializeApp();
@@ -64,6 +66,45 @@ const createEmailTransporter = () => {
   console.warn("⚠️ To enable email sending, configure Gmail or SMTP settings.");
   return null;
 };
+
+/**
+ * Builds a branded 6-digit-code email (HTML + text) for any purpose
+ * (verification, password reset). Mirrors the Retro Cinema palette.
+ * @param {string} code 6-digit code
+ * @param {{title: string, intro: string, expiryNote: string}} opts
+ * @return {{subject: string, html: string, text: string}}
+ */
+function buildCodeEmail(code, opts) {
+  const {title, intro, expiryNote} = opts;
+  const styles = [
+    "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI'," +
+      "Roboto,sans-serif;line-height:1.6;color:#333;max-width:600px;" +
+      "margin:0 auto;padding:20px;}",
+    ".container{background-color:#1a1a1a;color:#f7f3e8;padding:30px;" +
+      "border-radius:12px;border:2px solid #f6c344;}",
+    "h1{color:#f6c344;text-align:center;margin-bottom:30px;}",
+    ".code-box{background-color:#2e1403;border:2px solid #f6c344;" +
+      "border-radius:8px;padding:20px;text-align:center;margin:30px 0;}",
+    ".code{font-size:36px;font-weight:bold;color:#f6c344;" +
+      "letter-spacing:8px;font-family:monospace;}",
+    ".instructions{margin:20px 0;color:#f7f3e8;}",
+    ".footer{margin-top:30px;padding-top:20px;border-top:1px solid #f6c344;" +
+      "color:#f7f3e8;font-size:14px;text-align:center;}",
+  ].join("");
+  const html = `
+    <!DOCTYPE html><html><head><meta charset="utf-8"><style>${styles}</style>
+    </head><body>
+      <div class="container">
+        <h1>🎬 ${title}</h1>
+        <p class="instructions">${intro}</p>
+        <div class="code-box"><div class="code">${code}</div></div>
+        <p class="instructions" style="font-size:14px;opacity:0.8;">${expiryNote}</p>
+        <div class="footer"><p>🍿 PopMatch</p></div>
+      </div>
+    </body></html>`;
+  const text = `${title}\n\n${intro}\n\n${code}\n\n${expiryNote}\n\n🍿 PopMatch`;
+  return {subject: title, html, text};
+}
 
 /**
  * Cloud Function to send verification code via email
@@ -251,6 +292,157 @@ const db = getFirestore();
 function nowIso() {
   return new Date().toISOString();
 }
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Sends a 6-digit password-reset code by email. Stores only a hash of the code
+ * (server-side, never readable by clients) with a 15-minute expiry. Always
+ * returns success so callers can't probe which emails have accounts.
+ */
+exports.sendPasswordResetCode = onCall({
+  region: "us-central1",
+  maxInstances: 10,
+  secrets: [gmailAppPassword, smtpPassword],
+}, async (request) => {
+  const email = ((request.data && request.data.email) || "")
+      .toString().trim().toLowerCase();
+  if (!EMAIL_REGEX.test(email)) {
+    throw new HttpsError("invalid-argument", "A valid email is required.");
+  }
+
+  const ref = db.collection("passwordResetCodes").doc(email);
+
+  // Rate limit: one code per 60s.
+  const existing = await ref.get();
+  if (existing.exists) {
+    const createdAt = existing.data().createdAt;
+    if (createdAt &&
+        Date.now() - new Date(createdAt).getTime() < 60 * 1000) {
+      throw new HttpsError(
+          "resource-exhausted",
+          "Please wait a minute before requesting another code.");
+    }
+  }
+
+  // Only generate/email for real accounts — but never reveal which exist.
+  let userExists = true;
+  try {
+    await getAuth().getUserByEmail(email);
+  } catch (e) {
+    userExists = false;
+  }
+
+  if (userExists) {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+    await ref.set({
+      codeHash,
+      attempts: 0,
+      createdAt: nowIso(),
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    });
+
+    const transporter = createEmailTransporter();
+    if (transporter) {
+      const mail = buildCodeEmail(code, {
+        title: "Reset your PopMatch password",
+        intro: "We received a request to reset your password. Enter this code " +
+          "in the app to continue:",
+        expiryNote: "This code expires in 15 minutes. If you didn't request " +
+          "a reset, you can safely ignore this email.",
+      });
+      const fromEmail = gmailUser.value() || smtpUser.value() ||
+        process.env.GMAIL_USER || process.env.SMTP_USER ||
+        "noreply@popmatch.app";
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || `"PopMatch" <${fromEmail}>`,
+          to: email,
+          subject: mail.subject,
+          html: mail.html,
+          text: mail.text,
+        });
+        console.log(`✅ Password reset code emailed to ${email}`);
+      } catch (error) {
+        console.error("❌ Error emailing password reset code:", error);
+        throw new HttpsError("internal", "Failed to send reset code.",
+            error.message);
+      }
+    } else {
+      console.log(`📧 [DEV] Password reset code for ${email}: ${code}`);
+    }
+  }
+
+  return {
+    success: true,
+    message: "If an account exists for that email, a reset code has been sent.",
+  };
+});
+
+/**
+ * Verifies a password-reset code and, on success, sets the new password via the
+ * Admin SDK. Hardened: hash comparison, 15-min expiry, 5-attempt cap.
+ */
+exports.confirmPasswordResetWithCode = onCall({
+  region: "us-central1",
+  maxInstances: 10,
+}, async (request) => {
+  const email = ((request.data && request.data.email) || "")
+      .toString().trim().toLowerCase();
+  const code = ((request.data && request.data.code) || "").toString().trim();
+  const newPassword = ((request.data && request.data.newPassword) || "")
+      .toString();
+
+  if (!EMAIL_REGEX.test(email)) {
+    throw new HttpsError("invalid-argument", "A valid email is required.");
+  }
+  if (!/^\d{6}$/.test(code)) {
+    throw new HttpsError("invalid-argument", "Enter the 6-digit code.");
+  }
+  if (newPassword.length < 6) {
+    throw new HttpsError(
+        "invalid-argument", "Password must be at least 6 characters.");
+  }
+
+  const ref = db.collection("passwordResetCodes").doc(email);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new HttpsError(
+        "not-found", "No reset request found. Please request a new code.");
+  }
+  const data = snap.data() || {};
+
+  if (data.expiresAt && Date.now() > new Date(data.expiresAt).getTime()) {
+    await ref.delete();
+    throw new HttpsError(
+        "deadline-exceeded", "This code has expired. Request a new one.");
+  }
+  if ((data.attempts || 0) >= 5) {
+    await ref.delete();
+    throw new HttpsError(
+        "permission-denied", "Too many attempts. Request a new code.");
+  }
+
+  const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+  if (codeHash !== data.codeHash) {
+    await ref.update({attempts: (data.attempts || 0) + 1});
+    throw new HttpsError(
+        "invalid-argument", "Incorrect code. Please try again.");
+  }
+
+  let userRecord;
+  try {
+    userRecord = await getAuth().getUserByEmail(email);
+  } catch (e) {
+    await ref.delete();
+    throw new HttpsError("not-found", "Account not found.");
+  }
+  await getAuth().updateUser(userRecord.uid, {password: newPassword});
+  await ref.delete();
+
+  return {success: true, message: "Password updated. You can now sign in."};
+});
 
 /**
  * Loads a user's social privacy settings with defaults.

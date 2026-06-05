@@ -186,6 +186,48 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Requests a 6-digit password-reset code by email (code flow, like sign-up).
+  Future<void> sendPasswordResetCode(String email) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _authService.sendPasswordResetCode(email);
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = AuthErrorHandler.getErrorMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Verifies the reset code and sets the new password (server-side).
+  Future<void> confirmPasswordResetWithCode({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _authService.confirmPasswordResetWithCode(
+        email: email,
+        code: code,
+        newPassword: newPassword,
+      );
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = AuthErrorHandler.getErrorMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   /// Adds a movie to watchlist
   Future<void> addToWatchlist(String movieId) async {
     if (_userData == null) return;
