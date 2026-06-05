@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +15,7 @@ import '../../widgets/poster_list_skeleton.dart';
 import '../../services/movie_cache_service.dart';
 import '../../services/tmdb_service.dart';
 import '../../services/feature_flags.dart';
+import '../../services/social_service.dart';
 import '../auth/login_screen.dart';
 import 'edit_preferences_screen.dart';
 import 'notifications_screen.dart';
@@ -278,6 +280,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: Text(l10n.socialSubtitle),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => updateHomeScreenTab(1),
+                        ),
+                        const Divider(height: 1),
+                      ],
+                      if (kDebugMode) ...[
+                        ListTile(
+                          leading: Icon(Icons.science_rounded,
+                              color: Theme.of(context).colorScheme.onSurface),
+                          title: const Text('Seed social data (dev)'),
+                          subtitle: const Text(
+                              'Demo friends + activity · needs Firebase + DEV_SEED_ENABLED'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            try {
+                              await SocialService.instance.devSeedSocial();
+                              messenger.showSnackBar(const SnackBar(
+                                  content: Text('Seeded demo social data')));
+                            } catch (e) {
+                              messenger.showSnackBar(
+                                  SnackBar(content: Text('Seed failed: $e')));
+                            }
+                          },
                         ),
                         const Divider(height: 1),
                       ],

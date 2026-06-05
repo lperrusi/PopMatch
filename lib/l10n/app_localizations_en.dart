@@ -1441,6 +1441,27 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get listsTooltip => 'Your lists';
+
+  @override
+  String get addToListTitle => 'Add to List';
+
+  @override
+  String get listNameExists => 'A list with that name already exists.';
+
+  @override
+  String get noListsYet => 'No lists yet — create one below.';
+
+  @override
+  String get newListHint => 'New list name';
+
+  @override
+  String get tagsLabel => 'Tags';
+
+  @override
+  String get addTagHint => 'Add a tag';
+
+  @override
   String get forYouTitle => 'For You';
 
   @override

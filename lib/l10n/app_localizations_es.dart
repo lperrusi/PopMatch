@@ -1466,6 +1466,27 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get listsTooltip => 'Tus listas';
+
+  @override
+  String get addToListTitle => 'Añadir a lista';
+
+  @override
+  String get listNameExists => 'Ya existe una lista con ese nombre.';
+
+  @override
+  String get noListsYet => 'Aún no hay listas: crea una abajo.';
+
+  @override
+  String get newListHint => 'Nombre de la nueva lista';
+
+  @override
+  String get tagsLabel => 'Etiquetas';
+
+  @override
+  String get addTagHint => 'Añadir etiqueta';
+
+  @override
   String get forYouTitle => 'Para Ti';
 
   @override

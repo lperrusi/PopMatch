@@ -2686,6 +2686,48 @@ abstract class AppLocalizations {
   /// **'Failed to export data: {error}'**
   String failedToExportSnackbar(String error);
 
+  /// No description provided for @listsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Your lists'**
+  String get listsTooltip;
+
+  /// No description provided for @addToListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to List'**
+  String get addToListTitle;
+
+  /// No description provided for @listNameExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A list with that name already exists.'**
+  String get listNameExists;
+
+  /// No description provided for @noListsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No lists yet — create one below.'**
+  String get noListsYet;
+
+  /// No description provided for @newListHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New list name'**
+  String get newListHint;
+
+  /// No description provided for @tagsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get tagsLabel;
+
+  /// No description provided for @addTagHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a tag'**
+  String get addTagHint;
+
   /// No description provided for @forYouTitle.
   ///
   /// In en, this message translates to:

@@ -495,7 +495,9 @@ exports.getFriendsFeed = onCall({region: "us-central1"}, async (request) => {
       }
     }
 
-    out.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    // Coerce to string: createdAt is normally an ISO string (nowIso), but be
+    // defensive against legacy/numeric values so a bad doc can't crash the sort.
+    out.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     return out.slice(0, limit);
   } catch (err) {
     console.error("getFriendsFeed failed:", err);
@@ -604,4 +606,94 @@ exports.getSuggestedUsers = onCall({region: "us-central1"}, async (request) => {
     console.error("getSuggestedUsers failed:", err);
     throw new HttpsError("internal", "Could not load suggested users.");
   }
+});
+
+// Dev-only seeding flag. Set with: firebase functions:config / .env →
+// DEV_SEED_ENABLED=true. Leave unset/false in production.
+const devSeedEnabled = defineString("DEV_SEED_ENABLED", {default: "false"});
+
+/**
+ * DEV ONLY — seeds demo friends + accepted follows + sample "liked" activities
+ * for the caller, so the friends feed / "Friends Are Watching" rail can be
+ * tested without recruiting real users. Disabled unless DEV_SEED_ENABLED=true.
+ * Remove or keep disabled in production.
+ */
+exports.devSeedSocial = onCall({region: "us-central1"}, async (request) => {
+  if (devSeedEnabled.value() !== "true") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Dev seeding is disabled. Set DEV_SEED_ENABLED=true to enable.",
+    );
+  }
+  const uid = request.auth && request.auth.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in first.");
+  }
+
+  const db = getFirestore();
+  const now = Date.now();
+  const friends = [
+    {uid: "seed_ava", displayName: "Ava (demo)"},
+    {uid: "seed_liam", displayName: "Liam (demo)"},
+  ];
+  // A few well-known TMDB movie ids for sample activity.
+  const movieIds = ["27205", "157336", "155", "603", "24428", "299536"];
+
+  const friendUids = friends.map((f) => f.uid);
+
+  const batch = db.batch();
+
+  // Idempotency: purge any prior seeded activities for these demo friends so
+  // re-seeding doesn't pile up duplicates and so legacy docs (e.g. numeric
+  // createdAt from older seeder versions) are removed. Real users are untouched.
+  const priorActivities = await db.collection("socialActivities")
+      .where("actorUid", "in", friendUids)
+      .get();
+  priorActivities.forEach((doc) => batch.delete(doc.ref));
+
+  for (const f of friends) {
+    batch.set(
+        db.collection("users").doc(f.uid),
+        {
+          // searchUsers filters out docs without a `uid` field, so seeded
+          // demo users must include it to be searchable (matches ensureUserProfile).
+          uid: f.uid,
+          displayName: f.displayName,
+          email: `${f.uid}@demo.popmatch`,
+          createdAt: now,
+        },
+        {merge: true},
+    );
+    // The viewer follows the demo friend (accepted), so the friend's activity
+    // shows up in the viewer's feed.
+    batch.set(db.collection("followEdges").doc(`${uid}_${f.uid}`), {
+      followerUid: uid,
+      followeeUid: f.uid,
+      status: "accepted",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  let i = 0;
+  for (const f of friends) {
+    for (const mid of movieIds) {
+      const ref = db.collection("socialActivities").doc();
+      batch.set(ref, {
+        id: ref.id,
+        actorUid: f.uid,
+        actorDisplayName: f.displayName,
+        itemType: "movie",
+        itemId: mid,
+        activityType: "liked",
+        visibility: "public",
+        // Must be an ISO string to match recordSocialActivity/nowIso(): getFriendsFeed
+        // sorts with String.localeCompare, which throws on a numeric createdAt.
+        createdAt: new Date(now - (i++ * 60000)).toISOString(),
+      });
+    }
+  }
+
+  await batch.commit();
+  return {seededFriends: friends.length, activities: friends.length * movieIds.length};
 });
