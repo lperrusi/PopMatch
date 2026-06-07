@@ -1506,4 +1506,57 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get premiumDevEnable => 'Ativar Premium (dev)';
+
+  @override
+  String get signInFailedError => 'Falha ao entrar. Tente novamente.';
+
+  @override
+  String get resetEnterCodeTitle => 'DIGITE O CÓDIGO';
+
+  @override
+  String resetCodeSentTo(String email) {
+    return 'Enviamos um código de 6 dígitos para $email';
+  }
+
+  @override
+  String get resetDoneTitle => 'SENHA REDEFINIDA';
+
+  @override
+  String get resetDoneSubtitle => 'Sua senha foi atualizada.';
+
+  @override
+  String get resetCodeOnItsWay =>
+      'Se existir uma conta com esse e-mail, o código está a caminho.';
+
+  @override
+  String get resetEnterCodeError => 'Digite o código de 6 dígitos.';
+
+  @override
+  String get sendCodeButton => 'Enviar código';
+
+  @override
+  String get newPasswordHint => 'Nova senha';
+
+  @override
+  String get confirmNewPasswordHint => 'Confirmar nova senha';
+
+  @override
+  String get resetPasswordButton => 'Redefinir senha';
+
+  @override
+  String get backToSignInButton => 'Voltar para entrar';
+
+  @override
+  String resendCodeInSeconds(int seconds) {
+    return 'Reenviar código em ${seconds}s';
+  }
+
+  @override
+  String get passwordStrengthWeak => 'Fraca';
+
+  @override
+  String get passwordStrengthFair => 'Razoável';
+
+  @override
+  String get passwordStrengthStrong => 'Forte';
 }

@@ -62,8 +62,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (!mounted) return;
       // Backend never reveals whether the account exists — always advance.
       setState(() => _step = _ResetStep.code);
-      _snack('If that email has an account, a code is on its way.',
-          AppTheme.popcornGold);
+      _snack(context.l10n.resetCodeOnItsWay, AppTheme.popcornGold);
     } catch (e) {
       _snack(AuthErrorHandler.getErrorMessage(e), AppTheme.brickRed);
     } finally {
@@ -80,7 +79,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _confirm() async {
     if (AuthValidators.code(_code) != null) {
-      _snack('Enter the 6-digit code.', AppTheme.brickRed);
+      _snack(context.l10n.resetEnterCodeError, AppTheme.brickRed);
       return;
     }
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -106,9 +105,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final l10n = context.l10n;
     final (title, subtitle) = switch (_step) {
       _ResetStep.email => (l10n.forgotPasswordTitle, l10n.forgotPasswordSubtitle),
-      _ResetStep.code => ('Enter code', 'We sent a 6-digit code to '
-          '${_emailController.text.trim()}'),
-      _ResetStep.done => ('Password reset', 'Your password has been updated.'),
+      _ResetStep.code => (
+          l10n.resetEnterCodeTitle,
+          l10n.resetCodeSentTo(_emailController.text.trim())
+        ),
+      _ResetStep.done => (l10n.resetDoneTitle, l10n.resetDoneSubtitle),
     };
     return Form(
       key: _formKey,
@@ -144,7 +145,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       const SizedBox(height: 24),
       AuthPrimaryButton(
-        label: 'Send code',
+        label: l10n.sendCodeButton,
         isLoading: _isLoading,
         onPressed: _sendCode,
       ),
@@ -168,14 +169,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       const SizedBox(height: 20),
       AuthPasswordField(
         controller: _passwordController,
-        hint: 'New password',
+        hint: l10n.newPasswordHint,
         showStrength: true,
         validator: AuthValidators.password,
       ),
       const SizedBox(height: 16),
       AuthPasswordField(
         controller: _confirmController,
-        hint: 'Confirm new password',
+        hint: l10n.confirmNewPasswordHint,
         textInputAction: TextInputAction.done,
         onSubmitted: (_) => _confirm(),
         validator: (v) =>
@@ -183,7 +184,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       const SizedBox(height: 24),
       AuthPrimaryButton(
-        label: 'Reset password',
+        label: l10n.resetPasswordButton,
         isLoading: _isLoading,
         onPressed: _confirm,
       ),
@@ -200,7 +201,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           color: AppTheme.popcornGold, size: 64),
       const SizedBox(height: 24),
       AuthPrimaryButton(
-        label: 'Back to sign in',
+        label: context.l10n.backToSignInButton,
         isLoading: false,
         onPressed: _backToLogin,
       ),

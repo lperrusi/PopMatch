@@ -68,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (authProvider.userData != null) {
         _routeAfterAuth(authProvider);
       } else {
-        _showError(authProvider.error ?? 'Sign-in failed. Please try again.');
+        _showError(authProvider.error ?? context.l10n.signInFailedError);
       }
     } catch (e) {
       _showError(AuthErrorHandler.getErrorMessage(e));

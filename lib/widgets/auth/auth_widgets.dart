@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../utils/theme.dart';
 import '../../utils/auth_validators.dart';
+import '../../utils/l10n_extension.dart';
 
 /// Shared chrome for every auth screen: background, optional back button,
 /// popcorn logo, title + subtitle, and a scrollable form body.
@@ -218,10 +219,13 @@ class PasswordStrengthMeter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final strength = estimatePasswordStrength(password);
-    final (fraction, color) = switch (strength) {
-      PasswordStrength.weak => (0.33, AppTheme.authRed),
-      PasswordStrength.fair => (0.66, AppTheme.popcornGold),
-      PasswordStrength.strong => (1.0, const Color(0xFF6FBF73)),
+    final l10n = context.l10n;
+    final (fraction, color, label) = switch (strength) {
+      PasswordStrength.weak => (0.33, AppTheme.authRed, l10n.passwordStrengthWeak),
+      PasswordStrength.fair =>
+        (0.66, AppTheme.popcornGold, l10n.passwordStrengthFair),
+      PasswordStrength.strong =>
+        (1.0, const Color(0xFF6FBF73), l10n.passwordStrengthStrong),
     };
     return Row(
       children: [
@@ -237,8 +241,7 @@ class PasswordStrengthMeter extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        Text(strength.label,
-            style: GoogleFonts.lato(color: color, fontSize: 12)),
+        Text(label, style: GoogleFonts.lato(color: color, fontSize: 12)),
       ],
     );
   }
@@ -348,7 +351,9 @@ class _ResendCooldownButtonState extends State<ResendCooldownButton> {
     return TextButton(
       onPressed: canResend ? _handle : null,
       child: Text(
-        _remaining > 0 ? 'Resend code in ${_remaining}s' : 'Resend code',
+        _remaining > 0
+            ? context.l10n.resendCodeInSeconds(_remaining)
+            : context.l10n.resendCodeButton,
         style: GoogleFonts.lato(
           color: canResend
               ? AppTheme.popcornGold

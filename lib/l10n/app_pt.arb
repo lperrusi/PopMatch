@@ -506,5 +506,21 @@
   "premiumPerkForYou": "Recomenda\u00e7\u00f5es \u201cPara Voc\u00ea\u201d personalizadas",
   "premiumUpgradeCta": "Assinar Premium",
   "premiumComingSoon": "As assinaturas chegar\u00e3o em breve.",
-  "premiumDevEnable": "Ativar Premium (dev)"
+  "premiumDevEnable": "Ativar Premium (dev)",
+  "signInFailedError": "Falha ao entrar. Tente novamente.",
+  "resetEnterCodeTitle": "DIGITE O CÓDIGO",
+  "resetCodeSentTo": "Enviamos um código de 6 dígitos para {email}",
+  "resetDoneTitle": "SENHA REDEFINIDA",
+  "resetDoneSubtitle": "Sua senha foi atualizada.",
+  "resetCodeOnItsWay": "Se existir uma conta com esse e-mail, o código está a caminho.",
+  "resetEnterCodeError": "Digite o código de 6 dígitos.",
+  "sendCodeButton": "Enviar código",
+  "newPasswordHint": "Nova senha",
+  "confirmNewPasswordHint": "Confirmar nova senha",
+  "resetPasswordButton": "Redefinir senha",
+  "backToSignInButton": "Voltar para entrar",
+  "resendCodeInSeconds": "Reenviar código em {seconds}s",
+  "passwordStrengthWeak": "Fraca",
+  "passwordStrengthFair": "Razoável",
+  "passwordStrengthStrong": "Forte"
 }
