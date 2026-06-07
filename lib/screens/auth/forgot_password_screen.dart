@@ -10,7 +10,7 @@ import '../../widgets/auth/auth_widgets.dart';
 import '../../widgets/auth/auth_code_input.dart';
 import 'login_screen.dart';
 
-enum _ResetStep { email, code, done }
+enum _ResetStep { email, code, password, done }
 
 /// Forgot-password flow using the same 6-digit code UX as sign-up:
 /// (1) enter email → emailed a code; (2) enter code + new password →
@@ -51,6 +51,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _backToLogin() => Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()));
+
+  /// Step-aware back: walk back one step, or leave to Login from the ends.
+  void _onBack() {
+    switch (_step) {
+      case _ResetStep.email:
+      case _ResetStep.done:
+        _backToLogin();
+      case _ResetStep.code:
+        setState(() => _step = _ResetStep.email);
+      case _ResetStep.password:
+        setState(() => _step = _ResetStep.code);
+    }
+  }
+
+  /// Advances from the code screen to the new-password screen once 6 digits are
+  /// entered. The code is verified server-side at the final submit.
+  void _goToPasswordStep() {
+    if (AuthValidators.code(_code) != null) {
+      _snack(context.l10n.resetEnterCodeError, AppTheme.brickRed);
+      return;
+    }
+    setState(() => _step = _ResetStep.password);
+  }
 
   Future<void> _sendCode() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -93,8 +116,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (!mounted) return;
       setState(() => _step = _ResetStep.done);
     } catch (e) {
+      // Stay on the password step and surface the error; the back button
+      // returns to the code step if the code itself was wrong/expired.
       _snack(AuthErrorHandler.getErrorMessage(e), AppTheme.brickRed);
-      _codeKey.currentState?.clear();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -109,6 +133,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           l10n.resetEnterCodeTitle,
           l10n.resetCodeSentTo(_emailController.text.trim())
         ),
+      _ResetStep.password =>
+        (l10n.resetNewPasswordTitle, l10n.resetNewPasswordSubtitle),
       _ResetStep.done => (l10n.resetDoneTitle, l10n.resetDoneSubtitle),
     };
     return Form(
@@ -116,10 +142,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: AuthScaffold(
         title: title,
         subtitle: subtitle,
-        onBack: _backToLogin,
+        onBack: _onBack,
         children: switch (_step) {
           _ResetStep.email => _emailStep(l10n),
           _ResetStep.code => _codeStep(l10n),
+          _ResetStep.password => _passwordStep(l10n),
           _ResetStep.done => _doneStep(),
         },
       ),
@@ -165,8 +192,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       AuthCodeInput(
         key: _codeKey,
         onChanged: (c) => setState(() => _code = c),
+        onCompleted: (_) => _goToPasswordStep(),
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 24),
+      AuthPrimaryButton(
+        label: l10n.continueButton,
+        isLoading: false,
+        onPressed: _code.length == 6 ? _goToPasswordStep : null,
+      ),
+      const SizedBox(height: 8),
+      Center(
+        child: ResendCooldownButton(onResend: _resend),
+      ),
+    ];
+  }
+
+  List<Widget> _passwordStep(dynamic l10n) {
+    return [
       AuthPasswordField(
         controller: _passwordController,
         hint: l10n.newPasswordHint,
@@ -187,10 +229,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         label: l10n.resetPasswordButton,
         isLoading: _isLoading,
         onPressed: _confirm,
-      ),
-      const SizedBox(height: 8),
-      Center(
-        child: ResendCooldownButton(onResend: _resend),
       ),
     ];
   }

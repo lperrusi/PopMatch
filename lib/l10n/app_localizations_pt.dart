@@ -1559,4 +1559,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get passwordStrengthStrong => 'Forte';
+
+  @override
+  String get continueButton => 'Continuar';
+
+  @override
+  String get resetNewPasswordTitle => 'NOVA SENHA';
+
+  @override
+  String get resetNewPasswordSubtitle =>
+      'Escolha uma nova senha para sua conta.';
 }

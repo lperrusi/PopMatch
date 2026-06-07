@@ -522,5 +522,8 @@
   "resendCodeInSeconds": "Reenviar código en {seconds}s",
   "passwordStrengthWeak": "Débil",
   "passwordStrengthFair": "Aceptable",
-  "passwordStrengthStrong": "Fuerte"
+  "passwordStrengthStrong": "Fuerte",
+  "continueButton": "Continuar",
+  "resetNewPasswordTitle": "NUEVA CONTRASEÑA",
+  "resetNewPasswordSubtitle": "Elige una nueva contraseña para tu cuenta."
 }

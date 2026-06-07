@@ -700,5 +700,8 @@
   "@resendCodeInSeconds": {"placeholders": {"seconds": {"type": "int"}}},
   "passwordStrengthWeak": "Weak",
   "passwordStrengthFair": "Fair",
-  "passwordStrengthStrong": "Strong"
+  "passwordStrengthStrong": "Strong",
+  "continueButton": "Continue",
+  "resetNewPasswordTitle": "NEW PASSWORD",
+  "resetNewPasswordSubtitle": "Choose a new password for your account."
 }

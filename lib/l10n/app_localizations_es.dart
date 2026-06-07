@@ -1570,4 +1570,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get passwordStrengthStrong => 'Fuerte';
+
+  @override
+  String get continueButton => 'Continuar';
+
+  @override
+  String get resetNewPasswordTitle => 'NUEVA CONTRASEÑA';
+
+  @override
+  String get resetNewPasswordSubtitle =>
+      'Elige una nueva contraseña para tu cuenta.';
 }

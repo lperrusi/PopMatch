@@ -2883,6 +2883,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Strong'**
   String get passwordStrengthStrong;
+
+  /// No description provided for @continueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueButton;
+
+  /// No description provided for @resetNewPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW PASSWORD'**
+  String get resetNewPasswordTitle;
+
+  /// No description provided for @resetNewPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password for your account.'**
+  String get resetNewPasswordSubtitle;
 }
 
 class _AppLocalizationsDelegate
