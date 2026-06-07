@@ -1512,4 +1512,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get premiumDevEnable => 'Enable Premium (dev)';
+
+  @override
+  String get signInFailedError => 'Sign-in failed. Please try again.';
+
+  @override
+  String get resetEnterCodeTitle => 'ENTER CODE';
+
+  @override
+  String resetCodeSentTo(String email) {
+    return 'We sent a 6-digit code to $email';
+  }
+
+  @override
+  String get resetDoneTitle => 'PASSWORD RESET';
+
+  @override
+  String get resetDoneSubtitle => 'Your password has been updated.';
+
+  @override
+  String get resetCodeOnItsWay =>
+      'If that email has an account, a code is on its way.';
+
+  @override
+  String get resetEnterCodeError => 'Enter the 6-digit code.';
+
+  @override
+  String get sendCodeButton => 'Send code';
+
+  @override
+  String get newPasswordHint => 'New password';
+
+  @override
+  String get confirmNewPasswordHint => 'Confirm new password';
+
+  @override
+  String get resetPasswordButton => 'Reset password';
+
+  @override
+  String get backToSignInButton => 'Back to sign in';
+
+  @override
+  String resendCodeInSeconds(int seconds) {
+    return 'Resend code in ${seconds}s';
+  }
+
+  @override
+  String get passwordStrengthWeak => 'Weak';
+
+  @override
+  String get passwordStrengthFair => 'Fair';
+
+  @override
+  String get passwordStrengthStrong => 'Strong';
+
+  @override
+  String get continueButton => 'Continue';
+
+  @override
+  String get resetNewPasswordTitle => 'NEW PASSWORD';
+
+  @override
+  String get resetNewPasswordSubtitle =>
+      'Choose a new password for your account.';
 }

@@ -2829,6 +2829,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable Premium (dev)'**
   String get premiumDevEnable;
+
+  /// No description provided for @signInFailedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in failed. Please try again.'**
+  String get signInFailedError;
+
+  /// No description provided for @resetEnterCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ENTER CODE'**
+  String get resetEnterCodeTitle;
+
+  /// No description provided for @resetCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a 6-digit code to {email}'**
+  String resetCodeSentTo(String email);
+
+  /// No description provided for @resetDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PASSWORD RESET'**
+  String get resetDoneTitle;
+
+  /// No description provided for @resetDoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password has been updated.'**
+  String get resetDoneSubtitle;
+
+  /// No description provided for @resetCodeOnItsWay.
+  ///
+  /// In en, this message translates to:
+  /// **'If that email has an account, a code is on its way.'**
+  String get resetCodeOnItsWay;
+
+  /// No description provided for @resetEnterCodeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 6-digit code.'**
+  String get resetEnterCodeError;
+
+  /// No description provided for @sendCodeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get sendCodeButton;
+
+  /// No description provided for @newPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPasswordHint;
+
+  /// No description provided for @confirmNewPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new password'**
+  String get confirmNewPasswordHint;
+
+  /// No description provided for @resetPasswordButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset password'**
+  String get resetPasswordButton;
+
+  /// No description provided for @backToSignInButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sign in'**
+  String get backToSignInButton;
+
+  /// No description provided for @resendCodeInSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code in {seconds}s'**
+  String resendCodeInSeconds(int seconds);
+
+  /// No description provided for @passwordStrengthWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak'**
+  String get passwordStrengthWeak;
+
+  /// No description provided for @passwordStrengthFair.
+  ///
+  /// In en, this message translates to:
+  /// **'Fair'**
+  String get passwordStrengthFair;
+
+  /// No description provided for @passwordStrengthStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get passwordStrengthStrong;
+
+  /// No description provided for @continueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueButton;
+
+  /// No description provided for @resetNewPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW PASSWORD'**
+  String get resetNewPasswordTitle;
+
+  /// No description provided for @resetNewPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password for your account.'**
+  String get resetNewPasswordSubtitle;
 }
 
 class _AppLocalizationsDelegate

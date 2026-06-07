@@ -634,13 +634,9 @@ class AuthService {
       // Update display name
       await firebaseUser.updateDisplayName(displayName);
 
-      // Generate and send verification code (instead of Firebase verification link)
-      try {
-        await sendVerificationCodeEmail(email);
-      } catch (e) {
-        // Log but don't fail sign-up if verification code email fails
-        debugPrint('Failed to send verification code email: $e');
-      }
+      // NOTE: the verification code is dispatched by EmailVerificationScreen on
+      // entry (so delivery success/failure is shown to the user) — not here,
+      // which previously swallowed send errors and masked delivery problems.
 
       // Convert Firebase user to our User model
       final user = User(
@@ -733,6 +729,49 @@ class AuthService {
     }
 
     await _auth!.sendPasswordResetEmail(email: emailTrimmed);
+  }
+
+  /// Requests a 6-digit password-reset code by email (server-side, via the
+  /// `sendPasswordResetCode` Cloud Function). Mirrors the sign-up code flow.
+  /// Always succeeds for valid input (the backend never reveals whether an
+  /// account exists). Throws in dev mode where Firebase is unavailable.
+  Future<void> sendPasswordResetCode(String email) async {
+    final emailTrimmed = email.trim().toLowerCase();
+    if (emailTrimmed.isEmpty) {
+      throw Exception('Please enter your email address.');
+    }
+    if (!FirebaseConfig.isEnabled) {
+      throw Exception(
+        'Password reset requires a network connection. Please try again later.',
+      );
+    }
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('sendPasswordResetCode');
+    await callable.call({'email': emailTrimmed});
+  }
+
+  /// Verifies the reset [code] and sets [newPassword] via the
+  /// `confirmPasswordResetWithCode` Cloud Function (Admin SDK). Throws a
+  /// `FirebaseFunctionsException` with a typed code on bad/expired code,
+  /// too many attempts, etc. — surfaced to the user via [AuthErrorHandler].
+  Future<void> confirmPasswordResetWithCode({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final emailTrimmed = email.trim().toLowerCase();
+    if (!FirebaseConfig.isEnabled) {
+      throw Exception(
+        'Password reset requires a network connection. Please try again later.',
+      );
+    }
+    final callable = FirebaseFunctions.instance
+        .httpsCallable('confirmPasswordResetWithCode');
+    await callable.call({
+      'email': emailTrimmed,
+      'code': code.trim(),
+      'newPassword': newPassword,
+    });
   }
 
   /// Gets the current user
@@ -1009,14 +1048,16 @@ class AuthService {
           }
           return VerificationCodeDelivery.cloudEmailSent;
         } catch (e) {
-          // If Cloud Function fails, log the code so user can still verify
-          debugPrint('⚠️ Cloud Function error: $e');
-          debugPrint('📧 Verification code for $email: $code');
-          debugPrint('⚠️ Email not sent. Please check Cloud Functions setup or use code from logs.');
-          
-          // Don't rethrow - code is still generated and stored, user can verify manually
-          // Or configure email service in Cloud Functions
-          return VerificationCodeDelivery.fallbackCodeGenerated;
+          // Surface the failure instead of silently pretending the code was
+          // sent. Previously this was swallowed, which masked a Cloud Run IAM
+          // misconfiguration (the user could never receive a code). The UI
+          // shows an error + a resend action. In debug we still log the code
+          // so developers aren't blocked, but we still throw.
+          debugPrint('⚠️ Cloud Function error sending verification code: $e');
+          if (kDebugMode) {
+            debugPrint('📧 [DEBUG] Verification code for $email: $code');
+          }
+          rethrow;
         }
       } else {
         // Development mode - just log the code
