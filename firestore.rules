@@ -24,13 +24,17 @@ service cloud.firestore {
       allow read, write: if isOwner(uid);
     }
 
+    // Reads are client-side (feeds, follow status, friend profiles); all writes
+    // go through Cloud Functions (Admin SDK, which bypasses these rules), so
+    // clients must not write directly — prevents forging edges/activity as others.
     match /followEdges/{edgeId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if false;
     }
 
     match /socialActivities/{activityId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if false;
     }
 
     // Password-reset codes are written/read only by Cloud Functions (Admin SDK,
