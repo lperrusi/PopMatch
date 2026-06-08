@@ -165,14 +165,17 @@ void main() {
       expect(find.text('Please enter a valid email'), findsOneWidget);
     });
 
-    testWidgets('short password shows validation error', (t) async {
+    testWidgets('short password is accepted at field level (login enforces only non-empty)', (t) async {
+      // Sign-in intentionally does not enforce a minimum length (the server
+      // validates credentials); only an empty password is a field error.
       await t.pumpWidget(wrap(const LoginScreen()));
       await t.pumpAndSettle();
       await t.enterText(find.byType(TextFormField).first, 'a@b.co');
       await t.enterText(find.byType(TextFormField).last, '12345');
       await t.tap(find.text('Sign In'));
-      await t.pumpAndSettle();
-      expect(find.text('Password must be at least 6 characters'), findsOneWidget);
+      await t.pump();
+      expect(find.text('Password must be at least 6 characters'), findsNothing);
+      expect(find.text('Please enter your password'), findsNothing);
     });
 
     testWidgets('Forgot Password link navigates to Forgot Password screen', (t) async {
@@ -260,18 +263,18 @@ void main() {
   });
 
   group('Forgot Password', () {
-    testWidgets('shows FORGOT PASSWORD?, email field, Send Reset Link', (t) async {
+    testWidgets('email step shows FORGOT PASSWORD?, email field, Send code', (t) async {
       await t.pumpWidget(wrap(const ForgotPasswordScreen()));
       await t.pumpAndSettle();
       expect(find.text('FORGOT PASSWORD?'), findsOneWidget);
       expect(find.byType(TextFormField), findsOneWidget);
-      expect(find.text('Send Reset Link'), findsOneWidget);
+      expect(find.text('Send code'), findsOneWidget);
     });
 
     testWidgets('empty email shows validation', (t) async {
       await t.pumpWidget(wrap(const ForgotPasswordScreen()));
       await t.pumpAndSettle();
-      await t.tap(find.text('Send Reset Link'));
+      await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
       expect(find.text('Please enter your email'), findsOneWidget);
     });
@@ -280,7 +283,7 @@ void main() {
       await t.pumpWidget(wrap(const ForgotPasswordScreen()));
       await t.pumpAndSettle();
       await t.enterText(find.byType(TextFormField), 'bad');
-      await t.tap(find.text('Send Reset Link'));
+      await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
       expect(find.text('Please enter a valid email'), findsOneWidget);
     });
@@ -291,11 +294,11 @@ void main() {
       expect(find.byIcon(Icons.chevron_left), findsOneWidget);
     });
 
-    testWidgets('valid email passes validation and Send Reset Link is tappable', (t) async {
+    testWidgets('valid email passes validation and Send code is tappable', (t) async {
       await t.pumpWidget(wrap(const ForgotPasswordScreen()));
       await t.pumpAndSettle();
       await t.enterText(find.byType(TextFormField), 'user@example.com');
-      await t.tap(find.text('Send Reset Link'));
+      await t.tap(find.text('Send code'));
       await t.pump(const Duration(milliseconds: 100));
       expect(find.text('Please enter your email'), findsNothing);
       expect(find.text('Please enter a valid email'), findsNothing);
@@ -314,16 +317,19 @@ void main() {
     testWidgets('empty email shows validation', (t) async {
       await t.pumpWidget(wrap(const RegisterScreen()));
       await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Create Account'));
       await t.tap(find.text('Create Account'));
       await t.pumpAndSettle();
       expect(find.text('Please enter your email'), findsOneWidget);
     });
 
+    // Field order on the redesigned screen: displayName(0), email(1), password(2), confirm(3).
     testWidgets('short display name shows validation', (t) async {
       await t.pumpWidget(wrap(const RegisterScreen()));
       await t.pumpAndSettle();
-      await t.enterText(find.byType(TextFormField).at(0), 'a@b.co');
-      await t.enterText(find.byType(TextFormField).at(1), 'A');
+      await t.enterText(find.byType(TextFormField).at(0), 'A');
+      await t.enterText(find.byType(TextFormField).at(1), 'a@b.co');
+      await t.ensureVisible(find.text('Create Account'));
       await t.tap(find.text('Create Account'));
       await t.pumpAndSettle();
       expect(find.text('Display name must be at least 2 characters'), findsOneWidget);
@@ -332,10 +338,11 @@ void main() {
     testWidgets('short password shows validation', (t) async {
       await t.pumpWidget(wrap(const RegisterScreen()));
       await t.pumpAndSettle();
-      await t.enterText(find.byType(TextFormField).at(0), 'a@b.co');
-      await t.enterText(find.byType(TextFormField).at(1), 'Ab');
+      await t.enterText(find.byType(TextFormField).at(0), 'Ab');
+      await t.enterText(find.byType(TextFormField).at(1), 'a@b.co');
       await t.enterText(find.byType(TextFormField).at(2), '12345');
       await t.enterText(find.byType(TextFormField).at(3), '12345');
+      await t.ensureVisible(find.text('Create Account'));
       await t.tap(find.text('Create Account'));
       await t.pumpAndSettle();
       expect(find.text('Password must be at least 6 characters'), findsOneWidget);
@@ -344,10 +351,11 @@ void main() {
     testWidgets('password mismatch shows validation', (t) async {
       await t.pumpWidget(wrap(const RegisterScreen()));
       await t.pumpAndSettle();
-      await t.enterText(find.byType(TextFormField).at(0), 'a@b.co');
-      await t.enterText(find.byType(TextFormField).at(1), 'Ab');
+      await t.enterText(find.byType(TextFormField).at(0), 'Ab');
+      await t.enterText(find.byType(TextFormField).at(1), 'a@b.co');
       await t.enterText(find.byType(TextFormField).at(2), 'password123');
       await t.enterText(find.byType(TextFormField).at(3), 'password456');
+      await t.ensureVisible(find.text('Create Account'));
       await t.tap(find.text('Create Account'));
       await t.pumpAndSettle();
       expect(find.text('Passwords do not match'), findsOneWidget);

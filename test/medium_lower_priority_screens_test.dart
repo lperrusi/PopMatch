@@ -9,6 +9,7 @@ import 'package:popmatch/providers/movie_provider.dart';
 import 'package:popmatch/providers/show_provider.dart';
 import 'package:popmatch/providers/recommendations_provider.dart';
 import 'package:popmatch/providers/streaming_provider.dart';
+import 'package:popmatch/providers/social_provider.dart';
 import 'package:popmatch/screens/home/edit_preferences_screen.dart';
 import 'package:popmatch/screens/home/favorites_screen.dart';
 import 'package:popmatch/screens/home/notifications_screen.dart';
@@ -54,6 +55,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => ShowProvider()),
         ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
         ChangeNotifierProvider(create: (_) => StreamingProvider()),
+        ChangeNotifierProvider(create: (_) => SocialProvider()),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,

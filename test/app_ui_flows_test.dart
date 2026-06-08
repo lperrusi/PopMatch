@@ -145,7 +145,7 @@ void main() {
 
         expect(find.text('FORGOT PASSWORD?'), findsOneWidget);
         expect(find.byType(TextFormField), findsOneWidget);
-        expect(find.text('Send Reset Link'), findsOneWidget);
+        expect(find.text('Send code'), findsOneWidget);
       });
 
       testWidgets('Back button is present', (WidgetTester tester) async {
