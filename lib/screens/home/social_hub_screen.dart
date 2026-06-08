@@ -6,6 +6,7 @@ import '../../utils/theme.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import 'friends_watching_screen.dart';
+import 'friend_profile_screen.dart';
 
 class SocialHubScreen extends StatefulWidget {
   const SocialHubScreen({super.key});
@@ -146,6 +147,18 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                   };
                   return Card(
                     child: ListTile(
+                      onTap: uid.isEmpty
+                          ? null
+                          : () => Navigator.of(context).push(
+                                NavigationUtils.fastSlideRoute(
+                                  FriendProfileScreen(
+                                    uid: uid,
+                                    displayName:
+                                        user['displayName']?.toString(),
+                                    photoURL: user['photoURL']?.toString(),
+                                  ),
+                                ),
+                              ),
                       leading: CircleAvatar(
                         child: Text(
                           (user['displayName']?.toString().isNotEmpty ?? false)
@@ -190,9 +203,10 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                   ...social.incomingRequests.map((req) => Card(
                         child: ListTile(
                           title: Text(
-                            req.followerUid.length > 6
-                                ? 'User ${req.followerUid.substring(0, 6)}'
-                                : 'User ${req.followerUid}',
+                            social.nameFor(req.followerUid) ??
+                                (req.followerUid.length > 6
+                                    ? 'User ${req.followerUid.substring(0, 6)}'
+                                    : 'User ${req.followerUid}'),
                           ),
                           subtitle: Text(l10n.wantsToFollowYou),
                           trailing: Wrap(

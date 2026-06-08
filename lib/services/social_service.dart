@@ -189,6 +189,117 @@ class SocialService {
     }
   }
 
+  // ---- Realtime streams (client-side, for in-app/local notifications while
+  // the app is alive). Return null when Firebase is off / not signed in.
+
+  /// Live snapshots of the signed-in user's incoming follow requests
+  /// (`users/{uid}/incomingRequests`).
+  Stream<QuerySnapshot<Map<String, dynamic>>>? incomingRequestsStream() {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null) return null;
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('incomingRequests')
+        .snapshots();
+  }
+
+  /// Live snapshots of follow edges where the signed-in user is the follower —
+  /// used to detect when a request the user sent gets accepted.
+  Stream<QuerySnapshot<Map<String, dynamic>>>? outgoingEdgesStream() {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null) return null;
+    return _db
+        .collection('followEdges')
+        .where('followerUid', isEqualTo: uid)
+        .snapshots();
+  }
+
+  // ---- User profile lookups (client-side reads; firestore.rules allow any
+  // signed-in user to read users/{uid}). Cached in-memory to avoid repeat reads.
+  final Map<String, Map<String, dynamic>> _profileCache = {};
+
+  /// Reads a single user profile doc. Returns null if Firebase is off, the uid
+  /// is empty, or the doc is missing. Results are cached.
+  Future<Map<String, dynamic>?> getUserProfile(String uid) async {
+    if (!FirebaseConfig.isEnabled || uid.isEmpty) return null;
+    if (_profileCache.containsKey(uid)) return _profileCache[uid];
+    try {
+      final doc = await _db.collection('users').doc(uid).get();
+      final data = doc.data();
+      if (data == null) return null;
+      final profile = <String, dynamic>{
+        'uid': data['uid'] ?? uid,
+        'displayName': data['displayName'] ?? '',
+        'email': data['email'] ?? '',
+        'photoURL': data['photoURL'] ?? '',
+      };
+      _profileCache[uid] = profile;
+      return profile;
+    } catch (e) {
+      debugPrint('getUserProfile($uid) failed: $e');
+      return null;
+    }
+  }
+
+  /// Batch-resolves profiles for the given uids (deduped). Missing/failed
+  /// lookups are simply omitted from the result map.
+  Future<Map<String, Map<String, dynamic>>> getUserProfiles(
+      List<String> uids) async {
+    final result = <String, Map<String, dynamic>>{};
+    for (final uid in uids.toSet()) {
+      final p = await getUserProfile(uid);
+      if (p != null) result[uid] = p;
+    }
+    return result;
+  }
+
+  /// A specific user's recent public activity (client read; rules allow any
+  /// signed-in user to read socialActivities). Deliberately omits `orderBy`
+  /// (so no composite index is needed) and sorts client-side. Private items
+  /// are filtered out.
+  Future<List<SocialActivity>> getUserActivities(String uid,
+      {int limit = 30}) async {
+    if (!FirebaseConfig.isEnabled || uid.isEmpty) return [];
+    try {
+      final snap = await _db
+          .collection('socialActivities')
+          .where('actorUid', isEqualTo: uid)
+          .limit(100)
+          .get();
+      final list = snap.docs.map((d) {
+        final data = Map<String, dynamic>.from(d.data());
+        // createdAt is normally an ISO string; coerce defensively so a stray
+        // numeric value can't break SocialActivity.fromJson's String? cast.
+        data['createdAt'] = data['createdAt']?.toString();
+        return SocialActivity.fromJson(data);
+      }).where((a) => a.visibility != ActivityVisibility.private).toList();
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list.take(limit).toList();
+    } catch (e) {
+      debugPrint('getUserActivities($uid) failed: $e');
+      return [];
+    }
+  }
+
+  /// Follow status of the signed-in user toward [targetUid]: one of
+  /// `accepted`, `pending`, `declined`, or `notFollowing`.
+  Future<String> getFollowStatus(String targetUid) async {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null || targetUid.isEmpty) {
+      return 'notFollowing';
+    }
+    try {
+      final doc =
+          await _db.collection('followEdges').doc('${uid}_$targetUid').get();
+      if (!doc.exists) return 'notFollowing';
+      return (doc.data()?['status']?.toString()) ?? 'notFollowing';
+    } catch (e) {
+      debugPrint('getFollowStatus($targetUid) failed: $e');
+      return 'notFollowing';
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getSuggestedUsers({int limit = 10}) async {
     final uid = _currentUid;
     if (!FirebaseConfig.isEnabled || uid == null) return [];

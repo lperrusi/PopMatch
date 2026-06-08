@@ -11,6 +11,7 @@ import 'providers/streaming_provider.dart';
 import 'services/premium_service.dart';
 import 'providers/social_provider.dart';
 import 'utils/theme.dart';
+import 'utils/app_navigator.dart';
 import 'screens/splash_screen.dart';
 import 'services/behavior_tracking_service.dart';
 import 'services/notification_service.dart';
@@ -97,6 +98,7 @@ class PopMatchApp extends StatelessWidget {
         builder: (context, authProvider, child) {
           return MaterialApp(
             title: 'PopMatch',
+            navigatorKey: appNavigatorKey,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.retroCinemaLightTheme,
             darkTheme: AppTheme.retroCinemaTheme,

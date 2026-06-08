@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as timezone;
+import '../utils/app_navigator.dart';
+import '../utils/navigation_utils.dart';
+import '../screens/home/social_hub_screen.dart';
 
 /// Service for handling local notifications
 class NotificationService {
@@ -73,7 +76,7 @@ class NotificationService {
   /// Handles notification data
   void _handleNotificationData(Map<String, dynamic> data) {
     final type = data['type'];
-    
+
     switch (type) {
       case 'movie_recommendation':
         // Navigate to movie detail
@@ -84,14 +87,52 @@ class NotificationService {
         debugPrint('Navigate to new releases');
         break;
       case 'friend_request':
-        debugPrint('Navigate to social follow requests');
-        break;
       case 'follow_accepted':
-        debugPrint('Navigate to social hub');
+        _openSocialHub();
         break;
       default:
         debugPrint('Unknown notification type: $type');
     }
+  }
+
+  /// Opens the Social Hub via the global navigator (no BuildContext here).
+  void _openSocialHub() {
+    final navigator = appNavigatorKey.currentState;
+    if (navigator == null) {
+      debugPrint('Cannot open Social Hub: navigator not ready');
+      return;
+    }
+    navigator.push(NavigationUtils.fastSlideRoute(const SocialHubScreen()));
+  }
+
+  /// Requests notification permissions. Safe to call multiple times. iOS only
+  /// shows the system prompt once; subsequent calls are no-ops. Call this when
+  /// the user has notifications enabled (we don't request at startup to avoid
+  /// prompting before the user has opted in).
+  Future<bool> requestPermissions() async {
+    try {
+      final ios = _localNotifications
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        final granted = await ios.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        return granted ?? false;
+      }
+      final android = _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final granted = await android.requestNotificationsPermission();
+        return granted ?? false;
+      }
+    } catch (e) {
+      debugPrint('requestPermissions failed: $e');
+    }
+    return false;
   }
 
   /// Shows a local notification
