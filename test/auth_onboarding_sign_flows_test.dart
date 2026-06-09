@@ -18,6 +18,7 @@ import 'package:popmatch/providers/recommendations_provider.dart';
 import 'package:popmatch/providers/streaming_provider.dart';
 import 'package:popmatch/services/tmdb_service.dart';
 import 'package:popmatch/services/firebase_config.dart';
+import 'package:popmatch/widgets/splash_loaders.dart';
 
 /// Full coverage: Splash, Tutorial, Sign In, Sign Out, Forgot Password, Setup (genres + streaming).
 /// Run: flutter test test/auth_onboarding_sign_flows_test.dart
@@ -69,10 +70,10 @@ void main() {
       await t.binding.pump(const Duration(seconds: 4));
     });
 
-    testWidgets('shows loading indicator (movie icon or gears)', (t) async {
+    testWidgets('shows the popcorn loading indicator', (t) async {
       await t.pumpWidget(const PopMatchApp());
       await t.pump();
-      expect(find.byIcon(Icons.movie_creation), findsOneWidget);
+      expect(find.byType(PopcornMatchLoader), findsOneWidget);
       await t.binding.pump(const Duration(seconds: 4));
     });
   });

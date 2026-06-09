@@ -1078,6 +1078,43 @@ class AppLocalizationsEs extends AppLocalizations {
       'Desliza tarjetas basadas en personas que sigues';
 
   @override
+  String get matchesCard => 'Tus coincidencias';
+
+  @override
+  String get matchesCardSubtitle =>
+      'Películas y series que les gustaron a ambos';
+
+  @override
+  String get matchesPageTitle => 'TUS COINCIDENCIAS';
+
+  @override
+  String get matchesEmptyTitle => 'Aún no hay coincidencias';
+
+  @override
+  String get matchesEmptyBody =>
+      'Dale me gusta a más títulos o sigue a más amigos para encontrar películas que les encanten a ambos.';
+
+  @override
+  String get matchesErrorBody =>
+      'No pudimos cargar tus coincidencias. Inténtalo de nuevo.';
+
+  @override
+  String matchesWithFriend(String name) {
+    return 'Tú y $name';
+  }
+
+  @override
+  String matchesCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count coincidencias',
+      one: '1 coincidencia',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get findUsersSection => 'Encontrar usuarios';
 
   @override
