@@ -128,74 +128,91 @@ class _SplashScreenState extends State<SplashScreen>
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
               children: [
-                const Spacer(flex: 1),
-                // Popcorn with glow
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.authCream.withValues(alpha: 0.2),
-                            blurRadius: 80,
-                            spreadRadius: 20,
+                // Hero (popcorn + title) — vertically centered on screen.
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Popcorn with glow
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      AppTheme.authCream.withValues(alpha: 0.2),
+                                  blurRadius: 80,
+                                  spreadRadius: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0, end: 1),
+                            duration: const Duration(seconds: 2),
+                            builder: (context, value, child) {
+                              return Transform.translate(
+                                offset: Offset(
+                                    0, -8 * (0.5 - (value - 0.5).abs()) * 2),
+                                child: child,
+                              );
+                            },
+                            child: Image.asset(
+                              'assets/screens/figma/popcorn.png',
+                              width: 200,
+                              height: 200,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.movie_rounded,
+                                size: 120,
+                                color: AppTheme.authCream,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: 1),
-                      duration: const Duration(seconds: 2),
-                      builder: (context, value, child) {
-                        return Transform.translate(
-                          offset:
-                              Offset(0, -8 * (0.5 - (value - 0.5).abs()) * 2),
-                          child: child,
-                        );
-                      },
-                      child: Image.asset(
-                        'assets/screens/figma/popcorn.png',
-                        width: 200,
-                        height: 200,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.movie_rounded,
-                          size: 120,
+                      const SizedBox(height: 24),
+                      Text(
+                        l10n.appTitle,
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 56,
                           color: AppTheme.authCream,
+                          letterSpacing: 0.02,
+                          height: 0.9,
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                // Loading: illustrated popcorn → hearts morph (on-brand),
+                // anchored near the bottom.
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 48),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const PopcornMatchLoader(),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.loadingText,
+                          style: GoogleFonts.lato(
+                            fontSize: 18,
+                            color: AppTheme.authCream,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  l10n.appTitle,
-                  style: GoogleFonts.bebasNeue(
-                    fontSize: 56,
-                    color: AppTheme.authCream,
-                    letterSpacing: 0.02,
-                    height: 0.9,
                   ),
                 ),
-                const Spacer(flex: 2),
-                // Loading: illustrated popcorn → hearts morph (on-brand).
-                const PopcornMatchLoader(),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.loadingText,
-                  style: GoogleFonts.lato(
-                    fontSize: 18,
-                    color: AppTheme.authCream,
-                  ),
-                ),
-                const SizedBox(height: 48),
               ],
             ),
           ),
