@@ -13,6 +13,7 @@ import 'home/home_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'tutorial/tutorial_screen.dart';
 import '../utils/navigation_utils.dart';
+import '../widgets/splash_loaders.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Splash screen matching Figma Design Intro: popcorn, title, loading indicator (3s)
@@ -127,136 +128,95 @@ class _SplashScreenState extends State<SplashScreen>
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
               children: [
-                const Spacer(flex: 1),
-                // Popcorn with glow
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.authCream.withValues(alpha: 0.2),
-                            blurRadius: 80,
-                            spreadRadius: 20,
+                // Hero (popcorn + title) — vertically centered on screen.
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Popcorn with glow
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      AppTheme.authCream.withValues(alpha: 0.2),
+                                  blurRadius: 80,
+                                  spreadRadius: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0, end: 1),
+                            duration: const Duration(seconds: 2),
+                            builder: (context, value, child) {
+                              return Transform.translate(
+                                offset: Offset(
+                                    0, -8 * (0.5 - (value - 0.5).abs()) * 2),
+                                child: child,
+                              );
+                            },
+                            child: Image.asset(
+                              'assets/screens/figma/popcorn.png',
+                              width: 200,
+                              height: 200,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.movie_rounded,
+                                size: 120,
+                                color: AppTheme.authCream,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: 1),
-                      duration: const Duration(seconds: 2),
-                      builder: (context, value, child) {
-                        return Transform.translate(
-                          offset:
-                              Offset(0, -8 * (0.5 - (value - 0.5).abs()) * 2),
-                          child: child,
-                        );
-                      },
-                      child: Image.asset(
-                        'assets/screens/figma/popcorn.png',
-                        width: 200,
-                        height: 200,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.movie_rounded,
-                          size: 120,
+                      const SizedBox(height: 24),
+                      Text(
+                        l10n.appTitle,
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 56,
                           color: AppTheme.authCream,
+                          letterSpacing: 0.02,
+                          height: 0.9,
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                // Loading: illustrated popcorn → hearts morph (on-brand),
+                // anchored near the bottom.
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 48),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const PopcornMatchLoader(),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.loadingText,
+                          style: GoogleFonts.lato(
+                            fontSize: 18,
+                            color: AppTheme.authCream,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  l10n.appTitle,
-                  style: GoogleFonts.bebasNeue(
-                    fontSize: 56,
-                    color: AppTheme.authCream,
-                    letterSpacing: 0.02,
-                    height: 0.9,
                   ),
                 ),
-                const Spacer(flex: 2),
-                // Loading: film icon + spinning gears
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _SpinningGear(size: 32, duration: 3, left: true),
-                    SizedBox(width: 8),
-                    Icon(Icons.movie_creation,
-                        size: 32, color: AppTheme.authCream),
-                    SizedBox(width: 8),
-                    _SpinningGear(size: 24, duration: 2, reverse: true),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.loadingText,
-                  style: GoogleFonts.lato(
-                    fontSize: 18,
-                    color: AppTheme.authCream,
-                  ),
-                ),
-                const SizedBox(height: 48),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SpinningGear extends StatefulWidget {
-  final double size;
-  final int duration;
-  final bool reverse;
-  final bool left;
-
-  const _SpinningGear(
-      {required this.size,
-      required this.duration,
-      this.reverse = false,
-      this.left = false});
-
-  @override
-  State<_SpinningGear> createState() => _SpinningGearState();
-}
-
-class _SpinningGearState extends State<_SpinningGear>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(seconds: widget.duration),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, child) => Transform.rotate(
-        angle: _controller.value * 2 * 3.14159 * (widget.reverse ? -1 : 1),
-        child:
-            Icon(Icons.settings, size: widget.size, color: AppTheme.authCream),
       ),
     );
   }
