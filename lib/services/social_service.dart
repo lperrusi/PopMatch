@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import '../models/follow_edge.dart';
+import '../models/shared_watchlist.dart';
 import '../models/social_activity.dart';
 import '../models/social_privacy_settings.dart';
 import 'firebase_config.dart';
@@ -311,6 +312,75 @@ class SocialService {
     } on FirebaseFunctionsException catch (e) {
       if (e.code == 'not-found' || e.code == 'unauthenticated') return [];
       rethrow;
+    }
+  }
+
+  /// Shares a snapshot of a custom list with [recipientUid] via the
+  /// `shareWatchlist` Cloud Function. [list] is the serialized snapshot
+  /// (name/description/color/movieIds/showIds).
+  Future<void> shareWatchlist({
+    required String recipientUid,
+    required Map<String, dynamic> list,
+  }) async {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null) {
+      throw StateError('Firebase is not enabled (dev/local mode).');
+    }
+    final callable = _functions.httpsCallable('shareWatchlist');
+    await callable.call({'recipientUid': recipientUid, 'list': list});
+  }
+
+  /// Lists shared with the signed-in user (newest first). Client read; rules
+  /// allow the recipient/owner to read their own docs.
+  Future<List<SharedWatchlist>> getSharedWithMe() async {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null) return [];
+    try {
+      final snap = await _db
+          .collection('sharedWatchlists')
+          .where('recipientUid', isEqualTo: uid)
+          .limit(100)
+          .get();
+      final lists = snap.docs
+          .map((d) => SharedWatchlist.fromJson(d.data(), id: d.id))
+          .toList();
+      // Sort client-side (no composite index needed).
+      lists.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return lists;
+    } catch (e) {
+      debugPrint('getSharedWithMe failed: $e');
+      return [];
+    }
+  }
+
+  /// Accepted friends the signed-in user follows, as `{uid, displayName, ...}`
+  /// maps (for the share-recipient picker).
+  Future<List<Map<String, dynamic>>> getFollowing() async {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null) return [];
+    try {
+      final snap = await _db
+          .collection('followEdges')
+          .where('followerUid', isEqualTo: uid)
+          .where('status', isEqualTo: 'accepted')
+          .limit(200)
+          .get();
+      final followeeUids = snap.docs
+          .map((d) => d.data()['followeeUid']?.toString() ?? '')
+          .where((u) => u.isNotEmpty)
+          .toList();
+      final profiles = await getUserProfiles(followeeUids);
+      return followeeUids.map((u) {
+        final p = profiles[u];
+        return <String, dynamic>{
+          'uid': u,
+          'displayName': p?['displayName'] ?? '',
+          'photoURL': p?['photoURL'] ?? '',
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('getFollowing failed: $e');
+      return [];
     }
   }
 }

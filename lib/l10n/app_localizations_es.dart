@@ -1078,6 +1078,81 @@ class AppLocalizationsEs extends AppLocalizations {
       'Desliza tarjetas basadas en personas que sigues';
 
   @override
+  String get sharedWithYouCard => 'Compartido contigo';
+
+  @override
+  String get sharedWithYouCardSubtitle => 'Listas que tus amigos te enviaron';
+
+  @override
+  String get sharedWithYouPageTitle => 'COMPARTIDO CONTIGO';
+
+  @override
+  String get sharedWithYouEmptyTitle => 'Nada compartido aún';
+
+  @override
+  String get sharedWithYouEmptyBody =>
+      'Cuando un amigo comparta una lista contigo, aparecerá aquí.';
+
+  @override
+  String get sharedWithYouErrorBody =>
+      'No pudimos cargar las listas compartidas. Inténtalo de nuevo.';
+
+  @override
+  String sharedByLabel(String name) {
+    return 'Compartido por $name';
+  }
+
+  @override
+  String get sharedByFallbackName => 'Un amigo';
+
+  @override
+  String sharedListItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count títulos',
+      one: '1 título',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get saveToMyListsButton => 'Guardar en mis listas';
+
+  @override
+  String get savedToMyListsSnackbar => 'Guardado en tus listas';
+
+  @override
+  String get sharedListExistsSnackbar => 'Ya tienes una lista con ese nombre';
+
+  @override
+  String get sharedListSaveFailedSnackbar =>
+      'No se pudo guardar la lista. Inténtalo de nuevo.';
+
+  @override
+  String get shareListMenuItem => 'Compartir con un amigo';
+
+  @override
+  String get shareListEmptySnackbar =>
+      'Esta lista está vacía: agrega títulos antes de compartir.';
+
+  @override
+  String get shareListNoFriendsSnackbar =>
+      'Sigue a alguien primero para compartir una lista.';
+
+  @override
+  String get shareListPickFriendTitle => 'Compartir con…';
+
+  @override
+  String listSharedSnackbar(String name) {
+    return 'Compartido con $name';
+  }
+
+  @override
+  String get shareListFailedSnackbar =>
+      'No se pudo compartir la lista. Inténtalo de nuevo.';
+
+  @override
   String get matchesCard => 'Tus coincidencias';
 
   @override

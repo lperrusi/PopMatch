@@ -1060,6 +1060,82 @@ class AppLocalizationsEn extends AppLocalizations {
       'Swipe cards based on people you follow';
 
   @override
+  String get sharedWithYouCard => 'Shared with you';
+
+  @override
+  String get sharedWithYouCardSubtitle => 'Lists your friends sent you';
+
+  @override
+  String get sharedWithYouPageTitle => 'SHARED WITH YOU';
+
+  @override
+  String get sharedWithYouEmptyTitle => 'Nothing shared yet';
+
+  @override
+  String get sharedWithYouEmptyBody =>
+      'When a friend shares a list with you, it\'ll show up here.';
+
+  @override
+  String get sharedWithYouErrorBody =>
+      'We couldn\'t load shared lists. Please try again.';
+
+  @override
+  String sharedByLabel(String name) {
+    return 'Shared by $name';
+  }
+
+  @override
+  String get sharedByFallbackName => 'A friend';
+
+  @override
+  String sharedListItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count titles',
+      one: '1 title',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get saveToMyListsButton => 'Save to my lists';
+
+  @override
+  String get savedToMyListsSnackbar => 'Saved to your lists';
+
+  @override
+  String get sharedListExistsSnackbar =>
+      'You already have a list with that name';
+
+  @override
+  String get sharedListSaveFailedSnackbar =>
+      'Couldn\'t save the list. Please try again.';
+
+  @override
+  String get shareListMenuItem => 'Share with a friend';
+
+  @override
+  String get shareListEmptySnackbar =>
+      'This list is empty — add titles before sharing.';
+
+  @override
+  String get shareListNoFriendsSnackbar =>
+      'Follow someone first to share a list with them.';
+
+  @override
+  String get shareListPickFriendTitle => 'Share with…';
+
+  @override
+  String listSharedSnackbar(String name) {
+    return 'Shared with $name';
+  }
+
+  @override
+  String get shareListFailedSnackbar =>
+      'Couldn\'t share the list. Please try again.';
+
+  @override
   String get matchesCard => 'Your matches';
 
   @override
