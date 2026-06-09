@@ -1136,6 +1136,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t share the list. Please try again.';
 
   @override
+  String get matchesCard => 'Your matches';
+
+  @override
+  String get matchesCardSubtitle => 'Movies and shows you both liked';
+
+  @override
+  String get matchesPageTitle => 'YOUR MATCHES';
+
+  @override
+  String get matchesEmptyTitle => 'No matches yet';
+
+  @override
+  String get matchesEmptyBody =>
+      'Like more titles, or follow more friends to find movies you both love.';
+
+  @override
+  String get matchesErrorBody =>
+      'We couldn\'t load your matches. Please try again.';
+
+  @override
+  String matchesWithFriend(String name) {
+    return 'You & $name';
+  }
+
+  @override
+  String matchesCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count matches',
+      one: '1 match',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get findUsersSection => 'Find users';
 
   @override

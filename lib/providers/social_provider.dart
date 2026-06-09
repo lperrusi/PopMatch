@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/follow_edge.dart';
+import '../models/friend_match.dart';
 import '../models/shared_watchlist.dart';
 import '../models/social_activity.dart';
 import '../models/social_privacy_settings.dart';
@@ -171,6 +172,80 @@ class SocialProvider with ChangeNotifier {
   void dispose() {
     stopRealtime();
     super.dispose();
+  }
+
+  /// Pure match computation: titles a friend liked that the current user also
+  /// liked, grouped per friend and sorted by match count (desc). Self activity
+  /// is excluded via [selfUid]. Friend name comes from [SocialActivity.actorDisplayName]
+  /// when present, otherwise left empty for the caller to backfill.
+  static List<FriendMatch> computeFriendMatches({
+    required List<SocialActivity> feed,
+    required Set<String> myLikedMovieIds,
+    required Set<String> myLikedShowIds,
+    String? selfUid,
+  }) {
+    // friendUid -> (ordered items, seen keys, best-known name)
+    final order = <String>[];
+    final itemsByFriend = <String, List<MatchItem>>{};
+    final seenByFriend = <String, Set<String>>{};
+    final nameByFriend = <String, String>{};
+
+    for (final a in feed) {
+      if (a.activityType != SocialActivityType.liked) continue;
+      final uid = a.actorUid;
+      if (uid.isEmpty || uid == selfUid) continue;
+
+      final mine = a.itemType == SocialItemType.movie
+          ? myLikedMovieIds.contains(a.itemId)
+          : myLikedShowIds.contains(a.itemId);
+      if (!mine) continue;
+
+      final item = MatchItem(itemId: a.itemId, itemType: a.itemType);
+      final seen = seenByFriend.putIfAbsent(uid, () => <String>{});
+      if (!seen.add(item.key)) continue; // de-dupe per friend
+
+      if (!itemsByFriend.containsKey(uid)) {
+        itemsByFriend[uid] = <MatchItem>[];
+        order.add(uid);
+      }
+      itemsByFriend[uid]!.add(item);
+
+      final name = a.actorDisplayName?.trim();
+      if (name != null && name.isNotEmpty) nameByFriend[uid] = name;
+    }
+
+    final matches = order
+        .map((uid) => FriendMatch(
+              friendUid: uid,
+              friendName: nameByFriend[uid] ?? '',
+              items: itemsByFriend[uid]!,
+            ))
+        .toList();
+    matches.sort((a, b) => b.count.compareTo(a.count));
+    return matches;
+  }
+
+  /// Instance wrapper over the loaded [friendsFeed]; backfills missing friend
+  /// names from the resolved-name cache (then a generic fallback).
+  List<FriendMatch> matchesFor({
+    required Set<String> myLikedMovieIds,
+    required Set<String> myLikedShowIds,
+    String? selfUid,
+  }) {
+    return computeFriendMatches(
+      feed: _friendsFeed,
+      myLikedMovieIds: myLikedMovieIds,
+      myLikedShowIds: myLikedShowIds,
+      selfUid: selfUid,
+    )
+        .map((m) => m.friendName.isNotEmpty
+            ? m
+            : FriendMatch(
+                friendUid: m.friendUid,
+                friendName: nameFor(m.friendUid) ?? 'A friend',
+                items: m.items,
+              ))
+        .toList();
   }
 
   /// Movie IDs liked by followed friends — used to show "friend liked this" badge on swipe cards.

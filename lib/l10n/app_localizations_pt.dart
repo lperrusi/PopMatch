@@ -1142,6 +1142,42 @@ class AppLocalizationsPt extends AppLocalizations {
       'Não foi possível compartilhar a lista. Tente novamente.';
 
   @override
+  String get matchesCard => 'Suas combinações';
+
+  @override
+  String get matchesCardSubtitle => 'Filmes e séries que vocês dois curtiram';
+
+  @override
+  String get matchesPageTitle => 'SUAS COMBINAÇÕES';
+
+  @override
+  String get matchesEmptyTitle => 'Ainda não há combinações';
+
+  @override
+  String get matchesEmptyBody =>
+      'Curta mais títulos ou siga mais amigos para encontrar filmes que vocês dois amam.';
+
+  @override
+  String get matchesErrorBody =>
+      'Não foi possível carregar suas combinações. Tente novamente.';
+
+  @override
+  String matchesWithFriend(String name) {
+    return 'Você e $name';
+  }
+
+  @override
+  String matchesCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count combinações',
+      one: '1 combinação',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get findUsersSection => 'Encontrar usuários';
 
   @override

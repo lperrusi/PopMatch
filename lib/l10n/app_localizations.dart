@@ -2116,6 +2116,54 @@ abstract class AppLocalizations {
   /// **'Couldn\'t share the list. Please try again.'**
   String get shareListFailedSnackbar;
 
+  /// No description provided for @matchesCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Your matches'**
+  String get matchesCard;
+
+  /// No description provided for @matchesCardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies and shows you both liked'**
+  String get matchesCardSubtitle;
+
+  /// No description provided for @matchesPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'YOUR MATCHES'**
+  String get matchesPageTitle;
+
+  /// No description provided for @matchesEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches yet'**
+  String get matchesEmptyTitle;
+
+  /// No description provided for @matchesEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Like more titles, or follow more friends to find movies you both love.'**
+  String get matchesEmptyBody;
+
+  /// No description provided for @matchesErrorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t load your matches. Please try again.'**
+  String get matchesErrorBody;
+
+  /// No description provided for @matchesWithFriend.
+  ///
+  /// In en, this message translates to:
+  /// **'You & {name}'**
+  String matchesWithFriend(String name);
+
+  /// No description provided for @matchesCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 match} other{{count} matches}}'**
+  String matchesCountLabel(int count);
+
   /// No description provided for @findUsersSection.
   ///
   /// In en, this message translates to:
