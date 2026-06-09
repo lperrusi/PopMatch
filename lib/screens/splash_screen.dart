@@ -13,6 +13,7 @@ import 'home/home_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'tutorial/tutorial_screen.dart';
 import '../utils/navigation_utils.dart';
+import '../widgets/splash_loaders.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Splash screen matching Figma Design Intro: popcorn, title, loading indicator (3s)
@@ -184,18 +185,8 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const Spacer(flex: 2),
-                // Loading: film icon + spinning gears
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _SpinningGear(size: 32, duration: 3, left: true),
-                    SizedBox(width: 8),
-                    Icon(Icons.movie_creation,
-                        size: 32, color: AppTheme.authCream),
-                    SizedBox(width: 8),
-                    _SpinningGear(size: 24, duration: 2, reverse: true),
-                  ],
-                ),
+                // Loading: illustrated popcorn → hearts morph (on-brand).
+                const PopcornMatchLoader(),
                 const SizedBox(height: 16),
                 Text(
                   l10n.loadingText,
@@ -209,54 +200,6 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SpinningGear extends StatefulWidget {
-  final double size;
-  final int duration;
-  final bool reverse;
-  final bool left;
-
-  const _SpinningGear(
-      {required this.size,
-      required this.duration,
-      this.reverse = false,
-      this.left = false});
-
-  @override
-  State<_SpinningGear> createState() => _SpinningGearState();
-}
-
-class _SpinningGearState extends State<_SpinningGear>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(seconds: widget.duration),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, child) => Transform.rotate(
-        angle: _controller.value * 2 * 3.14159 * (widget.reverse ? -1 : 1),
-        child:
-            Icon(Icons.settings, size: widget.size, color: AppTheme.authCream),
       ),
     );
   }
