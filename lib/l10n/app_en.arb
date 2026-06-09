@@ -379,6 +379,8 @@
   "friendRequestsToggleSubtitle": "Notify when someone follows you",
   "followAcceptedToggle": "Follow accepted",
   "followAcceptedToggleSubtitle": "Notify when a follow request is accepted",
+  "sharedListsToggle": "Shared lists",
+  "sharedListsToggleSubtitle": "Notify when a friend shares a list with you",
 
   "privacyPageTitle": "PRIVACY",
   "privacyIntro": "Control how your data is used to personalize your experience.",
