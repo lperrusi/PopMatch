@@ -1067,6 +1067,81 @@ class AppLocalizationsPt extends AppLocalizations {
       'Deslize cartões com base em pessoas que você segue';
 
   @override
+  String get sharedWithYouCard => 'Compartilhado com você';
+
+  @override
+  String get sharedWithYouCardSubtitle => 'Listas que seus amigos enviaram';
+
+  @override
+  String get sharedWithYouPageTitle => 'COMPARTILHADO COM VOCÊ';
+
+  @override
+  String get sharedWithYouEmptyTitle => 'Nada compartilhado ainda';
+
+  @override
+  String get sharedWithYouEmptyBody =>
+      'Quando um amigo compartilhar uma lista com você, ela aparecerá aqui.';
+
+  @override
+  String get sharedWithYouErrorBody =>
+      'Não foi possível carregar as listas compartilhadas. Tente novamente.';
+
+  @override
+  String sharedByLabel(String name) {
+    return 'Compartilhado por $name';
+  }
+
+  @override
+  String get sharedByFallbackName => 'Um amigo';
+
+  @override
+  String sharedListItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count títulos',
+      one: '1 título',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get saveToMyListsButton => 'Salvar nas minhas listas';
+
+  @override
+  String get savedToMyListsSnackbar => 'Salvo nas suas listas';
+
+  @override
+  String get sharedListExistsSnackbar => 'Você já tem uma lista com esse nome';
+
+  @override
+  String get sharedListSaveFailedSnackbar =>
+      'Não foi possível salvar a lista. Tente novamente.';
+
+  @override
+  String get shareListMenuItem => 'Compartilhar com um amigo';
+
+  @override
+  String get shareListEmptySnackbar =>
+      'Esta lista está vazia — adicione títulos antes de compartilhar.';
+
+  @override
+  String get shareListNoFriendsSnackbar =>
+      'Siga alguém primeiro para compartilhar uma lista.';
+
+  @override
+  String get shareListPickFriendTitle => 'Compartilhar com…';
+
+  @override
+  String listSharedSnackbar(String name) {
+    return 'Compartilhado com $name';
+  }
+
+  @override
+  String get shareListFailedSnackbar =>
+      'Não foi possível compartilhar a lista. Tente novamente.';
+
+  @override
   String get findUsersSection => 'Encontrar usuários';
 
   @override

@@ -37,6 +37,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Shared watchlist snapshots. Owner and recipient may read their own copies;
+    // all writes go through the shareWatchlist Cloud Function (Admin SDK).
+    match /sharedWatchlists/{docId} {
+      allow read: if isSignedIn() &&
+        (resource.data.recipientUid == request.auth.uid ||
+         resource.data.ownerUid == request.auth.uid);
+      allow write: if false;
+    }
+
     // Password-reset codes are written/read only by Cloud Functions (Admin SDK,
     // which bypasses rules). Clients must never read or write them.
     match /passwordResetCodes/{docId} {

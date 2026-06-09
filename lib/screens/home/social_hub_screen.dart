@@ -7,6 +7,7 @@ import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import 'friends_watching_screen.dart';
 import 'friend_profile_screen.dart';
+import 'shared_with_me_screen.dart';
 
 class SocialHubScreen extends StatefulWidget {
   const SocialHubScreen({super.key});
@@ -66,6 +67,23 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                       Navigator.of(context).push(
                         NavigationUtils.fastSlideRoute(
                           const FriendsWatchingScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.folder_shared_rounded,
+                        color: AppTheme.cinemaRed),
+                    title: Text(l10n.sharedWithYouCard),
+                    subtitle: Text(l10n.sharedWithYouCardSubtitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        NavigationUtils.fastSlideRoute(
+                          const SharedWithMeScreen(),
                         ),
                       );
                     },

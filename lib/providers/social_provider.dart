@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/follow_edge.dart';
+import '../models/shared_watchlist.dart';
 import '../models/social_activity.dart';
 import '../models/social_privacy_settings.dart';
 import '../services/social_service.dart';
@@ -17,6 +18,8 @@ class SocialProvider with ChangeNotifier {
   List<Map<String, dynamic>> _searchResults = [];
   List<SocialActivity> _friendsFeed = [];
   List<Map<String, dynamic>> _suggestedUsers = [];
+  List<SharedWatchlist> _sharedWithMe = [];
+  List<Map<String, dynamic>> _following = [];
   SocialPrivacySettings _privacy = const SocialPrivacySettings();
 
   /// uid -> resolved display name, populated lazily from user profile docs.
@@ -36,6 +39,8 @@ class SocialProvider with ChangeNotifier {
   List<Map<String, dynamic>> get searchResults => _searchResults;
   List<SocialActivity> get friendsFeed => _friendsFeed;
   List<Map<String, dynamic>> get suggestedUsers => _suggestedUsers;
+  List<SharedWatchlist> get sharedWithMe => _sharedWithMe;
+  List<Map<String, dynamic>> get following => _following;
   SocialPrivacySettings get privacy => _privacy;
 
   /// Resolved display name for a uid, or null if not yet known. UI should fall
@@ -187,6 +192,7 @@ class SocialProvider with ChangeNotifier {
         loadFriendsFeed(),
         loadPrivacy(),
         loadSuggestedUsers(),
+        loadSharedWithMe(),
       ]);
     } catch (e) {
       debugPrint('SocialProvider.initialize: $e');
@@ -322,6 +328,38 @@ class SocialProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('SocialProvider.loadSuggestedUsers: $e');
     }
+  }
+
+  /// Lists shared with the signed-in user (newest first).
+  Future<void> loadSharedWithMe() async {
+    try {
+      _sharedWithMe = await _socialService.getSharedWithMe();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('SocialProvider.loadSharedWithMe: $e');
+    }
+  }
+
+  /// Accepted friends the user follows — used to pick a share recipient.
+  Future<void> loadFollowing() async {
+    try {
+      _following = await _socialService.getFollowing();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('SocialProvider.loadFollowing: $e');
+    }
+  }
+
+  /// Shares a list snapshot with [recipientUid]. Rethrows so the UI can show a
+  /// success/failure SnackBar.
+  Future<void> shareWatchlist({
+    required String recipientUid,
+    required Map<String, dynamic> list,
+  }) async {
+    await _socialService.shareWatchlist(
+      recipientUid: recipientUid,
+      list: list,
+    );
   }
 
   /// Updates the follow status in both searchResults and suggestedUsers optimistically.

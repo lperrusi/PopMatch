@@ -889,3 +889,98 @@ exports.devSeedSocial = onCall({region: "us-central1"}, async (request) => {
   await batch.commit();
   return {seededFriends: friends.length, activities: friends.length * movieIds.length};
 });
+
+/**
+ * Returns true if the owner and recipient have an accepted follow edge in
+ * either direction (`${a}_${b}` or `${b}_${a}` with status "accepted").
+ * @param {string} a
+ * @param {string} b
+ * @return {Promise<boolean>}
+ */
+async function hasAcceptedEdge(a, b) {
+  const ids = [`${a}_${b}`, `${b}_${a}`];
+  const docs = await Promise.all(
+      ids.map((id) => db.collection("followEdges").doc(id).get()));
+  return docs.some((d) => d.exists && d.data().status === "accepted");
+}
+
+/**
+ * Coerces a value to an array of digit-only id strings, capped at [max].
+ * @param {*} value
+ * @param {number} max
+ * @return {string[]}
+ */
+function sanitizeIds(value, max) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const v of value) {
+    const s = String(v).trim();
+    if (/^\d+$/.test(s)) out.push(s);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/**
+ * Shares a snapshot of a custom watchlist with a followed friend. The caller
+ * must have an accepted follow edge with the recipient (either direction).
+ * Writes an immutable point-in-time copy to `sharedWatchlists` (Admin SDK);
+ * clients read their own via security rules. No live sync.
+ */
+exports.shareWatchlist = onCall({region: "us-central1"}, async (request) => {
+  const ownerUid = request.auth && request.auth.uid;
+  if (!ownerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  const data = request.data || {};
+  const recipientUid = data.recipientUid;
+  const list = data.list || {};
+  if (!recipientUid || typeof recipientUid !== "string") {
+    throw new HttpsError("invalid-argument", "recipientUid is required.");
+  }
+  if (recipientUid === ownerUid) {
+    throw new HttpsError("invalid-argument", "You cannot share with yourself.");
+  }
+
+  const name = String(list.name || "").trim().slice(0, 80);
+  if (!name) {
+    throw new HttpsError("invalid-argument", "A list name is required.");
+  }
+  const description = list.description ?
+    String(list.description).trim().slice(0, 300) : null;
+  const color = list.color ? String(list.color).slice(0, 16) : null;
+  // Cap total ids across movies + shows at 300.
+  const movieIds = sanitizeIds(list.movieIds, 300);
+  const showIds = sanitizeIds(list.showIds, 300 - movieIds.length);
+  if (movieIds.length + showIds.length === 0) {
+    throw new HttpsError("invalid-argument", "The list is empty.");
+  }
+
+  if (!(await hasAcceptedEdge(ownerUid, recipientUid))) {
+    throw new HttpsError(
+        "permission-denied", "You can only share with friends you follow.");
+  }
+
+  let ownerName = null;
+  try {
+    const ownerDoc = await db.collection("users").doc(ownerUid).get();
+    const dn = ownerDoc.exists && ownerDoc.data().displayName;
+    ownerName = (typeof dn === "string" && dn.trim()) ? dn.trim() : null;
+  } catch (e) {
+    // Non-fatal: recipient UI falls back to a generic label.
+  }
+
+  const ref = await db.collection("sharedWatchlists").add({
+    ownerUid,
+    ownerName,
+    recipientUid,
+    name,
+    description,
+    color,
+    movieIds,
+    showIds,
+    createdAt: nowIso(),
+  });
+
+  return {ok: true, id: ref.id};
+});

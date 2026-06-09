@@ -2002,6 +2002,120 @@ abstract class AppLocalizations {
   /// **'Swipe cards based on people you follow'**
   String get friendsWatchingCardSubtitle;
 
+  /// No description provided for @sharedWithYouCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared with you'**
+  String get sharedWithYouCard;
+
+  /// No description provided for @sharedWithYouCardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists your friends sent you'**
+  String get sharedWithYouCardSubtitle;
+
+  /// No description provided for @sharedWithYouPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SHARED WITH YOU'**
+  String get sharedWithYouPageTitle;
+
+  /// No description provided for @sharedWithYouEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing shared yet'**
+  String get sharedWithYouEmptyTitle;
+
+  /// No description provided for @sharedWithYouEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'When a friend shares a list with you, it\'ll show up here.'**
+  String get sharedWithYouEmptyBody;
+
+  /// No description provided for @sharedWithYouErrorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t load shared lists. Please try again.'**
+  String get sharedWithYouErrorBody;
+
+  /// No description provided for @sharedByLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared by {name}'**
+  String sharedByLabel(String name);
+
+  /// No description provided for @sharedByFallbackName.
+  ///
+  /// In en, this message translates to:
+  /// **'A friend'**
+  String get sharedByFallbackName;
+
+  /// No description provided for @sharedListItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 title} other{{count} titles}}'**
+  String sharedListItemsCount(int count);
+
+  /// No description provided for @saveToMyListsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to my lists'**
+  String get saveToMyListsButton;
+
+  /// No description provided for @savedToMyListsSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your lists'**
+  String get savedToMyListsSnackbar;
+
+  /// No description provided for @sharedListExistsSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'You already have a list with that name'**
+  String get sharedListExistsSnackbar;
+
+  /// No description provided for @sharedListSaveFailedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the list. Please try again.'**
+  String get sharedListSaveFailedSnackbar;
+
+  /// No description provided for @shareListMenuItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Share with a friend'**
+  String get shareListMenuItem;
+
+  /// No description provided for @shareListEmptySnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'This list is empty — add titles before sharing.'**
+  String get shareListEmptySnackbar;
+
+  /// No description provided for @shareListNoFriendsSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow someone first to share a list with them.'**
+  String get shareListNoFriendsSnackbar;
+
+  /// No description provided for @shareListPickFriendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share with…'**
+  String get shareListPickFriendTitle;
+
+  /// No description provided for @listSharedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared with {name}'**
+  String listSharedSnackbar(String name);
+
+  /// No description provided for @shareListFailedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t share the list. Please try again.'**
+  String get shareListFailedSnackbar;
+
   /// No description provided for @findUsersSection.
   ///
   /// In en, this message translates to:

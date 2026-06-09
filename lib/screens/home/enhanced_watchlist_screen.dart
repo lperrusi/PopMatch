@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 // import 'package:provider/provider.dart'; // Unused import
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../../models/movie.dart';
 import '../../models/watchlist_list.dart';
+import '../../providers/social_provider.dart';
 // import '../../providers/auth_provider.dart'; // Unused import
 // import '../../providers/movie_provider.dart'; // Unused import
 import '../../services/watchlist_service.dart';
@@ -250,6 +252,103 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
     }
   }
 
+  /// Shares the currently selected list with a followed friend (chosen from a
+  /// bottom sheet). The list snapshot is sent via the shareWatchlist CF.
+  Future<void> _shareSelectedList() async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final list = _selectedList;
+    if (list == null || (list.movieIds.isEmpty && list.showIds.isEmpty)) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(l10n.shareListEmptySnackbar),
+        backgroundColor: AppTheme.primaryRed,
+      ));
+      return;
+    }
+
+    final social = context.read<SocialProvider>();
+    await social.loadFollowing();
+    if (!mounted) return;
+    final following = social.following;
+    if (following.isEmpty) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(l10n.shareListNoFriendsSnackbar),
+        backgroundColor: AppTheme.primaryRed,
+      ));
+      return;
+    }
+
+    final recipient = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: AppTheme.vintagePaper,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                l10n.shareListPickFriendTitle,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: following.map((u) {
+                  final name = (u['displayName']?.toString().isNotEmpty ?? false)
+                      ? u['displayName'].toString()
+                      : l10n.sharedByFallbackName;
+                  return ListTile(
+                    leading: CircleAvatar(
+                      child: Text(name[0].toUpperCase()),
+                    ),
+                    title: Text(name),
+                    onTap: () => Navigator.of(sheetCtx).pop(u),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (recipient == null || !mounted) return;
+
+    final recipientUid = recipient['uid']?.toString() ?? '';
+    final recipientName =
+        (recipient['displayName']?.toString().isNotEmpty ?? false)
+            ? recipient['displayName'].toString()
+            : l10n.sharedByFallbackName;
+    if (recipientUid.isEmpty) return;
+
+    try {
+      await social.shareWatchlist(
+        recipientUid: recipientUid,
+        list: {
+          'name': list.name,
+          'description': list.description,
+          'color': list.color,
+          'movieIds': list.movieIds,
+          'showIds': list.showIds,
+        },
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(l10n.listSharedSnackbar(recipientName)),
+        backgroundColor: AppTheme.popcornGold,
+      ));
+    } catch (e) {
+      debugPrint('shareSelectedList failed: $e');
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(l10n.shareListFailedSnackbar),
+        backgroundColor: AppTheme.primaryRed,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -342,9 +441,22 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
                 case 'filters':
                   _showAdvancedFilters();
                   break;
+                case 'share':
+                  _shareSelectedList();
+                  break;
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'share',
+                child: Row(
+                  children: [
+                    const Icon(Icons.ios_share_rounded),
+                    const SizedBox(width: 8),
+                    Text(context.l10n.shareListMenuItem),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'filters',
                 child: Row(
