@@ -216,6 +216,17 @@ class SocialService {
         .snapshots();
   }
 
+  /// Live snapshots of watchlists shared with the signed-in user — used to
+  /// notify them (and keep "Shared with you" fresh) when a friend shares a list.
+  Stream<QuerySnapshot<Map<String, dynamic>>>? sharedWithMeStream() {
+    final uid = _currentUid;
+    if (!FirebaseConfig.isEnabled || uid == null) return null;
+    return _db
+        .collection('sharedWatchlists')
+        .where('recipientUid', isEqualTo: uid)
+        .snapshots();
+  }
+
   // ---- User profile lookups (client-side reads; firestore.rules allow any
   // signed-in user to read users/{uid}). Cached in-memory to avoid repeat reads.
   final Map<String, Map<String, dynamic>> _profileCache = {};

@@ -895,6 +895,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Notify when a follow request is accepted';
 
   @override
+  String get sharedListsToggle => 'Shared lists';
+
+  @override
+  String get sharedListsToggleSubtitle =>
+      'Notify when a friend shares a list with you';
+
+  @override
   String get privacyPageTitle => 'PRIVACY';
 
   @override
