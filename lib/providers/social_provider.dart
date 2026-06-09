@@ -28,9 +28,12 @@ class SocialProvider with ChangeNotifier {
   // ---- Realtime (in-app local notifications while the app is alive).
   StreamSubscription? _incomingSub;
   StreamSubscription? _edgesSub;
+  StreamSubscription? _sharedSub;
   bool _incomingSeeded = false;
   bool _edgesSeeded = false;
+  bool _sharedSeeded = false;
   final Set<String> _acceptedEdgeIds = {};
+  final Set<String> _notifiedSharedIds = {};
   bool _notificationsEnabled = true;
 
   bool get isLoading => _isLoading;
@@ -85,17 +88,28 @@ class SocialProvider with ChangeNotifier {
         onError: (e) => debugPrint('outgoingEdges stream error: $e'),
       );
     }
+    final shared = _socialService.sharedWithMeStream();
+    if (shared != null) {
+      _sharedSub = shared.listen(
+        _onSharedSnapshot,
+        onError: (e) => debugPrint('sharedWithMe stream error: $e'),
+      );
+    }
   }
 
   /// Cancels live listeners and resets seed state (call on sign-out / dispose).
   void stopRealtime() {
     _incomingSub?.cancel();
     _edgesSub?.cancel();
+    _sharedSub?.cancel();
     _incomingSub = null;
     _edgesSub = null;
+    _sharedSub = null;
     _incomingSeeded = false;
     _edgesSeeded = false;
+    _sharedSeeded = false;
     _acceptedEdgeIds.clear();
+    _notifiedSharedIds.clear();
   }
 
   /// Toggle whether new events raise local notifications (mirrors the user's
@@ -163,6 +177,40 @@ class SocialProvider with ChangeNotifier {
       await NotificationService.instance.showFollowAcceptedNotification(
         byName: (name != null && name.isNotEmpty) ? name : 'Someone',
         byUid: followeeUid,
+      );
+    }
+  }
+
+  Future<void> _onSharedSnapshot(
+      QuerySnapshot<Map<String, dynamic>> snap) async {
+    // Keep "Shared with you" fresh (newest first) regardless of notifications.
+    _sharedWithMe = snap.docs
+        .map((d) => SharedWatchlist.fromJson(d.data(), id: d.id))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    notifyListeners();
+
+    // Skip the initial snapshot so existing shares don't fire a burst.
+    final newlyShared = <SharedWatchlist>[];
+    for (final doc in snap.docChanges) {
+      if (doc.type != DocumentChangeType.added) continue;
+      if (doc.doc.metadata.hasPendingWrites) continue;
+      if (!_notifiedSharedIds.add(doc.doc.id)) continue;
+      if (_sharedSeeded) {
+        newlyShared.add(SharedWatchlist.fromJson(doc.doc.data()!, id: doc.doc.id));
+      }
+    }
+    if (!_sharedSeeded) {
+      _sharedSeeded = true;
+      return;
+    }
+    if (!_notificationsEnabled) return;
+    for (final shared in newlyShared) {
+      await NotificationService.instance.showSharedWatchlistNotification(
+        fromName: (shared.ownerName?.isNotEmpty ?? false)
+            ? shared.ownerName!
+            : 'A friend',
+        listName: shared.name,
       );
     }
   }

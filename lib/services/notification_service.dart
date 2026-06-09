@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as timezone;
 import '../utils/app_navigator.dart';
 import '../utils/navigation_utils.dart';
 import '../screens/home/social_hub_screen.dart';
+import '../screens/home/shared_with_me_screen.dart';
 
 /// Service for handling local notifications
 class NotificationService {
@@ -90,6 +91,9 @@ class NotificationService {
       case 'follow_accepted':
         _openSocialHub();
         break;
+      case 'shared_watchlist':
+        _openSharedWithMe();
+        break;
       default:
         debugPrint('Unknown notification type: $type');
     }
@@ -103,6 +107,16 @@ class NotificationService {
       return;
     }
     navigator.push(NavigationUtils.fastSlideRoute(const SocialHubScreen()));
+  }
+
+  /// Opens the "Shared with you" screen via the global navigator.
+  void _openSharedWithMe() {
+    final navigator = appNavigatorKey.currentState;
+    if (navigator == null) {
+      debugPrint('Cannot open Shared with you: navigator not ready');
+      return;
+    }
+    navigator.push(NavigationUtils.fastSlideRoute(const SharedWithMeScreen()));
   }
 
   /// Requests notification permissions. Safe to call multiple times. iOS only
@@ -293,6 +307,19 @@ class NotificationService {
       data: {
         'type': 'follow_accepted',
         'byUid': byUid,
+      },
+    );
+  }
+
+  Future<void> showSharedWatchlistNotification({
+    required String fromName,
+    required String listName,
+  }) async {
+    await showNotification(
+      title: 'A list was shared with you',
+      body: '$fromName shared "$listName" with you',
+      data: {
+        'type': 'shared_watchlist',
       },
     );
   }

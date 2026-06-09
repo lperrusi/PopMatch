@@ -1708,6 +1708,18 @@ abstract class AppLocalizations {
   /// **'Notify when a follow request is accepted'**
   String get followAcceptedToggleSubtitle;
 
+  /// No description provided for @sharedListsToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared lists'**
+  String get sharedListsToggle;
+
+  /// No description provided for @sharedListsToggleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify when a friend shares a list with you'**
+  String get sharedListsToggleSubtitle;
+
   /// No description provided for @privacyPageTitle.
   ///
   /// In en, this message translates to:

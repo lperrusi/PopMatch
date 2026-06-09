@@ -911,6 +911,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Notificar cuando aceptan tu solicitud';
 
   @override
+  String get sharedListsToggle => 'Listas compartidas';
+
+  @override
+  String get sharedListsToggleSubtitle =>
+      'Notificar cuando un amigo comparte una lista contigo';
+
+  @override
   String get privacyPageTitle => 'PRIVACIDAD';
 
   @override
