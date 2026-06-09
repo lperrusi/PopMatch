@@ -23,7 +23,12 @@ class AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Tap anywhere outside a field to dismiss the keyboard. Opaque so taps on
+    // empty areas register; child buttons/fields still win their own hit-tests.
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
@@ -96,6 +101,7 @@ class AuthScaffold extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
