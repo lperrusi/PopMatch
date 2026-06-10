@@ -56,9 +56,12 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
   void initState() {
     super.initState();
 
-    // Cached shows carry full detail — ready immediately (mirrors the movie
-    // screen's instant-cache path).
+    // A cached show may be list-level: getShowDetails() (unlike getMovieDetails)
+    // does not append credits, so a cached TvShow can have no cast/crew. Reveal
+    // it immediately, but still load full credits below when cast is missing so
+    // the Cast & Crew section appears.
     final cachedShow = MovieCacheService.instance.getCachedShow(widget.show.id);
+    final cachedHasCast = cachedShow?.cast?.isNotEmpty ?? false;
     if (cachedShow != null) {
       _loadedShow = cachedShow;
       _detailsLoading = false;
@@ -70,7 +73,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
       // which only come from getShowDetails — arrive with the rest of the header
       // instead of popping in late. Still cancellable on quick back-navigation.
       _showDetailsTimer = Timer(Duration.zero, () {
-        if (mounted && !isDisposed && cachedShow == null) {
+        if (mounted && !isDisposed && !cachedHasCast) {
           _loadShowDetails();
         }
       });
