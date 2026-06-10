@@ -647,10 +647,12 @@ class _LikedMovieTile extends StatelessWidget {
             width: 40,
             height: 60,
             child: movie.posterUrl != null
-                ? Image.network(
-                    movie.posterUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: movie.posterUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
+                    placeholder: (context, url) =>
+                        Container(color: Colors.grey[300]),
+                    errorWidget: (context, url, error) => Container(
                       color: Colors.grey[300],
                       child: const Icon(Icons.movie, color: Colors.grey),
                     ),
