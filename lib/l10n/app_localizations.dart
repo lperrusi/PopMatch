@@ -2014,6 +2014,78 @@ abstract class AppLocalizations {
   /// **'Swipe cards based on people you follow'**
   String get friendsWatchingCardSubtitle;
 
+  /// No description provided for @activityFeedCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends activity'**
+  String get activityFeedCard;
+
+  /// No description provided for @activityFeedCardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A timeline of what your friends are into'**
+  String get activityFeedCardSubtitle;
+
+  /// No description provided for @activityFeedPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'FRIENDS ACTIVITY'**
+  String get activityFeedPageTitle;
+
+  /// No description provided for @activityFeedEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No activity yet'**
+  String get activityFeedEmptyTitle;
+
+  /// No description provided for @activityFeedEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow more friends to see what they\'re liking and adding to their watchlists.'**
+  String get activityFeedEmptyBody;
+
+  /// No description provided for @activityFeedErrorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t load the activity feed. Please try again.'**
+  String get activityFeedErrorBody;
+
+  /// No description provided for @activityLikedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} liked'**
+  String activityLikedBy(String name);
+
+  /// No description provided for @activityWatchlistedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} added to watchlist'**
+  String activityWatchlistedBy(String name);
+
+  /// No description provided for @activityWatchedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} watched'**
+  String activityWatchedBy(String name);
+
+  /// No description provided for @activityBucketToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get activityBucketToday;
+
+  /// No description provided for @activityBucketThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get activityBucketThisWeek;
+
+  /// No description provided for @activityBucketEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get activityBucketEarlier;
+
   /// No description provided for @sharedWithYouCard.
   ///
   /// In en, this message translates to:

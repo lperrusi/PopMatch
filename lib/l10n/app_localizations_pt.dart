@@ -1074,6 +1074,51 @@ class AppLocalizationsPt extends AppLocalizations {
       'Deslize cartões com base em pessoas que você segue';
 
   @override
+  String get activityFeedCard => 'Atividade dos amigos';
+
+  @override
+  String get activityFeedCardSubtitle =>
+      'Uma linha do tempo do que seus amigos curtem';
+
+  @override
+  String get activityFeedPageTitle => 'ATIVIDADE DOS AMIGOS';
+
+  @override
+  String get activityFeedEmptyTitle => 'Ainda não há atividade';
+
+  @override
+  String get activityFeedEmptyBody =>
+      'Siga mais amigos para ver o que eles curtem e adicionam às suas listas.';
+
+  @override
+  String get activityFeedErrorBody =>
+      'Não foi possível carregar a atividade. Tente novamente.';
+
+  @override
+  String activityLikedBy(String name) {
+    return '$name curtiu';
+  }
+
+  @override
+  String activityWatchlistedBy(String name) {
+    return '$name adicionou à lista';
+  }
+
+  @override
+  String activityWatchedBy(String name) {
+    return '$name assistiu';
+  }
+
+  @override
+  String get activityBucketToday => 'Hoje';
+
+  @override
+  String get activityBucketThisWeek => 'Esta semana';
+
+  @override
+  String get activityBucketEarlier => 'Antes';
+
+  @override
   String get sharedWithYouCard => 'Compartilhado com você';
 
   @override

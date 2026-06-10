@@ -9,6 +9,7 @@ import 'friends_watching_screen.dart';
 import 'friend_profile_screen.dart';
 import 'shared_with_me_screen.dart';
 import 'matches_screen.dart';
+import 'activity_feed_screen.dart';
 
 class SocialHubScreen extends StatefulWidget {
   const SocialHubScreen({super.key});
@@ -68,6 +69,23 @@ class _SocialHubScreenState extends State<SocialHubScreen> {
                       Navigator.of(context).push(
                         NavigationUtils.fastSlideRoute(
                           const FriendsWatchingScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.dynamic_feed_rounded,
+                        color: AppTheme.cinemaRed),
+                    title: Text(l10n.activityFeedCard),
+                    subtitle: Text(l10n.activityFeedCardSubtitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        NavigationUtils.fastSlideRoute(
+                          const ActivityFeedScreen(),
                         ),
                       );
                     },
