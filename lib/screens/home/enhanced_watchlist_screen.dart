@@ -13,6 +13,8 @@ import '../../utils/theme.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
 import '../../services/movie_cache_service.dart';
+import '../../widgets/poster_grid_skeleton.dart';
+import '../../widgets/poster_list_skeleton.dart';
 import 'movie_detail_screen.dart';
 import 'advanced_filter_screen.dart';
 
@@ -578,11 +580,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
   /// Builds the lists tab
   Widget _buildListsTab() {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
-        ),
-      );
+      return const PosterListSkeleton();
     }
 
     if (_error != null) {
@@ -696,11 +694,7 @@ class _EnhancedWatchlistScreenState extends State<EnhancedWatchlistScreen>
   /// Builds the movies tab
   Widget _buildMoviesTab() {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
-        ),
-      );
+      return const PosterGridSkeleton();
     }
 
     final filteredMovies = _filteredMovies;

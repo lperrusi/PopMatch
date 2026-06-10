@@ -985,12 +985,9 @@ class _SearchScreenState extends State<SearchScreen>
   // ─── States ───────────────────────────────────────────────────────────────
 
   Widget _buildLoadingState() {
-    return const Center(
-      child: CircularProgressIndicator(
-        color: AppTheme.cinemaRed,
-        strokeWidth: 2,
-      ),
-    );
+    // Skeleton rows matching the search results list (consistent with the rest
+    // of the app) instead of a bare spinner.
+    return const PosterListSkeleton();
   }
 
   Widget _buildEmptyState({
