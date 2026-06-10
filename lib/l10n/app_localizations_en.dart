@@ -895,6 +895,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Notify when a follow request is accepted';
 
   @override
+  String get sharedListsToggle => 'Shared lists';
+
+  @override
+  String get sharedListsToggleSubtitle =>
+      'Notify when a friend shares a list with you';
+
+  @override
   String get privacyPageTitle => 'PRIVACY';
 
   @override
@@ -1058,6 +1065,51 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get friendsWatchingCardSubtitle =>
       'Swipe cards based on people you follow';
+
+  @override
+  String get activityFeedCard => 'Friends activity';
+
+  @override
+  String get activityFeedCardSubtitle =>
+      'A timeline of what your friends are into';
+
+  @override
+  String get activityFeedPageTitle => 'FRIENDS ACTIVITY';
+
+  @override
+  String get activityFeedEmptyTitle => 'No activity yet';
+
+  @override
+  String get activityFeedEmptyBody =>
+      'Follow more friends to see what they\'re liking and adding to their watchlists.';
+
+  @override
+  String get activityFeedErrorBody =>
+      'We couldn\'t load the activity feed. Please try again.';
+
+  @override
+  String activityLikedBy(String name) {
+    return '$name liked';
+  }
+
+  @override
+  String activityWatchlistedBy(String name) {
+    return '$name added to watchlist';
+  }
+
+  @override
+  String activityWatchedBy(String name) {
+    return '$name watched';
+  }
+
+  @override
+  String get activityBucketToday => 'Today';
+
+  @override
+  String get activityBucketThisWeek => 'This week';
+
+  @override
+  String get activityBucketEarlier => 'Earlier';
 
   @override
   String get sharedWithYouCard => 'Shared with you';

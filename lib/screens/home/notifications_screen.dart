@@ -166,6 +166,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         _save('notificationsFollowAccepted', v);
                       },
                     ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      title: Text(l10n.sharedListsToggle),
+                      subtitle: Text(l10n.sharedListsToggleSubtitle),
+                      value: (Provider.of<AuthProvider>(context, listen: false)
+                                  .userData
+                                  ?.preferences['notificationsSharedLists']
+                              as bool?) ??
+                          true,
+                      activeThumbColor: AppTheme.vintagePaper,
+                      onChanged: (v) {
+                        _save('notificationsSharedLists', v);
+                      },
+                    ),
                   ],
                 ],
               ),

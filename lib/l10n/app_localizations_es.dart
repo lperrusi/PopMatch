@@ -911,6 +911,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Notificar cuando aceptan tu solicitud';
 
   @override
+  String get sharedListsToggle => 'Listas compartidas';
+
+  @override
+  String get sharedListsToggleSubtitle =>
+      'Notificar cuando un amigo comparte una lista contigo';
+
+  @override
   String get privacyPageTitle => 'PRIVACIDAD';
 
   @override
@@ -1076,6 +1083,51 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get friendsWatchingCardSubtitle =>
       'Desliza tarjetas basadas en personas que sigues';
+
+  @override
+  String get activityFeedCard => 'Actividad de amigos';
+
+  @override
+  String get activityFeedCardSubtitle =>
+      'Una línea de tiempo de lo que les gusta a tus amigos';
+
+  @override
+  String get activityFeedPageTitle => 'ACTIVIDAD DE AMIGOS';
+
+  @override
+  String get activityFeedEmptyTitle => 'Aún no hay actividad';
+
+  @override
+  String get activityFeedEmptyBody =>
+      'Sigue a más amigos para ver qué les gusta y qué agregan a sus listas.';
+
+  @override
+  String get activityFeedErrorBody =>
+      'No pudimos cargar la actividad. Inténtalo de nuevo.';
+
+  @override
+  String activityLikedBy(String name) {
+    return 'A $name le gustó';
+  }
+
+  @override
+  String activityWatchlistedBy(String name) {
+    return '$name agregó a su lista';
+  }
+
+  @override
+  String activityWatchedBy(String name) {
+    return '$name vio';
+  }
+
+  @override
+  String get activityBucketToday => 'Hoy';
+
+  @override
+  String get activityBucketThisWeek => 'Esta semana';
+
+  @override
+  String get activityBucketEarlier => 'Antes';
 
   @override
   String get sharedWithYouCard => 'Compartido contigo';
