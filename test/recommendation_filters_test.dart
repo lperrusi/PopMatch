@@ -66,6 +66,22 @@ void main() {
     });
   });
 
+  group('mostRecentLikedMovieId', () {
+    test('returns the last valid id (likes are appended)', () {
+      expect(mostRecentLikedMovieId(['10', '20', '30']), 30);
+    });
+    test('skips trailing non-numeric / blank entries', () {
+      expect(mostRecentLikedMovieId(['10', '20', 'bad', '  ']), 20);
+    });
+    test('ignores non-positive ids', () {
+      expect(mostRecentLikedMovieId(['5', '0', '-3']), 5);
+    });
+    test('returns null when there are no valid ids', () {
+      expect(mostRecentLikedMovieId(const []), isNull);
+      expect(mostRecentLikedMovieId(['', 'nope']), isNull);
+    });
+  });
+
   group('likedDislikedIds', () {
     test('parses and merges liked + disliked id strings', () {
       final ids = likedDislikedIds(

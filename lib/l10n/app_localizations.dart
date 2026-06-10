@@ -2908,6 +2908,12 @@ abstract class AppLocalizations {
   /// **'Because You Liked'**
   String get forYouBecauseYouLiked;
 
+  /// No description provided for @forYouBecauseYouLikedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you liked {title}'**
+  String forYouBecauseYouLikedTitle(String title);
+
   /// No description provided for @forYouRecommended.
   ///
   /// In en, this message translates to:

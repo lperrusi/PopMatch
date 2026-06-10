@@ -708,6 +708,8 @@
   "forYouTitle": "For You",
   "forYouTooltip": "For You",
   "forYouBecauseYouLiked": "Because You Liked",
+  "forYouBecauseYouLikedTitle": "Because you liked {title}",
+  "@forYouBecauseYouLikedTitle": {"placeholders": {"title": {"type": "String"}}},
   "forYouRecommended": "Recommended For You",
   "forYouTrending": "Trending Now",
   "forYouFriendsWatching": "Friends Are Watching",
