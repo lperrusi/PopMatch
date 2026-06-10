@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/movie.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
 import '../../widgets/detail/detail_action_buttons.dart';
+import '../../widgets/detail/detail_why_line.dart';
+import '../../utils/detail_actions.dart';
 import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
@@ -26,10 +26,6 @@ import '../../utils/streaming_url_launcher.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
-import '../../utils/recommendation_reason.dart';
-import '../../utils/recommendation_reason_label.dart';
-import '../../services/user_preferences_session_cache.dart';
-import 'home_screen.dart' show updateHomeScreenTab;
 
 /// Retro Cinema styled movie detail screen
 class MovieDetailScreen extends StatefulWidget {
@@ -177,61 +173,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
     if (m == 0) return '${h}h';
     return '${h}h ${m}m';
   }
-
-  /// Subtle "why you're seeing this" line (e.g. "Because you like {Actor}") under
-  /// the header meta. Reuses the same engine as the swipe-card badge; hidden when
-  /// there's no meaningful reason.
-  Widget _buildWhyLine(BuildContext context) {
-    final userGenreIds = <int>{};
-    final raw =
-        context.read<AuthProvider>().userData?.preferences['selectedGenres'];
-    if (raw is List) {
-      for (final g in raw) {
-        final id = g is int ? g : int.tryParse(g.toString());
-        if (id != null) userGenreIds.add(id);
-      }
-    }
-    final prefs = UserPreferencesSessionCache().cachedPreferences;
-    final reason = buildRecommendationReason(
-      strategy: _displayMovie.recommendationStrategy,
-      genreIds: _displayMovie.genreIds,
-      genreNames: _displayMovie.genres,
-      userGenreIds: userGenreIds,
-      genres: context.read<MovieProvider>().genres,
-      castNames: _displayMovie.cast?.take(6).map((c) => c.name).toList(),
-      directorNames: _displayMovie.crew
-          ?.where((c) => c.job == 'Director')
-          .map((c) => c.name)
-          .toList(),
-      userActors: prefs?.preferredActors.toSet() ?? const {},
-      userDirectors: prefs?.preferredDirectors.toSet() ?? const {},
-    );
-    final label = recommendationReasonLabel(context.l10n, reason);
-    if (label == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.auto_awesome, size: 14, color: AppTheme.popcornGold),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: GoogleFonts.lato(
-                color: textColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -455,7 +396,21 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                                   ),
                               ],
                             ),
-                            _buildWhyLine(context),
+                            DetailWhyLine(
+                              strategy: _displayMovie.recommendationStrategy,
+                              genreIds: _displayMovie.genreIds,
+                              genreNames: _displayMovie.genres,
+                              genres: context.read<MovieProvider>().genres,
+                              castNames: _displayMovie.cast
+                                  ?.take(6)
+                                  .map((c) => c.name)
+                                  .toList(),
+                              directorNames: _displayMovie.crew
+                                  ?.where((c) => c.job == 'Director')
+                                  .map((c) => c.name)
+                                  .toList(),
+                              textColor: textColor,
+                            ),
                             const SizedBox(height: 16),
 
                             // Watchlist, Like, Dislike, Add-to-list and Share row
@@ -670,17 +625,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
 
   /// Handles navigation tap from bottom navigation
   void _handleNavigationTap(int index) {
-    // Cancel all ongoing operations immediately
-    isDisposed = true;
-    _movieDetailsTimer?.cancel();
-    _colorExtractionTimer?.cancel();
-
-    // Navigate immediately - non-blocking
-    Navigator.of(context).pop();
-
-    // Update the HomeScreen tab index after navigation starts
-    // Use a microtask to ensure navigation happens first
-    Future.microtask(() => updateHomeScreenTab(index));
+    handleDetailNavTap(
+      context,
+      index,
+      onCancel: () {
+        isDisposed = true;
+        _movieDetailsTimer?.cancel();
+        _colorExtractionTimer?.cancel();
+      },
+    );
   }
 
   @override
@@ -695,20 +648,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
 
   /// Shares movie information
   void _shareMovie(BuildContext context) {
-    final shareText = '''
-🎬 ${_displayMovie.title}
-
-${_displayMovie.overview ?? 'No description available'}
-
-⭐ Rating: ${_displayMovie.formattedRating}
-📅 Year: ${_displayMovie.year ?? 'Unknown'}
-🎭 Genres: ${_displayMovie.genres?.join(', ') ?? 'Unknown'}
-
-Check out this movie on PopMatch!
-''';
-
-    Share.share(shareText,
-        subject: 'Check out this movie: ${_displayMovie.title}');
+    shareTitleDetails(
+      isShow: false,
+      title: _displayMovie.title,
+      overview: _displayMovie.overview,
+      rating: _displayMovie.formattedRating,
+      year: _displayMovie.year,
+      genres: _displayMovie.genres,
+    );
   }
 }
 

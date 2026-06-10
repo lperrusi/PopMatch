@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../../models/movie.dart';
 import '../../providers/movie_provider.dart';
@@ -744,10 +745,12 @@ class _AdvancedFilterScreenState extends State<AdvancedFilterScreen>
           child: SizedBox(
             width: 50,
             height: 75,
-            child: Image.network(
-              movie.posterUrl ?? '',
+            child: CachedNetworkImage(
+              imageUrl: movie.posterUrl ?? '',
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
+              placeholder: (context, url) =>
+                  Container(color: Colors.grey[300]),
+              errorWidget: (context, url, error) {
                 return Container(
                   color: Colors.grey[300],
                   child: const Icon(Icons.movie, color: Colors.grey),

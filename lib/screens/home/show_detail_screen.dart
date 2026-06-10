@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../models/tv_show.dart';
@@ -10,6 +9,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
 import '../../widgets/detail/detail_action_buttons.dart';
+import '../../widgets/detail/detail_why_line.dart';
+import '../../utils/detail_actions.dart';
 import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
@@ -22,10 +23,6 @@ import '../../services/tmdb_service.dart';
 import '../../services/movie_cache_service.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/l10n_extension.dart';
-import '../../utils/recommendation_reason.dart';
-import '../../utils/recommendation_reason_label.dart';
-import '../../services/user_preferences_session_cache.dart';
-import 'home_screen.dart' show updateHomeScreenTab;
 
 /// Retro Cinema styled TV show detail screen
 class ShowDetailScreen extends StatefulWidget {
@@ -152,54 +149,6 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
 
   /// Gets the show to display (loaded show with cast/crew, or fallback to original)
   TvShow get _displayShow => _loadedShow ?? widget.show;
-
-  /// Subtle "why you're seeing this" line under the header meta. Reuses the same
-  /// engine as the swipe-card badge; hidden when there's no meaningful reason.
-  Widget _buildWhyLine(BuildContext context) {
-    final userGenreIds = <int>{};
-    final raw =
-        context.read<AuthProvider>().userData?.preferences['selectedGenres'];
-    if (raw is List) {
-      for (final g in raw) {
-        final id = g is int ? g : int.tryParse(g.toString());
-        if (id != null) userGenreIds.add(id);
-      }
-    }
-    final prefs = UserPreferencesSessionCache().cachedPreferences;
-    final reason = buildRecommendationReason(
-      strategy: _displayShow.recommendationStrategy,
-      genreIds: _displayShow.genreIds,
-      genreNames: _displayShow.genres,
-      userGenreIds: userGenreIds,
-      genres: context.read<ShowProvider>().genres,
-      castNames: _displayShow.cast?.take(6).map((c) => c.name).toList(),
-      userActors: prefs?.preferredActors.toSet() ?? const {},
-    );
-    final label = recommendationReasonLabel(context.l10n, reason);
-    if (label == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.auto_awesome, size: 14, color: AppTheme.popcornGold),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: GoogleFonts.lato(
-                color: textColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Shimmer placeholder for the seasons/episodes counts while show details load,
   /// so the header reserves the slot instead of growing when the counts arrive.
@@ -513,7 +462,17 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
                             const SizedBox(height: 8),
                             _buildSeasonsEpisodesPlaceholder(),
                           ],
-                          _buildWhyLine(context),
+                          DetailWhyLine(
+                            strategy: _displayShow.recommendationStrategy,
+                            genreIds: _displayShow.genreIds,
+                            genreNames: _displayShow.genres,
+                            genres: context.read<ShowProvider>().genres,
+                            castNames: _displayShow.cast
+                                ?.take(6)
+                                .map((c) => c.name)
+                                .toList(),
+                            textColor: textColor,
+                          ),
                           const SizedBox(height: 16),
 
                           // Watchlist, Like, Dislike and Share row
@@ -695,11 +654,15 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
   }
 
   void _handleNavigationTap(int index) {
-    isDisposed = true;
-    _showDetailsTimer?.cancel();
-    _colorExtractionTimer?.cancel();
-    Navigator.of(context).pop();
-    Future.microtask(() => updateHomeScreenTab(index));
+    handleDetailNavTap(
+      context,
+      index,
+      onCancel: () {
+        isDisposed = true;
+        _showDetailsTimer?.cancel();
+        _colorExtractionTimer?.cancel();
+      },
+    );
   }
 
   @override
@@ -712,21 +675,16 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
   }
 
   void _shareShow(BuildContext context) {
-    final shareText = '''
-📺 ${_displayShow.name}
-
-${_displayShow.overview ?? 'No description available'}
-
-⭐ Rating: ${_displayShow.formattedRating}
-📅 First Aired: ${_displayShow.year ?? 'Unknown'}
-${_displayShow.numberOfSeasons != null ? '📚 Seasons: ${_displayShow.numberOfSeasons}' : ''}
-${_displayShow.numberOfEpisodes != null ? '🎬 Episodes: ${_displayShow.numberOfEpisodes}' : ''}
-🎭 Genres: ${_displayShow.genres?.join(', ') ?? 'Unknown'}
-
-Check out this show on PopMatch!
-''';
-
-    Share.share(shareText, subject: 'Check out this show: ${_displayShow.name}');
+    shareTitleDetails(
+      isShow: true,
+      title: _displayShow.name,
+      overview: _displayShow.overview,
+      rating: _displayShow.formattedRating,
+      year: _displayShow.year,
+      genres: _displayShow.genres,
+      seasons: _displayShow.numberOfSeasons,
+      episodes: _displayShow.numberOfEpisodes,
+    );
   }
 }
 

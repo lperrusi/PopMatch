@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -219,12 +220,17 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               if (widget.video.thumbnailUrl != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    widget.video.thumbnailUrl!,
+                  child: CachedNetworkImage(
+                    imageUrl: widget.video.thumbnailUrl!,
                     width: double.infinity,
                     height: 200,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
+                    placeholder: (context, url) => Container(
+                      width: double.infinity,
+                      height: 200,
+                      color: Colors.grey.shade800,
+                    ),
+                    errorWidget: (context, url, error) {
                       return Container(
                         width: double.infinity,
                         height: 200,
@@ -351,12 +357,17 @@ class VideoThumbnailWidget extends StatelessWidget {
             if (video.thumbnailUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(borderRadius),
-                child: Image.network(
-                  video.thumbnailUrl!,
+                child: CachedNetworkImage(
+                  imageUrl: video.thumbnailUrl!,
                   width: double.infinity,
                   height: height,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
+                  placeholder: (context, url) => Container(
+                    width: double.infinity,
+                    height: height,
+                    color: Colors.grey.shade800,
+                  ),
+                  errorWidget: (context, url, error) {
                     return Container(
                       width: double.infinity,
                       height: height,

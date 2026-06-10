@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
@@ -206,11 +207,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _googleIcon() {
-    return Image.network(
-      'https://www.google.com/favicon.ico',
+    return CachedNetworkImage(
+      imageUrl: 'https://www.google.com/favicon.ico',
       width: 20,
       height: 20,
-      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata,
+      errorWidget: (_, __, ___) => const Icon(Icons.g_mobiledata,
           size: 24, color: AppTheme.authBackground),
     );
   }
