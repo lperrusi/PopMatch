@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/show_provider.dart';
+import '../../providers/social_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
@@ -21,7 +22,7 @@ import 'edit_preferences_screen.dart';
 import 'notifications_screen.dart';
 import 'privacy_screen.dart';
 import 'help_support_screen.dart';
-import 'home_screen.dart' show updateHomeScreenTab;
+import 'social_hub_screen.dart';
 import 'favorites_screen.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
@@ -278,8 +279,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           leading: Icon(Icons.groups_rounded, color: Theme.of(context).colorScheme.onSurface),
                           title: Text(l10n.socialLabel),
                           subtitle: Text(l10n.socialSubtitle),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => updateHomeScreenTab(1),
+                          trailing: Consumer<SocialProvider>(
+                            builder: (context, social, _) {
+                              final pending = social.incomingRequests.length;
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (pending > 0) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.cinemaRed,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        '$pending',
+                                        style: GoogleFonts.lato(
+                                          color: AppTheme.warmCream,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              );
+                            },
+                          ),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              NavigationUtils.fastSlideRoute(
+                                const SocialHubScreen()),
+                            );
+                          },
                         ),
                         const Divider(height: 1),
                       ],

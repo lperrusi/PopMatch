@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/streaming_platform.dart';
 import '../../providers/auth_provider.dart';
@@ -123,10 +124,17 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      backgroundColor: AppTheme.deepMidnightBrown,
+      backgroundColor: AppTheme.vintagePaper,
       appBar: AppBar(
-        title: Text(l10n.editPreferencesAppBarTitle),
-        backgroundColor: AppTheme.deepMidnightBrown,
+        title: Text(
+          l10n.editPreferencesAppBarTitle,
+          style: GoogleFonts.bebasNeue(
+            fontSize: 28,
+            color: AppTheme.warmCream,
+            letterSpacing: 2,
+          ),
+        ),
+        backgroundColor: AppTheme.cinemaRed,
         foregroundColor: AppTheme.warmCream,
         elevation: 0,
       ),
@@ -136,8 +144,8 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
             // Progress indicator
             LinearProgressIndicator(
               value: (_currentPage + 1) / 2,
-              backgroundColor: AppTheme.warmCream.withValues(alpha: 0.12),
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
+              backgroundColor: AppTheme.filmStripBlack.withValues(alpha: 0.12),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.cinemaRed),
             ),
 
             // Page content
@@ -185,7 +193,7 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                   Text(
                     l10n.pageIndicatorOf2(_currentPage + 1),
                     style: TextStyle(
-                      color: AppTheme.warmCream.withValues(alpha: 0.9),
+                      color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -229,16 +237,17 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
             children: [
               Text(
                 context.l10n.genrePageTitle,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.warmCream,
-                    ),
+                style: GoogleFonts.bebasNeue(
+                  fontSize: 26,
+                  color: AppTheme.filmStripBlack,
+                  letterSpacing: 1,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 context.l10n.genrePageSubtitle,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.warmCream.withValues(alpha: 0.9),
+                      color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
                     ),
               ),
               const SizedBox(height: 24),
@@ -260,12 +269,12 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppTheme.primaryRed.withValues(alpha: 0.25)
+                              ? AppTheme.cinemaRed.withValues(alpha: 0.12)
                               : Colors.transparent,
                           border: Border.all(
                             color: isSelected
-                                ? AppTheme.primaryRed
-                                : AppTheme.warmCream.withValues(alpha: 0.4),
+                                ? AppTheme.cinemaRed
+                                : AppTheme.filmStripBlack.withValues(alpha: 0.3),
                             width: 2,
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -275,8 +284,8 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                             genre.value,
                             style: TextStyle(
                               color: isSelected
-                                  ? AppTheme.popcornGold
-                                  : AppTheme.warmCream,
+                                  ? AppTheme.cinemaRed
+                                  : AppTheme.filmStripBlack,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -302,16 +311,17 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
         children: [
           Text(
             context.l10n.platformPageTitle,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.warmCream,
-                ),
+            style: GoogleFonts.bebasNeue(
+              fontSize: 26,
+              color: AppTheme.filmStripBlack,
+              letterSpacing: 1,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             context.l10n.platformPageSubtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.warmCream.withValues(alpha: 0.9),
+                  color: AppTheme.filmStripBlack.withValues(alpha: 0.7),
                 ),
           ),
           const SizedBox(height: 24),
@@ -326,12 +336,12 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppTheme.primaryRed.withValues(alpha: 0.15)
+                        ? AppTheme.cinemaRed.withValues(alpha: 0.12)
                         : Colors.transparent,
                     border: Border.all(
                       color: isSelected
-                          ? AppTheme.primaryRed
-                          : AppTheme.warmCream.withValues(alpha: 0.3),
+                          ? AppTheme.cinemaRed
+                          : AppTheme.filmStripBlack.withValues(alpha: 0.3),
                       width: 1,
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -342,13 +352,13 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
                           ? Icons.check_circle
                           : Icons.radio_button_unchecked,
                       color: isSelected
-                          ? AppTheme.primaryRed
-                          : AppTheme.warmCream.withValues(alpha: 0.7),
+                          ? AppTheme.cinemaRed
+                          : AppTheme.filmStripBlack.withValues(alpha: 0.5),
                     ),
                     title: Text(
                       platform.name,
                       style: const TextStyle(
-                        color: AppTheme.warmCream,
+                        color: AppTheme.filmStripBlack,
                       ),
                     ),
                     onTap: () => _togglePlatform(platform.id),

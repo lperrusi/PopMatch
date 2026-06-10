@@ -16,6 +16,7 @@ import 'package:popmatch/providers/movie_provider.dart';
 import 'package:popmatch/providers/show_provider.dart';
 import 'package:popmatch/providers/recommendations_provider.dart';
 import 'package:popmatch/providers/streaming_provider.dart';
+import 'package:popmatch/providers/social_provider.dart';
 import 'package:popmatch/services/tmdb_service.dart';
 import 'package:popmatch/services/firebase_config.dart';
 import 'package:popmatch/widgets/splash_loaders.dart';
@@ -51,6 +52,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => ShowProvider()),
         ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
         ChangeNotifierProvider(create: (_) => StreamingProvider()),
+        ChangeNotifierProvider(create: (_) => SocialProvider()),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -120,6 +122,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => ShowProvider()),
             ChangeNotifierProvider(create: (_) => RecommendationsProvider()),
             ChangeNotifierProvider(create: (_) => StreamingProvider()),
+            ChangeNotifierProvider(create: (_) => SocialProvider()),
           ],
           child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
