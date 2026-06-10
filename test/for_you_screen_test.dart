@@ -58,4 +58,16 @@ void main() {
     // assert the screen builds cleanly.
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('no "Because you liked" rail when the user has no likes',
+      (tester) async {
+    await tester.pumpWidget(wrap(const ForYouScreen()));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    // The seed comes from the user's most recent like; with none, the rail
+    // must stay hidden (no seed → no fetch).
+    expect(find.textContaining('Because you liked'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

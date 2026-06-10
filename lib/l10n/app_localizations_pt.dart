@@ -1649,6 +1649,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get forYouBecauseYouLiked => 'Porque você curtiu';
 
   @override
+  String forYouBecauseYouLikedTitle(String title) {
+    return 'Porque você curtiu $title';
+  }
+
+  @override
   String get forYouRecommended => 'Recomendado para você';
 
   @override

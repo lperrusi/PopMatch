@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/recommendations_provider.dart';
 import '../../services/feature_flags.dart';
+import '../../services/tmdb_service.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/recommendation_filters.dart';
@@ -39,6 +40,11 @@ class _ForYouScreenState extends State<ForYouScreen>
   bool _friendsLoaded = false;
   bool _forceReady = false;
   Set<int> _userGenreIds = {};
+
+  // "Because you liked {title}" rail — seeded from the user's most recent like.
+  List<Movie> _becauseYouLiked = [];
+  String? _becauseSeedTitle;
+  bool _becauseReady = false;
 
   late final AnimationController _pulseController;
   Timer? _revealFallback;
@@ -94,8 +100,34 @@ class _ForYouScreenState extends State<ForYouScreen>
     await Future.wait([
       _loadForYou(movieProvider, user),
       _loadTrending(rec),
+      _loadBecauseYouLiked(user),
       if (_friendsEnabled) _loadFriends(rec),
     ]);
+  }
+
+  /// Loads a "Because you liked {title}" rail from the user's most recent like
+  /// (silent — like the Friends rail, it never gates the reveal and stays hidden
+  /// when there's no seed or no similar titles resolve).
+  Future<void> _loadBecauseYouLiked(User user) async {
+    final seedId = mostRecentLikedMovieId(user.likedMovies);
+    if (seedId == null) {
+      if (mounted) setState(() => _becauseReady = true);
+      return;
+    }
+    try {
+      final tmdb = TMDBService();
+      final seed = await tmdb.getMovieDetails(seedId);
+      final similar = await tmdb.getSimilarMovies(seedId);
+      if (!mounted) return;
+      setState(() {
+        _becauseYouLiked = similar;
+        _becauseSeedTitle = seed.title;
+        _becauseReady = true;
+      });
+    } catch (e) {
+      debugPrint('ForYou: because-you-liked load failed: $e');
+      if (mounted) setState(() => _becauseReady = true);
+    }
   }
 
   /// Personalized hero + rail — canonical engine (already filtered + scored).
@@ -197,6 +229,9 @@ class _ForYouScreenState extends State<ForYouScreen>
             return out;
           }
 
+          // Highest-priority rail after the hero, so it claims its titles first.
+          final because =
+              takeUnshown(filterForYou(_becauseYouLiked, excludeIds: excludeIds));
           final recommended = takeUnshown(_forYou);
           final trending = takeUnshown(
             filterForYou(rec.trendingRecommendations, excludeIds: excludeIds),
@@ -212,6 +247,7 @@ class _ForYouScreenState extends State<ForYouScreen>
           final everythingEmpty = !_loadingForYou &&
               !_loadingTrending &&
               hero == null &&
+              because.isEmpty &&
               recommended.isEmpty &&
               trending.isEmpty &&
               friends.isEmpty;
@@ -229,6 +265,15 @@ class _ForYouScreenState extends State<ForYouScreen>
                     if (hero != null) _openDetail(hero);
                   },
                 ),
+                if (_becauseReady &&
+                    _becauseSeedTitle != null &&
+                    because.isNotEmpty)
+                  ForYouRail(
+                    title: l10n.forYouBecauseYouLikedTitle(_becauseSeedTitle!),
+                    movies: because,
+                    isLoading: false,
+                    onTap: _openDetail,
+                  ),
                 ForYouRail(
                   title: l10n.forYouRecommended,
                   movies: recommended,

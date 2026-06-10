@@ -549,6 +549,8 @@
   "forYouTitle": "Para Ti",
   "forYouTooltip": "Para Ti",
   "forYouBecauseYouLiked": "Porque te gust\u00f3",
+  "forYouBecauseYouLikedTitle": "Porque te gust\u00f3 {title}",
+  "@forYouBecauseYouLikedTitle": {"placeholders": {"title": {"type": "String"}}},
   "forYouRecommended": "Recomendado para ti",
   "forYouTrending": "Tendencias",
   "forYouFriendsWatching": "Tus amigos est\u00e1n viendo",
