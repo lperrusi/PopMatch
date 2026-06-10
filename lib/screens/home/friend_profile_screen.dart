@@ -10,6 +10,7 @@ import '../../services/social_service.dart';
 import '../../services/tmdb_service.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/theme.dart';
+import '../../widgets/poster_grid_skeleton.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
 
@@ -152,7 +153,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const PosterGridSkeleton()
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
