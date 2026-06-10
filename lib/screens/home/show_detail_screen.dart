@@ -9,6 +9,7 @@ import '../../models/tv_show.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
+import '../../widgets/detail/detail_action_buttons.dart';
 import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
@@ -19,7 +20,6 @@ import '../../models/movie.dart'; // For CastMember, CrewMember
 import '../../utils/navigation_utils.dart';
 import '../../services/tmdb_service.dart';
 import '../../services/movie_cache_service.dart';
-import '../../widgets/detail/watchlist_icon.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/recommendation_reason.dart';
@@ -516,149 +516,14 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
                           _buildWhyLine(context),
                           const SizedBox(height: 16),
 
-                          // Watchlist, Like, Dislike and Share buttons row
-                          Row(
-                            children: [
-                              // Watchlist button
-                              Consumer<AuthProvider>(
-                                builder: (context, authProvider, child) {
-                                  final isInWatchlist = authProvider.isInWatchlistShow(_displayShow.id.toString());
-                                  return IconButton(
-                                    icon: WatchlistIcon(
-                                      size: 28,
-                                      added: isInWatchlist,
-                                      inactiveColor: textColor,
-                                    ),
-                                      onPressed: () async {
-                                        final showProvider = Provider.of<ShowProvider>(context, listen: false);
-
-                                        if (isInWatchlist) {
-                                          await authProvider.removeFromWatchlistShow(_displayShow.id.toString());
-                                          if (!context.mounted) return;
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(context.l10n.snackbarRemovedFromWatchlist(_displayShow.name)),
-                                            backgroundColor: AppTheme.fadedCurtain,
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                        } else {
-                                          await authProvider.addShowToWatchlist(_displayShow.id.toString());
-                                          if (!context.mounted) return;
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(context.l10n.snackbarAddedToWatchlist(_displayShow.name)),
-                                            backgroundColor: AppTheme.fadedCurtain,
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      }
-
-                                        // Keep the swipe feed in sync with detail actions.
-                                        showProvider.refreshFilters(authProvider.userData);
-                                    },
-                                  );
-                                },
-                              ),
-                              // Like button
-                              Consumer<AuthProvider>(
-                                builder: (context, authProvider, child) {
-                                  final showId = _displayShow.id.toString();
-                                  final isLiked = authProvider.isLikedShow(showId);
-                                  return IconButton(
-                                    icon: Icon(
-                                      isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                                      color: isLiked ? AppTheme.vintagePaper : textColor,
-                                      size: 24,
-                                    ),
-                                    onPressed: () async {
-                                      if (authProvider.userData == null) return;
-                                        final showProvider = Provider.of<ShowProvider>(context, listen: false);
-                                      if (isLiked) {
-                                        await authProvider.removeLikedShow(showId);
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(context.l10n.removedFromFavoritesSnackbar(_displayShow.name)),
-                                              backgroundColor: AppTheme.fadedCurtain,
-                                              behavior: SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        }
-                                      } else {
-                                        await authProvider.removeDislikedShow(showId);
-                                        await authProvider.addLikedShow(showId);
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(context.l10n.addedToFavoritesSnackbar(_displayShow.name)),
-                                              backgroundColor: AppTheme.fadedCurtain,
-                                              behavior: SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        }
-                                      }
-
-                                        showProvider.refreshFilters(authProvider.userData);
-                                    },
-                                  );
-                                },
-                              ),
-                              // Dislike button
-                              Consumer<AuthProvider>(
-                                builder: (context, authProvider, child) {
-                                  final showId = _displayShow.id.toString();
-                                  final isDisliked = authProvider.isDislikedShow(showId);
-                                  return IconButton(
-                                    icon: Icon(
-                                      isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
-                                      color: isDisliked ? AppTheme.vintagePaper : textColor.withValues(alpha: 0.8),
-                                      size: 24,
-                                    ),
-                                    onPressed: () async {
-                                      if (authProvider.userData == null) return;
-                                        final showProvider = Provider.of<ShowProvider>(context, listen: false);
-                                      if (isDisliked) {
-                                        await authProvider.removeDislikedShow(showId);
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(context.l10n.removedFromDislikedSnackbar(_displayShow.name)),
-                                              backgroundColor: AppTheme.fadedCurtain,
-                                              behavior: SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        }
-                                      } else {
-                                        await authProvider.removeLikedShow(showId);
-                                        await authProvider.addDislikedShow(showId);
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(context.l10n.addedToDislikedSnackbar(_displayShow.name)),
-                                              backgroundColor: AppTheme.fadedCurtain,
-                                              behavior: SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        }
-                                      }
-
-                                        showProvider.refreshFilters(authProvider.userData);
-                                    },
-                                  );
-                                },
-                              ),
-                              // Share button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.share_rounded,
-                                  color: textColor,
-                                  size: 24,
-                                ),
-                onPressed: () => _shareShow(context),
-              ),
-            ],
-          ),
+                          // Watchlist, Like, Dislike and Share row
+                          DetailActionButtons(
+                            itemId: _displayShow.id.toString(),
+                            title: _displayShow.name,
+                            isShow: true,
+                            textColor: textColor,
+                            onShare: () => _shareShow(context),
+                          ),
                           const SizedBox(height: 16),
                           // Where to Watch section inline
                           DetailInlineStreamingAvailability(

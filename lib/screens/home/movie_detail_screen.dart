@@ -8,6 +8,7 @@ import '../../models/movie.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
+import '../../widgets/detail/detail_action_buttons.dart';
 import '../../widgets/detail/detail_videos_section.dart';
 import '../../widgets/detail/detail_cast_crew_section.dart';
 import '../../widgets/detail/detail_inline_streaming.dart';
@@ -22,13 +23,11 @@ import '../../services/movie_cache_service.dart';
 import '../../services/movie_embedding_service.dart';
 import '../../services/omdb_service.dart';
 import '../../utils/streaming_url_launcher.dart';
-import '../../widgets/detail/watchlist_icon.dart';
 import '../../widgets/retro_cinema_bottom_nav.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/l10n_extension.dart';
 import '../../utils/recommendation_reason.dart';
 import '../../utils/recommendation_reason_label.dart';
-import '../../widgets/add_to_list_sheet.dart';
 import '../../services/user_preferences_session_cache.dart';
 import 'home_screen.dart' show updateHomeScreenTab;
 
@@ -459,181 +458,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                             _buildWhyLine(context),
                             const SizedBox(height: 16),
 
-                            // Watchlist, Like, Dislike and Share buttons row
-                            Row(
-                              children: [
-                                // Watchlist button
-                                Consumer<AuthProvider>(
-                                  builder: (context, authProvider, child) {
-                                    final isInWatchlist =
-                                        authProvider.isInWatchlist(
-                                            _displayMovie.id.toString());
-                                    return IconButton(
-                                      icon: WatchlistIcon(
-                                        size: 28,
-                                        added: isInWatchlist,
-                                        inactiveColor: textColor,
-                                      ),
-                                      onPressed: () async {
-                                        final movieProvider =
-                                            Provider.of<MovieProvider>(context, listen: false);
-
-                                        if (isInWatchlist) {
-                                          await authProvider.removeFromWatchlist(
-                                              _displayMovie.id.toString());
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                  context.l10n.snackbarRemovedFromWatchlist(_displayMovie.title)),
-                                              backgroundColor:
-                                                  AppTheme.fadedCurtain,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        } else {
-                                          await authProvider.addToWatchlist(
-                                              _displayMovie.id.toString());
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                  context.l10n.snackbarAddedToWatchlist(_displayMovie.title)),
-                                              backgroundColor:
-                                                  AppTheme.fadedCurtain,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        }
-
-                                        // Keep the swipe feed in sync with detail actions.
-                                        movieProvider.refreshFilters(authProvider.userData);
-                                      },
-                                    );
-                                  },
-                                ),
-                                // Like button
-                                Consumer<AuthProvider>(
-                                  builder: (context, authProvider, child) {
-                                    final movieId = _displayMovie.id.toString();
-                                    final isLiked = authProvider.isLikedMovie(movieId);
-                                    return IconButton(
-                                      icon: Icon(
-                                        isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                                        color: isLiked ? AppTheme.vintagePaper : textColor,
-                                        size: 24,
-                                      ),
-                                      onPressed: () async {
-                                        if (authProvider.userData == null) return;
-                                        final movieProvider = Provider.of<MovieProvider>(
-                                          context,
-                                          listen: false,
-                                        );
-                                        if (isLiked) {
-                                          await authProvider.removeLikedMovie(movieId);
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(context.l10n.removedFromFavoritesSnackbar(_displayMovie.title)),
-                                                backgroundColor: AppTheme.fadedCurtain,
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
-                                            );
-                                          }
-                                        } else {
-                                          await authProvider.removeDislikedMovie(movieId);
-                                          await authProvider.addLikedMovie(movieId);
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(context.l10n.addedToFavoritesSnackbar(_displayMovie.title)),
-                                                backgroundColor: AppTheme.fadedCurtain,
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
-                                            );
-                                          }
-                                        }
-
-                                        movieProvider.refreshFilters(authProvider.userData);
-                                      },
-                                    );
-                                  },
-                                ),
-                                // Dislike button
-                                Consumer<AuthProvider>(
-                                  builder: (context, authProvider, child) {
-                                    final movieId = _displayMovie.id.toString();
-                                    final isDisliked = authProvider.isDislikedMovie(movieId);
-                                    return IconButton(
-                                      icon: Icon(
-                                        isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
-                                        color: isDisliked ? AppTheme.vintagePaper : textColor.withValues(alpha: 0.8),
-                                        size: 24,
-                                      ),
-                                      onPressed: () async {
-                                        if (authProvider.userData == null) return;
-                                        final movieProvider = Provider.of<MovieProvider>(
-                                          context,
-                                          listen: false,
-                                        );
-                                        if (isDisliked) {
-                                          await authProvider.removeDislikedMovie(movieId);
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(context.l10n.removedFromDislikedSnackbar(_displayMovie.title)),
-                                                backgroundColor: AppTheme.fadedCurtain,
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
-                                            );
-                                          }
-                                        } else {
-                                          await authProvider.removeLikedMovie(movieId);
-                                          await authProvider.addDislikedMovie(movieId);
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(context.l10n.addedToDislikedSnackbar(_displayMovie.title)),
-                                                backgroundColor: AppTheme.fadedCurtain,
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
-                                            );
-                                          }
-                                        }
-
-                                        movieProvider.refreshFilters(authProvider.userData);
-                                      },
-                                    );
-                                  },
-                                ),
-                                // Add to custom list / tag
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.playlist_add_rounded,
-                                    color: textColor,
-                                    size: 24,
-                                  ),
-                                  tooltip: context.l10n.addToListTitle,
-                                  onPressed: () => showAddToListSheet(
-                                    context,
-                                    movieId: _displayMovie.id.toString(),
-                                    title: _displayMovie.title,
-                                  ),
-                                ),
-                                // Share button
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.share_rounded,
-                                    color: textColor,
-                                    size: 24,
-                                  ),
-                                  onPressed: () => _shareMovie(context),
-                                ),
-                              ],
+                            // Watchlist, Like, Dislike, Add-to-list and Share row
+                            DetailActionButtons(
+                              itemId: _displayMovie.id.toString(),
+                              title: _displayMovie.title,
+                              isShow: false,
+                              textColor: textColor,
+                              onShare: () => _shareMovie(context),
                             ),
                             const SizedBox(height: 16),
                             // Where to Watch section inline with horizontal scroll
