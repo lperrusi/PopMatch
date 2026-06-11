@@ -561,7 +561,7 @@ class _SwipeScreenState extends State<SwipeScreen>
           Consumer<PremiumService>(
             builder: (context, premium, _) => IconButton(
               icon: const TransparentButtonImage(
-                assetPath: 'assets/buttons/premium_icon_option_2.png',
+                assetPath: 'assets/buttons/vip_access_ticket_icon.png',
                 width: 34,
                 height: 34,
                 fit: BoxFit.contain,
