@@ -4,11 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/l10n_extension.dart';
-import '../../utils/navigation_utils.dart';
 import '../../services/feature_flags.dart';
 import '../../services/notification_service.dart';
 import '../../providers/social_provider.dart';
-import 'social_hub_screen.dart';
 
 /// Notifications settings screen - toggles stored in user preferences
 class NotificationsScreen extends StatefulWidget {
@@ -85,20 +83,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             Card(
               child: Column(
                 children: [
-                  if (FeatureFlags.socialUiEnabled) ...[
-                    ListTile(
-                      leading: const Icon(Icons.group_add_rounded),
-                      title: Text(l10n.followRequestsToggle),
-                      subtitle: Text(l10n.followRequestsToggleSubtitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          NavigationUtils.fastSlideRoute(const SocialHubScreen()),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                  ],
                   SwitchListTile(
                     title: Text(l10n.pushNotificationsToggle),
                     subtitle: Text(l10n.pushNotificationsToggleSubtitle),
