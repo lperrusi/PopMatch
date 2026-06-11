@@ -235,16 +235,18 @@ class AuthProvider with ChangeNotifier {
     try {
       _userData = _userData!.addToWatchlist(movieId);
       await _saveUserData();
-      await _socialService.recordActivity(
-        itemType: SocialItemType.movie,
-        itemId: movieId,
-        activityType: SocialActivityType.watchlisted,
-      );
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+      return;
     }
+    // Best-effort social write — fire-and-forget so it never blocks the UI.
+    unawaited(_socialService.recordActivity(
+      itemType: SocialItemType.movie,
+      itemId: movieId,
+      activityType: SocialActivityType.watchlisted,
+    ).catchError((_) {}));
   }
 
   /// Removes a movie from watchlist
@@ -268,16 +270,18 @@ class AuthProvider with ChangeNotifier {
     try {
       _userData = _userData!.addShowToWatchlist(showId);
       await _saveUserData();
-      await _socialService.recordActivity(
-        itemType: SocialItemType.show,
-        itemId: showId,
-        activityType: SocialActivityType.watchlisted,
-      );
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+      return;
     }
+    // Best-effort social write — fire-and-forget so it never blocks the UI.
+    unawaited(_socialService.recordActivity(
+      itemType: SocialItemType.show,
+      itemId: showId,
+      activityType: SocialActivityType.watchlisted,
+    ).catchError((_) {}));
   }
 
   /// Removes a show from watchlist
@@ -306,16 +310,18 @@ class AuthProvider with ChangeNotifier {
     try {
       _userData = _userData!.addLikedMovie(movieId);
       await _saveUserData();
-      await _socialService.recordActivity(
-        itemType: SocialItemType.movie,
-        itemId: movieId,
-        activityType: SocialActivityType.liked,
-      );
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+      return;
     }
+    // Best-effort social write — fire-and-forget so it never blocks the UI.
+    unawaited(_socialService.recordActivity(
+      itemType: SocialItemType.movie,
+      itemId: movieId,
+      activityType: SocialActivityType.liked,
+    ).catchError((_) {}));
   }
 
   /// Removes a movie from liked movies
@@ -367,16 +373,18 @@ class AuthProvider with ChangeNotifier {
     try {
       _userData = _userData!.addLikedShow(showId);
       await _saveUserData();
-      await _socialService.recordActivity(
-        itemType: SocialItemType.show,
-        itemId: showId,
-        activityType: SocialActivityType.liked,
-      );
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+      return;
     }
+    // Best-effort social write — fire-and-forget so it never blocks the UI.
+    unawaited(_socialService.recordActivity(
+      itemType: SocialItemType.show,
+      itemId: showId,
+      activityType: SocialActivityType.liked,
+    ).catchError((_) {}));
   }
 
   /// Removes a show from liked shows
