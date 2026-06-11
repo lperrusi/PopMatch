@@ -456,6 +456,28 @@ void main() {
       await t.binding.setSurfaceSize(null);
     });
 
+    testWidgets('renders Cast & Crew when the cached show has cast', (t) async {
+      // Regression: a cached list-level show (no cast) used to skip the credit
+      // load, hiding the Cast & Crew section. A cached show that carries cast
+      // must render it.
+      await t.binding.setSurfaceSize(const Size(1000, 3000));
+      final show = TvShow(
+        id: 1,
+        name: 'Test Show',
+        overview: 'Overview',
+        cast: [
+          CastMember(id: 1, name: 'Bryan Cranston', character: 'Walter White'),
+        ],
+      );
+      MovieCacheService.instance.cacheShowForTest(show.id, show);
+      await t.pumpWidget(wrap(ShowDetailScreen(show: show)));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Bryan Cranston'), findsAtLeastNWidgets(1));
+      await t.binding.setSurfaceSize(null);
+    });
+
     testWidgets('Seasons & Episodes tab shows content', (t) async {
       await t.binding.setSurfaceSize(const Size(800, 900));
       final show = TvShow(
