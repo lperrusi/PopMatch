@@ -66,6 +66,10 @@ class DetailActionButtons extends StatelessWidget {
                 ? authProvider.isInWatchlistShow(itemId)
                 : authProvider.isInWatchlist(itemId);
             return IconButton(
+              // Flush-left so the first icon aligns with the header's content
+              // edge (title / meta / "Where to watch") instead of the default
+              // ~8px IconButton inset.
+              padding: const EdgeInsets.only(right: 8),
               icon: WatchlistIcon(
                 size: 28,
                 added: isInWatchlist,
