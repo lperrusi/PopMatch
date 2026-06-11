@@ -321,7 +321,7 @@ class _ForYouScreenState extends State<ForYouScreen>
             child: ScaleTransition(
               scale: Tween<double>(begin: 0.92, end: 1.05).animate(pulse),
               child: const TransparentButtonImage(
-                assetPath: 'assets/buttons/premium_icon_option_2.png',
+                assetPath: 'assets/buttons/vip_access_ticket_icon.png',
                 width: 104,
                 height: 104,
                 fit: BoxFit.contain,
