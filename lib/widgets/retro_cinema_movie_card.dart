@@ -386,6 +386,50 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                     ),
                     const SizedBox(height: 8),
 
+                    // Friend-liked social badge (in-flow so it never overlaps
+                    // the meta row); self-sizing + ellipsizing for long names.
+                    if (widget.friendLikedLabel != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.filmStripBlack.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppTheme.popcornGold.withValues(alpha: 0.6)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: Image.asset(
+                                'assets/buttons/like_button.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            ConstrainedBox(
+                              constraints:
+                                  const BoxConstraints(maxWidth: 220),
+                              child: Text(
+                                '${widget.friendLikedLabel} liked this',
+                                style: GoogleFonts.lato(
+                                  fontSize: 11,
+                                  color: AppTheme.creamyWhite,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
                     // Year, Runtime, Rating row
                     Row(
                       children: [
@@ -565,43 +609,6 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                 ),
               ),
             ),
-
-            // Friend-liked badge
-            if (widget.friendLikedLabel != null)
-              Positioned(
-                bottom: 72,
-                left: 12,
-                right: 60,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.filmStripBlack.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: AppTheme.popcornGold.withValues(alpha: 0.6)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('❤️', style: TextStyle(fontSize: 12)),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          '${widget.friendLikedLabel} liked this',
-                          style: GoogleFonts.lato(
-                            fontSize: 11,
-                            color: AppTheme.creamyWhite,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
 
             // Info icon — opens quick peek when onInfoTap is provided,
             // otherwise falls back to onTap (full detail navigation)
