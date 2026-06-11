@@ -401,7 +401,14 @@ class _RetroCinemaMovieCardState extends State<RetroCinemaMovieCard> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('❤️', style: TextStyle(fontSize: 12)),
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: Image.asset(
+                                'assets/buttons/like_button.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                             const SizedBox(width: 4),
                             ConstrainedBox(
                               constraints:
