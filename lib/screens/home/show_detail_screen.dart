@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/show_provider.dart';
 import '../../utils/theme.dart';
 import '../../widgets/detail/detail_action_buttons.dart';
+import '../../widgets/detail/detail_header_hero.dart';
 import '../../widgets/detail/detail_why_line.dart';
 import '../../utils/detail_actions.dart';
 import '../../widgets/detail/detail_videos_section.dart';
@@ -262,11 +263,20 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
     return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
           // Retro Cinema App Bar with show poster
-          SliverAppBar(
-            expandedHeight: 450,
-            pinned: true,
-            stretch: true,
-            backgroundColor: AppTheme.vintagePaper,
+          DetailHeaderHero(
+            imageUrl: _displayShow.backdropUrl ?? _displayShow.posterUrl,
+            title: _displayShow.name,
+            textColor: textColor,
+            overlayColor: overlayColor,
+            fallbackIcon: Icons.tv_outlined,
+            // Extra bottom padding so the tab bar doesn't hide "Where to watch".
+            contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 72),
+            onBack: () {
+              isDisposed = true;
+              _showDetailsTimer?.cancel();
+              _colorExtractionTimer?.cancel();
+              Navigator.of(context).pop();
+            },
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(48),
               child: Container(
@@ -283,88 +293,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
                 ),
               ),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              stretchModes: const [
-                StretchMode.zoomBackground,
-              ],
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Show backdrop
-                  Positioned.fill(
-                    child: (_displayShow.backdropUrl != null || _displayShow.posterUrl != null)
-                        ? CachedNetworkImage(
-                            imageUrl: _displayShow.backdropUrl ?? _displayShow.posterUrl ?? '',
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: AppTheme.vintagePaper,
-                            ),
-                            errorWidget: (context, url, error) {
-                              return Container(
-                                color: AppTheme.vintagePaper,
-                                child: Icon(
-                                  Icons.tv_outlined,
-                                size: 64,
-                                  color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                              ),
-                              );
-                            },
-                          )
-                        : Container(
-                            color: AppTheme.vintagePaper,
-                            child: Icon(
-                              Icons.tv_outlined,
-                              size: 64,
-                              color: AppTheme.filmStripBlack.withValues(alpha: 50),
-                            ),
-                          ),
-                  ),
-                  
-                  // Gradient overlay at bottom for text readability
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 320,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            overlayColor,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // Show info overlay (extra bottom padding so tab bar doesn't hide Where to Watch)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 72),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Title
-                          Text(
-                            _displayShow.name,
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 36,
-                              color: textColor,
-                              letterSpacing: 1.5,
-                              height: 1.1,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 12),
-                          
+            children: [
                           // Year, Rating, Seasons/Episodes row
                           Row(
                             children: [
@@ -493,55 +422,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen>
                               title: _displayShow.name,
                               isShow: true,
                               textColor: textColor),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    isDisposed = true;
-                    _showDetailsTimer?.cancel();
-                    _colorExtractionTimer?.cancel();
-                    Navigator.of(context).pop();
-                  },
-                  borderRadius: BorderRadius.circular(26),
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppTheme.vintagePaper,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                      border: Border.all(
-                        color: AppTheme.cinemaRed.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.arrow_back_rounded,
-                        color: AppTheme.cinemaRed,
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            actions: const [],
+            ],
           ),
           ],
           body: TabBarView(

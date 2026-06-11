@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/movie.dart';
 import '../../providers/movie_provider.dart';
 import '../../utils/theme.dart';
 import '../../widgets/detail/detail_action_buttons.dart';
+import '../../widgets/detail/detail_header_hero.dart';
 import '../../widgets/detail/detail_why_line.dart';
 import '../../utils/detail_actions.dart';
 import '../../widgets/detail/detail_videos_section.dart';
@@ -213,100 +213,19 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
     return CustomScrollView(
           slivers: [
             // Retro Cinema App Bar with movie poster
-            SliverAppBar(
-              expandedHeight: 450,
-              pinned: true,
-              stretch: true,
-              backgroundColor: AppTheme.vintagePaper,
-              flexibleSpace: FlexibleSpaceBar(
-                stretchModes: const [
-                  StretchMode.zoomBackground,
-                ],
-                background: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Movie backdrop (use posterUrl as fallback if backdropUrl is null)
-                    Positioned.fill(
-                      child: (_displayMovie.backdropUrl != null ||
-                              _displayMovie.posterUrl != null)
-                          ? CachedNetworkImage(
-                              imageUrl: _displayMovie.backdropUrl ??
-                                  _displayMovie.posterUrl ??
-                                  '',
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: AppTheme.vintagePaper,
-                              ),
-                              errorWidget: (context, url, error) {
-                                debugPrint(
-                                    'Image load error: $error for URL: ${_displayMovie.backdropUrl ?? _displayMovie.posterUrl}');
-                                return Container(
-                                  color: AppTheme.vintagePaper,
-                                  child: Icon(
-                                    Icons.movie_outlined,
-                                    size: 64,
-                                    color: AppTheme.filmStripBlack
-                                        .withValues(alpha: 50),
-                                  ),
-                                );
-                              },
-                            )
-                          : Container(
-                              color: AppTheme.vintagePaper,
-                              child: Icon(
-                                Icons.movie_outlined,
-                                size: 64,
-                                color: AppTheme.filmStripBlack
-                                    .withValues(alpha: 50),
-                              ),
-                            ),
-                    ),
-
-                    // Gradient overlay at bottom for text readability
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        height: 320,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              overlayColor,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Movie info overlay positioned on poster (like swipe screen)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Title with adaptive color
-                            Text(
-                              _displayMovie.title,
-                              style: GoogleFonts.bebasNeue(
-                                fontSize: 36,
-                                color: textColor,
-                                letterSpacing: 1.5,
-                                height: 1.1,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 12),
-
+            DetailHeaderHero(
+              imageUrl: _displayMovie.backdropUrl ?? _displayMovie.posterUrl,
+              title: _displayMovie.title,
+              textColor: textColor,
+              overlayColor: overlayColor,
+              onBack: () {
+                // Cancel all ongoing operations immediately, then pop.
+                isDisposed = true;
+                _movieDetailsTimer?.cancel();
+                _colorExtractionTimer?.cancel();
+                Navigator.of(context).pop();
+              },
+              children: [
                             // Year · Runtime · Rating row
                             Wrap(
                               spacing: 10,
@@ -428,58 +347,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                                 title: _displayMovie.title,
                                 isShow: false,
                                 textColor: textColor),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              leading: Container(
-                margin: const EdgeInsets.all(8),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      // Cancel all ongoing operations immediately
-                      isDisposed = true;
-                      _movieDetailsTimer?.cancel();
-                      _colorExtractionTimer?.cancel();
-
-                      // Navigate immediately - non-blocking
-                      Navigator.of(context).pop();
-                    },
-                    borderRadius: BorderRadius.circular(26),
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: AppTheme.vintagePaper,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                        border: Border.all(
-                          color: AppTheme.cinemaRed.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: AppTheme.cinemaRed,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              actions: const [],
+              ],
             ),
 
             // Movie details with Retro Cinema styling
