@@ -12,6 +12,7 @@ import '../../utils/navigation_utils.dart';
 import '../../utils/theme.dart';
 import '../../utils/l10n_extension.dart';
 import '../../widgets/retro_cinema_movie_card.dart';
+import '../../widgets/discover/discover_loading_states.dart';
 import '../../widgets/retro_cinema_show_card.dart';
 import 'movie_detail_screen.dart';
 import 'show_detail_screen.dart';
@@ -147,7 +148,7 @@ class _FriendsWatchingScreenState extends State<FriendsWatchingScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? DiscoverSwipeLoadingState(label: context.l10n.friendsFeedTitle)
           : !FeatureFlags.friendsFeedEnabled
               ? Center(
                   child: Text(
