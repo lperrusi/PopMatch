@@ -557,7 +557,8 @@ class MovieProvider with ChangeNotifier {
         _filteredMovies = _movies;
       } else {
         final searchResults = await _tmdbService.searchMulti(query);
-        _filteredMovies = _applyAdvancedFilters(searchResults, genreId, year, sortBy);
+        _filteredMovies =
+            _applyAdvancedFilters(searchResults, query, genreId, year, sortBy);
       }
       
     } catch (e) {
@@ -571,11 +572,19 @@ class MovieProvider with ChangeNotifier {
   /// Applies advanced filters to search results
   List<Movie> _applyAdvancedFilters(
     List<Movie> movies,
+    String query,
     int? genreId,
     int? year,
     String sortBy,
   ) {
-    var filteredMovies = movies;
+    // Clean junk first: drop adult content and poster-less stubs, and
+    // de-duplicate by media-type + id (movies and TV share id namespaces).
+    final seen = <String>{};
+    var filteredMovies = movies.where((movie) {
+      if (movie.isAdult == true) return false;
+      if (movie.posterPath == null || movie.posterPath!.isEmpty) return false;
+      return seen.add('${movie.mediaType ?? 'movie'}_${movie.id}');
+    }).toList();
 
     // Filter by genre
     if (genreId != null) {
@@ -614,12 +623,54 @@ class MovieProvider with ChangeNotifier {
         break;
       case 'relevance':
       default:
-        // Keep original order for relevance
+        final q = query.toLowerCase().trim();
+        filteredMovies.sort(
+          (a, b) => _relevanceScore(b, q).compareTo(_relevanceScore(a, q)),
+        );
         break;
     }
 
     return filteredMovies;
   }
+
+  /// Query-aware relevance score: exact > prefix > substring title match (on
+  /// title and original title), plus log-normalised popularity and a rating
+  /// term weighted by vote-count confidence so well-reviewed, popular titles
+  /// surface above obscure exact-string coincidences.
+  double _relevanceScore(Movie movie, String query) {
+    final title = movie.title.toLowerCase();
+    final original = (movie.originalTitle ?? '').toLowerCase();
+    double score = 0;
+    if (title == query) {
+      score += 1000;
+    } else if (title.startsWith(query)) {
+      score += 600;
+    } else if (title.contains(query)) {
+      score += 300;
+    }
+    if (original == query && title != query) score += 800;
+
+    final popularity = movie.popularity ?? 0;
+    if (popularity > 0) score += math.log(popularity + 1) * 20;
+
+    final votes = movie.voteCount ?? 0;
+    if (votes > 0) {
+      score += (movie.voteAverage ?? 0) * (votes / (votes + 50)) * 5;
+    }
+    return score;
+  }
+
+  /// For testing only: runs the search cleaning + ranking pipeline directly,
+  /// since [searchMovies] returns fixed sample data in test mode.
+  @visibleForTesting
+  List<Movie> rankSearchResultsForTest(
+    List<Movie> results,
+    String query, {
+    int? genreId,
+    int? year,
+    String sortBy = 'relevance',
+  }) =>
+      _applyAdvancedFilters(results, query, genreId, year, sortBy);
 
   /// Filters movies by genre
   Future<void> filterByGenre(int? genreId) async {
