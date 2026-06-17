@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/movie.dart';
+import '../../models/tv_show.dart';
 import '../../models/social_activity.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/social_provider.dart';
@@ -15,6 +16,7 @@ import '../../services/tmdb_service.dart';
 import '../../services/search_service.dart';
 import '../../services/movie_cache_service.dart';
 import 'movie_detail_screen.dart';
+import 'show_detail_screen.dart';
 import 'friend_profile_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -130,7 +132,18 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   void _onMovieTap(Movie movie) async {
-    MovieCacheService.instance.preloadMovieDetails(movie.id);
+    // TV shows live in a separate TMDB id namespace; route them to
+    // ShowDetailScreen so details are fetched from /tv/{id}, not /movie/{id}.
+    if (movie.mediaType == 'tv') {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        NavigationUtils.fastSlideRoute(
+          ShowDetailScreen(show: TvShow.fromSearchMovie(movie)),
+        ),
+      );
+      return;
+    }
+    MovieCacheService.instance.preloadMovieDetails(movie.id); // movie endpoint
     await Future.delayed(const Duration(milliseconds: 50));
     if (mounted) {
       Navigator.of(context).push(

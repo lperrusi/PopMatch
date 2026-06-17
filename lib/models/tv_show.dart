@@ -67,6 +67,25 @@ class TvShow {
     this.recommendationStrategy,
   });
 
+  /// Builds a list-level TvShow from a TMDB multi-search [Movie] result that is
+  /// actually a TV show (mediaType == 'tv'). Carries only header-level fields;
+  /// ShowDetailScreen re-fetches full details by id via getShowDetails.
+  factory TvShow.fromSearchMovie(Movie movie) => TvShow(
+        id: movie.id,
+        name: movie.title, // Movie.title already falls back to json['name']
+        overview: movie.overview,
+        posterPath: movie.posterPath,
+        backdropPath: movie.backdropPath,
+        voteAverage: movie.voteAverage,
+        voteCount: movie.voteCount,
+        firstAirDate: movie.releaseDate, // falls back to first_air_date
+        genreIds: movie.genreIds,
+        popularity: movie.popularity,
+        originalName: movie.originalTitle,
+        originalLanguage: movie.originalLanguage,
+        mediaType: 'tv',
+      );
+
   /// Creates a TvShow instance from JSON data
   factory TvShow.fromJson(Map<String, dynamic> json) {
     return TvShow(
