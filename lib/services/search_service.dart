@@ -70,43 +70,6 @@ class SearchService {
     }
   }
 
-  /// Gets search suggestions based on query
-  List<String> getSearchSuggestions(String query, List<String> history) {
-    if (query.isEmpty) return [];
-
-    final suggestions = <String>{};
-    final lowerQuery = query.toLowerCase();
-
-    // Add matching history items
-    for (final item in history) {
-      if (item.toLowerCase().contains(lowerQuery)) {
-        suggestions.add(item);
-      }
-    }
-
-    // Add common movie-related suggestions
-    final commonSuggestions = [
-      'Action',
-      'Comedy',
-      'Drama',
-      'Horror',
-      'Romance',
-      'Sci-Fi',
-      'Thriller',
-      'Documentary',
-      'Animation',
-      'Adventure',
-    ];
-
-    for (final suggestion in commonSuggestions) {
-      if (suggestion.toLowerCase().contains(lowerQuery)) {
-        suggestions.add(suggestion);
-      }
-    }
-
-    return suggestions.toList().take(5).toList();
-  }
-
   /// Validates search query
   bool isValidSearchQuery(String query) {
     return query.trim().length >= 2;

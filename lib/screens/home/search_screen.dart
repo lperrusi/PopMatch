@@ -41,6 +41,9 @@ class _SearchScreenState extends State<SearchScreen>
   // Resolved trending movies from friends feed
   final Map<String, Movie?> _resolvedTrendingMovies = {};
 
+  // Active media-type filter for the movie/show results list: 'all' | 'movies' | 'shows'
+  String _resultFilter = 'all';
+
   bool get _isSearchActive =>
       _searchController.text.isNotEmpty || _searchFocusNode.hasFocus;
 
@@ -89,6 +92,8 @@ class _SearchScreenState extends State<SearchScreen>
 
   Future<void> _autoSearchMovies(String query) async {
     if (!mounted) return;
+    // Reset the type filter so a stale chip selection doesn't carry into a new query.
+    if (_resultFilter != 'all') setState(() => _resultFilter = 'all');
     await Provider.of<MovieProvider>(context, listen: false)
         .searchMovies(SearchService.instance.sanitizeQuery(query));
   }
@@ -812,20 +817,97 @@ class _SearchScreenState extends State<SearchScreen>
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: movieProvider.filteredMovies.length,
-          itemBuilder: (context, index) {
-            final movie = movieProvider.filteredMovies[index];
-            return RepaintBoundary(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _buildSearchResultItem(movie),
+        final all = movieProvider.filteredMovies;
+        final movies = all.where((m) => m.mediaType != 'tv').toList();
+        final shows = all.where((m) => m.mediaType == 'tv').toList();
+        final hasBothTypes = movies.isNotEmpty && shows.isNotEmpty;
+        final displayed = _resultFilter == 'movies'
+            ? movies
+            : _resultFilter == 'shows'
+                ? shows
+                : all;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildResultsHeader(displayed.length, hasBothTypes),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                itemCount: displayed.length,
+                itemBuilder: (context, index) {
+                  final movie = displayed[index];
+                  return RepaintBoundary(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _buildSearchResultItem(movie),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildResultsHeader(int count, bool showChips) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: Row(
+        children: [
+          Text(
+            count == 1 ? '1 result' : '$count results',
+            style: GoogleFonts.lato(
+              color: AppTheme.filmStripBlack.withValues(alpha: 0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (showChips) ...[
+            const Spacer(),
+            _buildTypeChip('All', 'all'),
+            const SizedBox(width: 6),
+            _buildTypeChip('Movies', 'movies'),
+            const SizedBox(width: 6),
+            _buildTypeChip('Shows', 'shows'),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeChip(String label, String value) {
+    final selected = _resultFilter == value;
+    return GestureDetector(
+      onTap: () {
+        if (_resultFilter != value) setState(() => _resultFilter = value);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.popcornGold
+              : AppTheme.fadedCurtain.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? AppTheme.popcornGold
+                : AppTheme.cinemaRed.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.lato(
+            color: selected
+                ? AppTheme.filmStripBlack
+                : AppTheme.filmStripBlack.withValues(alpha: 0.6),
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1231,7 +1313,14 @@ class _FriendActivityCardState extends State<_FriendActivityCard> {
                   ),
                   child: Row(
                     children: [
-                      const Text('❤️', style: TextStyle(fontSize: 10)),
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: Image.asset(
+                          'assets/buttons/like_button.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(

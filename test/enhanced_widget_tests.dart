@@ -4,9 +4,7 @@ import 'package:popmatch/models/movie.dart';
 import 'package:popmatch/models/video.dart';
 import 'package:popmatch/models/streaming_platform.dart';
 import 'package:popmatch/widgets/movie_card.dart';
-import 'package:popmatch/widgets/search_bar_widget.dart';
 import 'package:popmatch/widgets/search_results_widget.dart';
-import 'package:popmatch/widgets/search_suggestions_widget.dart';
 import 'package:popmatch/widgets/cast_crew_widget.dart';
 import 'package:popmatch/widgets/recommendations_widget.dart';
 import 'package:popmatch/widgets/streaming_platform_widget.dart';
@@ -146,96 +144,6 @@ void main() {
       });
     });
 
-    group('SearchBarWidget', () {
-      testWidgets('should display search bar correctly',
-          (WidgetTester tester) async {
-        String? searchQuery;
-        bool cleared = false;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 100,
-                child: SearchBarWidget(
-                  onSearch: (query) => searchQuery = query,
-                  onClear: () => cleared = true,
-                ),
-              ),
-            ),
-          ),
-        );
-
-        await tester.pumpAndSettle();
-
-        expect(find.byType(TextField), findsOneWidget);
-        expect(
-            find.text('Search movies, actors, or genres...'), findsOneWidget);
-        expect(searchQuery, isNull);
-        expect(cleared, isFalse);
-      });
-
-      testWidgets('should call onSearch when text is submitted',
-          (WidgetTester tester) async {
-        String? searchQuery;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 100,
-                child: SearchBarWidget(
-                  onSearch: (query) => searchQuery = query,
-                  onClear: () {},
-                ),
-              ),
-            ),
-          ),
-        );
-
-        await tester.enterText(find.byType(TextField), 'action movies');
-        await tester.testTextInput.receiveAction(TextInputAction.search);
-        await tester.pump();
-
-        expect(searchQuery, equals('action movies'));
-      });
-
-      testWidgets('should call onClear when clear button is tapped',
-          (WidgetTester tester) async {
-        bool cleared = false;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 100,
-                child: SearchBarWidget(
-                  onSearch: (query) {},
-                  onClear: () => cleared = true,
-                ),
-              ),
-            ),
-          ),
-        );
-
-        // Enter text to show clear button
-        await tester.enterText(find.byType(TextField), 'test');
-        await tester.pump();
-
-        // Find and tap clear button
-        final clearButton = find.byIcon(Icons.clear);
-        expect(clearButton, findsOneWidget);
-
-        await tester.tap(clearButton);
-        await tester.pump();
-
-        expect(cleared, isTrue);
-      });
-    });
-
     group('SearchResultsWidget', () {
       testWidgets('should display search results correctly',
           (WidgetTester tester) async {
@@ -306,62 +214,6 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('No movies found'), findsOneWidget);
-      });
-    });
-
-    group('SearchSuggestionsWidget', () {
-      testWidgets('should display suggestions correctly',
-          (WidgetTester tester) async {
-        String? selectedSuggestion;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 300,
-                child: SearchSuggestionsWidget(
-                  suggestions: const ['action', 'adventure', 'comedy'],
-                  onSuggestionTap: (suggestion) =>
-                      selectedSuggestion = suggestion,
-                ),
-              ),
-            ),
-          ),
-        );
-
-        await tester.pumpAndSettle();
-
-        expect(selectedSuggestion, isNull);
-        expect(find.text('action'), findsOneWidget);
-        expect(find.text('adventure'), findsOneWidget);
-        expect(find.text('comedy'), findsOneWidget);
-      });
-
-      testWidgets('should call onSuggestionTap when suggestion is tapped',
-          (WidgetTester tester) async {
-        String? selectedSuggestion;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 300,
-                child: SearchSuggestionsWidget(
-                  suggestions: const ['action'],
-                  onSuggestionTap: (suggestion) =>
-                      selectedSuggestion = suggestion,
-                ),
-              ),
-            ),
-          ),
-        );
-
-        await tester.tap(find.text('action'));
-        await tester.pump();
-
-        expect(selectedSuggestion, equals('action'));
       });
     });
 
@@ -639,32 +491,6 @@ void main() {
         await tester.tap(find.byType(GestureDetector));
         await tester.pump();
         expect(tapped, isTrue);
-      });
-
-      testWidgets('should handle search bar with basic features',
-          (WidgetTester tester) async {
-        String? searchQuery;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 100,
-                child: SearchBarWidget(
-                  onSearch: (query) => searchQuery = query,
-                  onClear: () {},
-                ),
-              ),
-            ),
-          ),
-        );
-
-        await tester.enterText(find.byType(TextField), 'test search');
-        await tester.testTextInput.receiveAction(TextInputAction.search);
-        await tester.pump();
-
-        expect(searchQuery, equals('test search'));
       });
     });
   });
